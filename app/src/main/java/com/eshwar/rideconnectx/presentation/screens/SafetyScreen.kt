@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.data.local.OwnerScope
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -137,6 +138,7 @@ fun SafetyScreen(
     val pickContact = rememberContactPicker { picked ->
         contactError = null
         editing = EmergencyContactEntity(
+            ownerId = OwnerScope.DRAFT,
             name = picked.name,
             phone = picked.phone,
             normalizedPhone = "",
@@ -261,6 +263,7 @@ fun SafetyScreen(
                                 onClick = {
                                     contactError = null
                                     editing = EmergencyContactEntity(
+                                        ownerId = OwnerScope.DRAFT,
                                         name = "", phone = "", normalizedPhone = "",
                                     )
                                 },

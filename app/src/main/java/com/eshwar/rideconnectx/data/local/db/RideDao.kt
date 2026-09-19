@@ -42,10 +42,10 @@ interface RideDao {
                COALESCE(SUM(durationMillis), 0)           AS totalMillis,
                COALESCE(AVG(NULLIF(avgSpeedKmh, 0)), 0.0) AS avgSpeed
         FROM rides
-        WHERE startedAt >= :since
+        WHERE ownerId = :owner AND startedAt >= :since
         """
     )
-    fun observeTotals(since: Long): Flow<RideTotals>
+    fun observeTotals(owner: String, since: Long): Flow<RideTotals>
 
     /**
      * Distance grouped by day, for the chart.
@@ -57,12 +57,12 @@ interface RideDao {
         SELECT strftime(:format, startedAt / 1000, 'unixepoch', 'localtime') AS label,
                SUM(distanceMeters)                                           AS meters
         FROM rides
-        WHERE startedAt >= :since
+        WHERE ownerId = :owner AND startedAt >= :since
         GROUP BY label
         ORDER BY MIN(startedAt) ASC
         """
     )
-    fun observeBuckets(since: Long, format: String): Flow<List<RideBucket>>
+    fun observeBuckets(owner: String, since: Long, format: String): Flow<List<RideBucket>>
 
     @Query("SELECT * FROM rides WHERE ownerId = :owner AND synced = 0")
     suspend fun unsynced(owner: String): List<RideEntity>

@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.data.repository
 
+import com.eshwar.rideconnectx.data.local.OwnerScope
 import com.eshwar.rideconnectx.data.local.ServicePreferencesStore
 import com.eshwar.rideconnectx.data.local.db.ServiceRecordDao
 import com.eshwar.rideconnectx.data.local.db.ServiceRecordEntity
@@ -7,7 +8,9 @@ import com.eshwar.rideconnectx.data.local.db.ServiceTaskDao
 import com.eshwar.rideconnectx.data.local.db.ServiceTaskEntity
 import com.eshwar.rideconnectx.domain.model.ServiceStatus
 import com.eshwar.rideconnectx.domain.model.UpcomingTask
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -25,13 +28,23 @@ class ServiceRepository @Inject constructor(
     private val dao: ServiceRecordDao,
     private val taskDao: ServiceTaskDao,
     private val prefs: ServicePreferencesStore,
+    private val owner: OwnerScope,
 ) {
-    val records: Flow<List<ServiceRecordEntity>> = dao.observeAll()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val records: Flow<List<ServiceRecordEntity>> =
+        owner.current.flatMapLatest { dao.observeAll(it) }
+
+    /** Re-queried whenever the owner changes, never cached across a sign-out. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val latestRecord = owner.current.flatMapLatest { dao.observeLatest(it) }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val allTasks = owner.current.flatMapLatest { taskDao.observeAll(it) }
 
     val remindersEnabled: Flow<Boolean> = prefs.remindersEnabled
 
     val status: Flow<ServiceStatus> = combine(
-        dao.observeLatest(),
+        latestRecord,
         prefs.lastKnownOdometerKm,
         prefs.intervalKm,
         prefs.intervalDays,
@@ -55,7 +68,7 @@ class ServiceRepository @Inject constructor(
      * time so it is never blank on a fresh install.
      */
     val upcomingTasks: Flow<List<UpcomingTask>> =
-        combine(status, taskDao.observeAll()) { s, tasks ->
+        combine(status, allTasks) { s, tasks ->
             tasks.map { task ->
                 val remaining = s.lastServiceOdometerKm?.let { last ->
                     if (s.currentOdometerKm <= 0) null
@@ -78,7 +91,8 @@ class ServiceRepository @Inject constructor(
      * should be able to say so.
      */
     suspend fun seedDefaultTasksIfEmpty() {
-        if (taskDao.count() > 0) return
+        val ownerId = owner.currentId()
+        if (taskDao.count(ownerId) > 0) return
         taskDao.insertAll(
             listOf(
                 // Suzuki's own petrol-scooter schedule, in the order a service
@@ -87,34 +101,36 @@ class ServiceRepository @Inject constructor(
                 // that is simply replaced when it fails, and putting a periodic
                 // battery check on a 125cc scooter reads as a list written for
                 // a different vehicle.
-                ServiceTaskEntity(label = "Engine Oil", everyKm = 3_000, position = 0),
-                ServiceTaskEntity(label = "Air Filter", everyKm = 6_000, position = 1),
-                ServiceTaskEntity(label = "Brake Inspection", everyKm = 3_000, position = 2),
-                ServiceTaskEntity(label = "Tyre Pressure & Tread", everyKm = 3_000, position = 3),
-                ServiceTaskEntity(label = "Spark Plug", everyKm = 6_000, position = 4),
-                ServiceTaskEntity(label = "Drive Belt", everyKm = 12_000, position = 5),
+                ServiceTaskEntity(ownerId = ownerId, label = "Engine Oil", everyKm = 3_000, position = 0),
+                ServiceTaskEntity(ownerId = ownerId, label = "Air Filter", everyKm = 6_000, position = 1),
+                ServiceTaskEntity(ownerId = ownerId, label = "Brake Inspection", everyKm = 3_000, position = 2),
+                ServiceTaskEntity(ownerId = ownerId, label = "Tyre Pressure & Tread", everyKm = 3_000, position = 3),
+                ServiceTaskEntity(ownerId = ownerId, label = "Spark Plug", everyKm = 6_000, position = 4),
+                ServiceTaskEntity(ownerId = ownerId, label = "Drive Belt", everyKm = 12_000, position = 5),
             )
         )
     }
 
     suspend fun saveTask(id: Long, label: String, everyKm: Int) {
+        val ownerId = owner.currentId()
         val clean = label.trim()
         if (clean.isEmpty() || everyKm <= 0) return
         if (id == 0L) {
             taskDao.insert(
                 ServiceTaskEntity(
+                    ownerId = ownerId,
                     label = clean,
                     everyKm = everyKm,
-                    position = taskDao.nextPosition(),
+                    position = taskDao.nextPosition(ownerId),
                 )
             )
         } else {
-            taskDao.update(ServiceTaskEntity(id = id, label = clean, everyKm = everyKm))
+            taskDao.update(ServiceTaskEntity(id = id, ownerId = ownerId, label = clean, everyKm = everyKm))
         }
     }
 
     suspend fun deleteTask(id: Long) {
-        taskDao.delete(ServiceTaskEntity(id = id, label = "", everyKm = 0))
+        taskDao.delete(ServiceTaskEntity(id = id, ownerId = owner.currentId(), label = "", everyKm = 0))
     }
 
     /**
@@ -122,7 +138,7 @@ class ServiceRepository @Inject constructor(
      * below. Exposed so the form can say *why* a reading was rejected.
      */
     val highestRecordedOdometerKm: Flow<Int> = combine(
-        dao.observeLatest(),
+        latestRecord,
         prefs.lastKnownOdometerKm,
     ) { latest, odo -> maxOf(latest?.odometerKm ?: 0, odo) }
 
@@ -140,12 +156,14 @@ class ServiceRepository @Inject constructor(
      * reading for as long as it exists. The cache stays what it claims to be —
      * what the *vehicle* last reported.
      */
+    // The owner is stamped here, not in the screen: the UI builds a draft with
+    // OwnerScope.DRAFT and this is the last point before the row is stored.
     suspend fun addRecord(record: ServiceRecordEntity) {
-        dao.insert(record)
+        dao.insert(record.copy(ownerId = owner.currentId()))
     }
 
     suspend fun updateRecord(record: ServiceRecordEntity) {
-        dao.update(record)
+        dao.update(record.copy(ownerId = owner.currentId()))
     }
 
     suspend fun deleteRecord(record: ServiceRecordEntity) = dao.delete(record)

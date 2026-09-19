@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.data.local.OwnerScope
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -180,6 +181,7 @@ fun ServiceScreen(
                             description = stringResource(R.string.service_no_records_desc),
                             onAdd = {
                                 editing = ServiceRecordEntity(
+                                    ownerId = OwnerScope.DRAFT,
                                     servicedAt = startOfToday(),
                                     centre = "",
                                     odometerKm = 0,
@@ -202,6 +204,7 @@ fun ServiceScreen(
                         label = stringResource(R.string.service_add_record),
                         onClick = {
                             editing = ServiceRecordEntity(
+                                ownerId = OwnerScope.DRAFT,
                                 servicedAt = startOfToday(),
                                 centre = "",
                                 // Deliberately empty. Pre-filling it with the

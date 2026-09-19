@@ -1,9 +1,12 @@
 package com.eshwar.rideconnectx.data.repository
 
+import com.eshwar.rideconnectx.data.local.OwnerScope
 import com.eshwar.rideconnectx.data.local.SafetyPreferencesStore
 import com.eshwar.rideconnectx.data.local.db.EmergencyContactDao
 import com.eshwar.rideconnectx.data.local.db.EmergencyContactEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,11 +29,19 @@ sealed interface ContactError {
 class SafetyRepository @Inject constructor(
     private val dao: EmergencyContactDao,
     private val prefs: SafetyPreferencesStore,
+    private val owner: OwnerScope,
 ) {
-    val contacts: Flow<List<EmergencyContactEntity>> = dao.observeAll()
+    // flatMapLatest, not a one-off read: when the rider signs out or a
+    // different account signs in, the list must re-query for the new owner
+    // rather than keep serving the previous one's contacts.
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val contacts: Flow<List<EmergencyContactEntity>> =
+        owner.current.flatMapLatest { dao.observeAll(it) }
 
     /** Who SOS reaches for. Null when the rider has added nobody. */
-    val primaryContact: Flow<EmergencyContactEntity?> = dao.observePrimary()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val primaryContact: Flow<EmergencyContactEntity?> =
+        owner.current.flatMapLatest { dao.observePrimary(it) }
 
     val sosEnabled: Flow<Boolean> = prefs.sosEnabled
     val shareLocation: Flow<Boolean> = prefs.shareLocation
@@ -47,36 +58,38 @@ class SafetyRepository @Inject constructor(
         name: String,
         phone: String,
     ): ContactError? {
+        val ownerId = owner.currentId()
         val cleanName = name.trim()
         if (cleanName.isEmpty()) return ContactError.NameMissing
 
         val normalized = normalize(phone)
         if (!isValidPhone(normalized)) return ContactError.PhoneInvalid
 
-        dao.findByPhone(normalized)?.let { existing ->
+        dao.findByPhone(ownerId, normalized)?.let { existing ->
             if (existing.id != id) return ContactError.Duplicate(existing.name)
         }
 
         // Capped deliberately. Under stress nobody scrolls a list, and a
         // contact list that is never pruned goes stale.
-        if (id == 0L && dao.count() >= MAX_CONTACTS) {
+        if (id == 0L && dao.count(ownerId) >= MAX_CONTACTS) {
             return ContactError.LimitReached(MAX_CONTACTS)
         }
 
         if (id == 0L) {
             dao.insert(
                 EmergencyContactEntity(
+                    ownerId = ownerId,
                     name = cleanName,
                     phone = sanitizePhone(phone),
                     normalizedPhone = normalized,
                     // The first contact ever added becomes primary; SOS with
                     // nobody to call would be worse than useless.
-                    isPrimary = dao.count() == 0,
+                    isPrimary = dao.count(ownerId) == 0,
                 )
             )
         } else {
             // An edit changes the name and number, never who is primary.
-            val existing = dao.findById(id) ?: return null
+            val existing = dao.findById(ownerId, id) ?: return null
             dao.update(
                 existing.copy(
                     name = cleanName,
@@ -93,13 +106,14 @@ class SafetyRepository @Inject constructor(
      * primary contact would silently leave SOS with nobody to call.
      */
     suspend fun delete(contact: EmergencyContactEntity) {
+        val ownerId = owner.currentId()
         dao.delete(contact)
         if (contact.isPrimary) {
-            dao.firstRemaining()?.let { dao.setPrimary(it.id) }
+            dao.firstRemaining(ownerId)?.let { dao.setPrimary(ownerId, it.id) }
         }
     }
 
-    suspend fun setPrimary(id: Long) = dao.setPrimary(id)
+    suspend fun setPrimary(id: Long) = dao.setPrimary(owner.currentId(), id)
 
     suspend fun setSosEnabled(enabled: Boolean) = prefs.setSosEnabled(enabled)
     suspend fun setShareLocation(enabled: Boolean) = prefs.setShareLocation(enabled)

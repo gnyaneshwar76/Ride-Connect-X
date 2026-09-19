@@ -45,5 +45,16 @@ class OwnerScope @Inject constructor(
          * every unauthenticated read.
          */
         const val GUEST = "guest"
+
+        /**
+         * A form object that has not been saved yet.
+         *
+         * Screens build a draft entity to bind their fields to, and that draft
+         * has no owner — the repository stamps the real one on the way to the
+         * database. Naming it rather than defaulting to an empty string keeps
+         * the compiler pointing at every real write site, and makes a draft
+         * that somehow reached the table obvious instead of invisible.
+         */
+        const val DRAFT = "__draft__"
     }
 }

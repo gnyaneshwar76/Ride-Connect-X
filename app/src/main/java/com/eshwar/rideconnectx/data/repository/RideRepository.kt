@@ -1,13 +1,16 @@
 package com.eshwar.rideconnectx.data.repository
 
+import com.eshwar.rideconnectx.data.local.OwnerScope
 import com.eshwar.rideconnectx.data.local.UserPreferencesStore
 import com.eshwar.rideconnectx.data.local.db.RideBucket
 import com.eshwar.rideconnectx.data.local.db.RideDao
 import com.eshwar.rideconnectx.data.local.db.RideEntity
 import com.eshwar.rideconnectx.data.local.db.RideTotals
 import com.eshwar.rideconnectx.data.remote.FirestoreUserDataSource
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -57,19 +60,25 @@ class RideRepository @Inject constructor(
     private val dao: RideDao,
     private val prefs: UserPreferencesStore,
     private val firestore: FirestoreUserDataSource,
+    private val owner: OwnerScope,
 ) {
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun observeRides(period: StatsPeriod): Flow<List<RideEntity>> =
-        dao.observeSince(period.since())
+        owner.current.flatMapLatest { dao.observeSince(it, period.since()) }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun observeTotals(period: StatsPeriod): Flow<RideTotals> =
-        dao.observeTotals(period.since())
+        owner.current.flatMapLatest { dao.observeTotals(it, period.since()) }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun observeBuckets(period: StatsPeriod): Flow<List<RideBucket>> =
-        dao.observeBuckets(period.since(), period.bucketFormat)
+        owner.current.flatMapLatest {
+            dao.observeBuckets(it, period.since(), period.bucketFormat)
+        }
 
     /** Saves a finished ride locally, then tries to push it to the cloud. */
     suspend fun recordRide(ride: RideEntity): Long {
-        val id = dao.insert(ride)
+        val id = dao.insert(ride.copy(ownerId = owner.currentId()))
         syncPending()
         return id
     }
@@ -79,7 +88,7 @@ class RideRepository @Inject constructor(
         val session = prefs.session.first()
         if (!session.syncsToCloud) return
 
-        dao.unsynced().forEach { ride ->
+        dao.unsynced(session.uid.ifBlank { OwnerScope.GUEST }).forEach { ride ->
             firestore.addRide(
                 session.uid,
                 mapOf(

@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.viewmodel
 
+import com.eshwar.rideconnectx.data.local.OwnerScope
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eshwar.rideconnectx.core.di.ApplicationScope
@@ -94,6 +95,8 @@ class ServiceViewModel @Inject constructor(
 
         val record = ServiceRecordEntity(
             id = id,
+            // Stamped with the real owner by ServiceRepository on write.
+            ownerId = OwnerScope.DRAFT,
             servicedAt = servicedAt,
             centre = centre.trim().ifBlank { "Not recorded" },
             odometerKm = odometerKm,
