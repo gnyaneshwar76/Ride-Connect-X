@@ -13,8 +13,8 @@ Code,Shows,Confidence,Notes
 42,turn right (horizontal arrow),confirmed,photographed - a second right icon distinct from 35
 43,ferry,confirmed,photographed - boat icon
 44,keep left (two lane bars),confirmed,photographed - arrow branching left with two bars
-45,roundabout,confirmed,photographed - circular arrows
-46,blank,likely,nothing drawn (4 Aug sweep)
+45,roundabout| no exit indicated (plain ring),confirmed,"photographed 19 Sep 2026 - no entry stem| no exit arrow"
+46,blank - clears an arrow already on screen,confirmed,"photographed 19 Sep 2026 - left arrow shown first| then 46 cleared it"
 47,blank,likely,nothing drawn (4 Aug sweep)
 48,blank,likely,nothing drawn (4 Aug sweep)
 49,blank,likely,nothing drawn (4 Aug sweep)
@@ -28,3 +28,13 @@ Code,Shows,Confidence,Notes
 58,weather - snow,source,from C4941q0 - not observed
 ,,,
 NOT FOUND,slight left,,"no plain diagonal up-left arrow found in 31-45; the mirror of 41 does not appear to exist. SLIGHT_LEFT falls back to 37 (turn left) - right direction, slightly overstated angle."
+1,junction turn left (shaft up| bends left),confirmed,"photographed 19 Sep 2026 - the shape the rider asked for"
+4,junction turn right (mirror of 1),confirmed,"photographed 19 Sep 2026"
+19,slight left (diagonal up-left),confirmed,"photographed 19 Sep 2026"
+20,roundabout| exit down-left (sharp left),confirmed,"photographed 19 Sep 2026 - prediction correct"
+21,roundabout| exit left (horizontal),confirmed,"photographed 19 Sep 2026 - prediction correct"
+22,roundabout| exit up-left (slight left),confirmed,"photographed 19 Sep 2026 - prediction correct"
+23,roundabout| exit straight up,confirmed,"photographed 19 Sep 2026 - re-confirmed"
+24,roundabout| exit up-right (slight right),confirmed,"photographed 19 Sep 2026 - prediction correct"
+25,roundabout| exit right (horizontal),confirmed,"photographed 19 Sep 2026 - prediction correct"
+26,roundabout| exit down-right (sharp right),confirmed,"photographed 19 Sep 2026 - prediction correct"
