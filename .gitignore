@@ -33,3 +33,4 @@ tools/blender/
 # this repository is public. It was untracked AND un-ignored, one `git add .`
 # from being published.
 google-services.json
+docs/app-walkthrough.mp4
