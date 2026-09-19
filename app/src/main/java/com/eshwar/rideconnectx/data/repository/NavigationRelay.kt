@@ -83,6 +83,12 @@ class NavigationRelay @Inject constructor(
             distanceMetres = 0,
             clock = clockNow(),
             remainingMetres = 0,
+            // The field that actually ends navigation. Blanking the arrow and
+            // zeroing the distances was not enough: navActive defaults to '1',
+            // so the cluster was told "still navigating, with empty values" and
+            // kept the rider's last ETA and remaining-km frozen on screen after
+            // the route ended. Observed on the bike, 19 Sep 2026.
+            navActive = '0',
         )
         appScope.launch {
             val sent = runCatching { bleRepository.sendPacket(packet).first() }.getOrDefault(false)
