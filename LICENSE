@@ -1,0 +1,47 @@
+Copyright (c) 2026 Gnyaneshwar. All rights reserved.
+
+RideConnectX
+
+This software and its source code are proprietary and confidential.
+
+No permission is granted to any person to copy, modify, merge, publish,
+distribute, sublicense, sell, or create derivative works from this software or
+any portion of it, in source or binary form, without the prior written consent
+of the copyright holder.
+
+The source code is published for reference and review only. Viewing this
+repository does not grant any licence to use it.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+THIRD-PARTY NOTICES
+
+This application incorporates open-source components, including software from
+the Android Open Source Project, AndroidX and Jetpack Compose, Kotlin and
+kotlinx libraries, Dagger Hilt, and Firebase and Google Play services SDKs.
+Those components remain the property of their respective owners and are used
+under their own licences, principally the Apache License 2.0.
+
+
+TRADEMARK NOTICE
+
+Suzuki, Access, Avenis and Burgman are trademarks of Suzuki Motor Corporation.
+Google, Google Maps, Android and Firebase are trademarks of Google LLC. This
+application is an independent work and is neither produced, endorsed, certified
+nor supported by Suzuki Motor Corporation or by Google LLC. Those names are used
+only to describe the vehicle and services the application interoperates with.
+
+
+SAFETY NOTICE
+
+This application displays navigation and notification information on a motorcycle
+instrument cluster. It is an aid, not a substitute for the rider's attention to
+the road, to the vehicle's own instruments, or to applicable traffic law. The
+rider is solely responsible for safe operation of the vehicle. Do not interact
+with the handset while riding.

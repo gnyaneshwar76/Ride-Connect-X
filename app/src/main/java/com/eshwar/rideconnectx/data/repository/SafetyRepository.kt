@@ -1,0 +1,150 @@
+package com.eshwar.rideconnectx.data.repository
+
+import com.eshwar.rideconnectx.data.local.SafetyPreferencesStore
+import com.eshwar.rideconnectx.data.local.db.EmergencyContactDao
+import com.eshwar.rideconnectx.data.local.db.EmergencyContactEntity
+import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/** Why a contact was refused, so the form can say so rather than just failing. */
+sealed interface ContactError {
+    data object NameMissing : ContactError
+    data object PhoneInvalid : ContactError
+    data class Duplicate(val existingName: String) : ContactError
+    /** The list is capped — see [SafetyRepository.MAX_CONTACTS]. */
+    data class LimitReached(val limit: Int) : ContactError
+}
+
+/**
+ * Emergency contacts and safety settings.
+ *
+ * Local only, by design: this screen has to work at the roadside with no
+ * signal, so nothing it needs may live behind a network call.
+ */
+@Singleton
+class SafetyRepository @Inject constructor(
+    private val dao: EmergencyContactDao,
+    private val prefs: SafetyPreferencesStore,
+) {
+    val contacts: Flow<List<EmergencyContactEntity>> = dao.observeAll()
+
+    /** Who SOS reaches for. Null when the rider has added nobody. */
+    val primaryContact: Flow<EmergencyContactEntity?> = dao.observePrimary()
+
+    val sosEnabled: Flow<Boolean> = prefs.sosEnabled
+    val shareLocation: Flow<Boolean> = prefs.shareLocation
+    val helmetReminder: Flow<Boolean> = prefs.helmetReminder
+
+    /**
+     * Adds or updates a contact. Returns null on success, or why it was refused.
+     *
+     * The first contact ever added becomes primary automatically — a contact
+     * list where SOS has nobody to call would be worse than useless.
+     */
+    suspend fun save(
+        id: Long,
+        name: String,
+        phone: String,
+    ): ContactError? {
+        val cleanName = name.trim()
+        if (cleanName.isEmpty()) return ContactError.NameMissing
+
+        val normalized = normalize(phone)
+        if (!isValidPhone(normalized)) return ContactError.PhoneInvalid
+
+        dao.findByPhone(normalized)?.let { existing ->
+            if (existing.id != id) return ContactError.Duplicate(existing.name)
+        }
+
+        // Capped deliberately. Under stress nobody scrolls a list, and a
+        // contact list that is never pruned goes stale.
+        if (id == 0L && dao.count() >= MAX_CONTACTS) {
+            return ContactError.LimitReached(MAX_CONTACTS)
+        }
+
+        if (id == 0L) {
+            dao.insert(
+                EmergencyContactEntity(
+                    name = cleanName,
+                    phone = sanitizePhone(phone),
+                    normalizedPhone = normalized,
+                    // The first contact ever added becomes primary; SOS with
+                    // nobody to call would be worse than useless.
+                    isPrimary = dao.count() == 0,
+                )
+            )
+        } else {
+            // An edit changes the name and number, never who is primary.
+            val existing = dao.findById(id) ?: return null
+            dao.update(
+                existing.copy(
+                    name = cleanName,
+                    phone = sanitizePhone(phone),
+                    normalizedPhone = normalized,
+                )
+            )
+        }
+        return null
+    }
+
+    /**
+     * Deletes, then hands primary to whoever is left — otherwise removing the
+     * primary contact would silently leave SOS with nobody to call.
+     */
+    suspend fun delete(contact: EmergencyContactEntity) {
+        dao.delete(contact)
+        if (contact.isPrimary) {
+            dao.firstRemaining()?.let { dao.setPrimary(it.id) }
+        }
+    }
+
+    suspend fun setPrimary(id: Long) = dao.setPrimary(id)
+
+    suspend fun setSosEnabled(enabled: Boolean) = prefs.setSosEnabled(enabled)
+    suspend fun setShareLocation(enabled: Boolean) = prefs.setShareLocation(enabled)
+    suspend fun setHelmetReminder(enabled: Boolean) = prefs.setHelmetReminder(enabled)
+    suspend fun acknowledgeSafetyInfo() = prefs.acknowledgeNow()
+
+    companion object {
+        /**
+         * The most emergency contacts the app keeps.
+         *
+         * Three is the number a rider can actually keep current, and the SOS
+         * sheet stays readable at a glance — which is the whole point of it.
+         */
+        const val MAX_CONTACTS = 3
+
+        /** Digits with an optional leading `+`. Spaces, dashes and brackets go. */
+        fun normalize(phone: String): String {
+            val trimmed = phone.trim()
+            val digits = trimmed.filter(Char::isDigit)
+            return if (trimmed.startsWith("+")) "+$digits" else digits
+        }
+
+        /**
+         * Length only, deliberately. Numbers run 7-15 digits worldwide (E.164
+         * caps at 15) and anything stricter would reject somebody's real number
+         * — the worst possible failure on an emergency-contact form.
+         */
+        fun isValidPhone(normalized: String): Boolean {
+            val digits = normalized.filter(Char::isDigit)
+            return digits.length in 7..15
+        }
+
+        /**
+         * Strips anything that is not part of a dialable number.
+         *
+         * The number typed into the form is already filtered by the field
+         * itself, but one arriving from the system contact picker is not — and
+         * if the rider never edits that field, the raw address-book value is
+         * what gets saved and later handed to the dialer as a `tel:` URI. A row
+         * carrying DTMF pause-and-wait characters (`,` `;` `p` `w`) would put
+         * them in the dialer field of an *emergency* call.
+         *
+         * Applied here rather than in the screen, so every caller gets it.
+         */
+        fun sanitizePhone(raw: String): String =
+            raw.filter { it.isDigit() || it in "+ -()" }.trim().take(20)
+    }
+}

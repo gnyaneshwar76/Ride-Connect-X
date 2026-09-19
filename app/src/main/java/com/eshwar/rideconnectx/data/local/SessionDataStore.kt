@@ -22,10 +22,85 @@ class SessionDataStore @Inject constructor(
         private val LAST_CONNECTED_TIMESTAMP = longPreferencesKey("last_connected_timestamp")
         private val IS_NAV_ACTIVE = booleanPreferencesKey("is_nav_active")
         private val NAV_DESTINATION = stringPreferencesKey("nav_destination")
+        private val ONBOARDING_STATUS = stringPreferencesKey("onboarding_status")
+        /** The cluster connected to *before* the current one — see [previousClusterName]. */
+        private val PREVIOUS_CLUSTER_NAME = stringPreferencesKey("previous_cluster_name")
+
+        // Last good telemetry, so the dashboard still has something true to
+         // show with the scooter out of range or the app just reopened.
+        private val TELE_ODO = intPreferencesKey("tele_odometer_km")
+        private val TELE_TRIP_A = floatPreferencesKey("tele_trip_a_km")
+        private val TELE_TRIP_B = floatPreferencesKey("tele_trip_b_km")
+        private val TELE_FUEL = intPreferencesKey("tele_fuel_segments")
+        private val TELE_AT = longPreferencesKey("tele_captured_at")
+    }
+
+    /**
+     * The cluster this phone connected to on the previous session.
+     *
+     * Byte 27 of the profile packet is chosen by comparing this with the
+     * cluster being connected to now — the same `prev_cluster` check the
+     * official app makes. It decides whether the dashboard greets the rider or
+     * merely reports a connection, so it has to survive a restart.
+     */
+    val previousClusterName: Flow<String?> = context.dataStore.data.map { it[PREVIOUS_CLUSTER_NAME] }
+
+    suspend fun rememberCluster(name: String) {
+        context.dataStore.edit { it[PREVIOUS_CLUSTER_NAME] = name }
+    }
+
+    /**
+     * The last telemetry frame the cluster sent, and when.
+     *
+     * The dashboard used to blank every reading the moment the link dropped, and
+     * started empty on each launch, so the rider saw "-" for the odometer they
+     * had just been looking at. Reported 18 August: "when I disconnect the
+     * scooty it is gone".
+     *
+     * Kept as the *last known* values with a timestamp rather than pretending
+     * they are live - the screen can then say how old they are instead of
+     * implying a connection that is not there.
+     */
+    data class CachedTelemetry(
+        val odometerKm: Int,
+        val tripAKm: Float,
+        val tripBKm: Float,
+        val fuelSegments: Int,
+        val capturedAt: Long,
+    )
+
+    val cachedTelemetry: Flow<CachedTelemetry?> = context.dataStore.data.map { p ->
+        val odo = p[TELE_ODO] ?: return@map null
+        CachedTelemetry(
+            odometerKm = odo,
+            tripAKm = p[TELE_TRIP_A] ?: 0f,
+            tripBKm = p[TELE_TRIP_B] ?: 0f,
+            fuelSegments = p[TELE_FUEL] ?: 0,
+            capturedAt = p[TELE_AT] ?: 0L,
+        )
+    }
+
+    suspend fun cacheTelemetry(odometerKm: Int, tripAKm: Float, tripBKm: Float, fuelSegments: Int) {
+        context.dataStore.edit {
+            it[TELE_ODO] = odometerKm
+            it[TELE_TRIP_A] = tripAKm
+            it[TELE_TRIP_B] = tripBKm
+            it[TELE_FUEL] = fuelSegments
+            it[TELE_AT] = System.currentTimeMillis()
+        }
     }
 
     val lastDeviceAddress: Flow<String?> = context.dataStore.data.map { it[LAST_DEVICE_ADDRESS] }
     val lastDeviceName: Flow<String?> = context.dataStore.data.map { it[LAST_DEVICE_NAME] }
+    val onboardingStatus: Flow<String> = context.dataStore.data.map { 
+        it[ONBOARDING_STATUS] ?: "NOT_STARTED" 
+    }
+
+    suspend fun saveOnboardingStatus(status: String) {
+        context.dataStore.edit { preferences ->
+            preferences[ONBOARDING_STATUS] = status
+        }
+    }
 
     suspend fun saveSession(address: String, name: String) {
         context.dataStore.edit { preferences ->

@@ -4,7 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eshwar.rideconnectx.core.util.SystemStateManager
 import com.eshwar.rideconnectx.domain.model.BleDevice
+import android.util.Log
+import com.eshwar.rideconnectx.domain.usecase.ConnectToDeviceUseCase
 import com.eshwar.rideconnectx.domain.usecase.ScanDevicesUseCase
+import com.eshwar.rideconnectx.domain.repository.BleRepository
 import com.eshwar.rideconnectx.domain.repository.ConnectionState
 import com.eshwar.rideconnectx.data.local.SessionDataStore
 import kotlinx.coroutines.flow.first
@@ -24,6 +27,12 @@ data class ScanUiState(
     val isLocationEnabled: Boolean = true,
     val lastDeviceName: String? = null,
     val lastDeviceAddress: String? = null,
+    /**
+     * True once a scan has run to its end. Distinguishes "we have not looked
+     * yet" from "we looked and there was nothing" — without it the screen sits
+     * on an empty list forever with no way to tell the rider what happened.
+     */
+    val scanCompleted: Boolean = false,
     val error: String? = null
 ) : UiState
 
@@ -31,6 +40,7 @@ sealed class ScanUiIntent : UiIntent {
     object StartScan : ScanUiIntent()
     object StopScan : ScanUiIntent()
     data class SelectDevice(val address: String) : ScanUiIntent()
+    object Disconnect : ScanUiIntent()
 }
 
 sealed class ScanUiEffect : UiEffect {
@@ -40,9 +50,13 @@ sealed class ScanUiEffect : UiEffect {
 @HiltViewModel
 class ScanViewModel @Inject constructor(
     private val scanDevicesUseCase: ScanDevicesUseCase,
+    private val connectToDeviceUseCase: ConnectToDeviceUseCase,
+    private val bleRepository: BleRepository,
     private val systemStateManager: SystemStateManager,
     private val sessionDataStore: SessionDataStore
 ) : ViewModel() {
+
+    private val TAG = "RCX-BLE"
 
     private val _uiState = MutableStateFlow(ScanUiState())
     val uiState = _uiState.asStateFlow()
@@ -51,10 +65,31 @@ class ScanViewModel @Inject constructor(
     val effect = _effect.asSharedFlow()
 
     private var scanJob: Job? = null
+    private var connectJob: Job? = null
 
     init {
         observeSystemState()
         loadLastSession()
+        observeConnection()
+    }
+
+    /**
+     * Mirrors the repository's app-wide connection state into this screen, so
+     * a link opened anywhere (including auto-reconnect at startup) is already
+     * reflected when the rider arrives here.
+     */
+    private fun observeConnection() {
+        viewModelScope.launch {
+            bleRepository.connectionState.collect { state ->
+                _uiState.update {
+                    // A scan in progress is this screen's own business; don't let
+                    // the repository's Idle overwrite it.
+                    if (state is ConnectionState.Idle &&
+                        it.connectionState is ConnectionState.Scanning
+                    ) it else it.copy(connectionState = state)
+                }
+            }
+        }
     }
 
     private fun loadLastSession() {
@@ -80,28 +115,91 @@ class ScanViewModel @Inject constructor(
         when (intent) {
             is ScanUiIntent.StartScan -> startScan()
             is ScanUiIntent.StopScan -> stopScan()
-            is ScanUiIntent.SelectDevice -> {
-                viewModelScope.launch {
-                    _effect.emit(ScanUiEffect.NavigateToDashboard(intent.address))
+            is ScanUiIntent.SelectDevice -> connect(intent.address)
+            is ScanUiIntent.Disconnect -> disconnect()
+        }
+    }
+
+    /**
+     * Tapping a device used only to emit a navigation effect — which nothing
+     * collected — so no GATT connection was ever attempted. This runs the real
+     * connection and mirrors its states into the UI.
+     *
+     * Scanning is stopped first: the Android BLE stack is unreliable when a
+     * connection is opened while a scan is still running.
+     */
+    private fun connect(address: String) {
+        Log.d(TAG, "SelectDevice -> connect($address)")
+        scanJob?.cancel()
+        scanJob = null
+        connectJob?.cancel()
+
+        val name = _uiState.value.devices.firstOrNull { it.address == address }?.name
+        _uiState.update {
+            it.copy(connectionState = ConnectionState.Connecting(address, name ?: "Vehicle"))
+        }
+
+        // The repository publishes into the shared state; observeConnection()
+        // picks it up, so this only has to drive the attempt.
+        connectJob = viewModelScope.launch {
+            connectToDeviceUseCase(address).collect { state ->
+                Log.d(TAG, "ConnectionState -> $state")
+            }
+        }
+    }
+
+    private fun disconnect() {
+        Log.d(TAG, "Disconnect requested")
+        connectJob?.cancel()
+        connectJob = null
+        bleRepository.disconnect()
+        _uiState.update { it.copy(connectionState = ConnectionState.Idle) }
+    }
+
+    private fun startScan() {
+        // Re-entering the screen while already connected must not drop the link.
+        if (_uiState.value.connectionState is ConnectionState.Connected) return
+
+        scanJob?.cancel()
+        _uiState.update {
+            it.copy(
+                connectionState = ConnectionState.Scanning,
+                devices = emptyList(),
+                scanCompleted = false,
+            )
+        }
+        scanJob = viewModelScope.launch {
+            scanDevicesUseCase().collect { devices ->
+                _uiState.update { it.copy(devices = devices) }
+            }
+            // The scanner closes itself after its 30-second timeout; only the
+            // scanning state resets, so a connection made mid-scan survives.
+            // `scanCompleted` is what lets the screen say "nothing found" and
+            // offer to look again, rather than spinning indefinitely.
+            _uiState.update {
+                if (it.connectionState is ConnectionState.Scanning) {
+                    it.copy(connectionState = ConnectionState.Idle, scanCompleted = true)
+                } else {
+                    it
                 }
             }
         }
     }
 
-    private fun startScan() {
-        scanJob?.cancel()
-        _uiState.update { it.copy(connectionState = ConnectionState.Scanning, devices = emptyList()) }
-        scanJob = viewModelScope.launch {
-            scanDevicesUseCase().collect { devices ->
-                _uiState.update { it.copy(devices = devices) }
-            }
-            // If flow completes (timeout), state will be handled or kept as Idle
-            _uiState.update { it.copy(connectionState = ConnectionState.Idle) }
-        }
-    }
-
+    /**
+     * Leaving the screen stops the radio but must not tear down a live
+     * connection — that is what the Disconnect action is for.
+     */
     private fun stopScan() {
         scanJob?.cancel()
-        _uiState.update { it.copy(connectionState = ConnectionState.Idle) }
+        scanJob = null
+        bleRepository.stopScan()
+        _uiState.update {
+            if (it.connectionState is ConnectionState.Scanning) {
+                it.copy(connectionState = ConnectionState.Idle)
+            } else {
+                it
+            }
+        }
     }
 }

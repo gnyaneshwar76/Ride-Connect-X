@@ -1,0 +1,30 @@
+Code,Shows,Confidence,Notes
+31,keep left (Y-fork| left branch),confirmed,photographed 11 Aug 2026
+32,keep right (Y-fork| right branch),confirmed,"photographed; rider: 'two way, telling to go right'"
+33,crossroads straight,confirmed,photographed - up arrow crossing a horizontal bar
+34,sharp left (hairpin),confirmed,"photographed; first read as 'up left', re-shown and corrected to a hairpin curving left"
+35,turn right (curved road),confirmed,photographed - mirror of 37
+36,sharp right (hairpin),confirmed,photographed - mirror of 34
+37,turn left (curved road),confirmed,photographed
+38,left with lane bar,likely,"photographed 4 Aug; arrow up-left beside one vertical bar - fork/exit variant, not re-tested"
+39,U-turn,confirmed,"photographed 11 Aug; also matches the 6 Aug ride where 39 was sent continuously"
+40,straight,confirmed,rider reported straight
+41,slight right (diagonal up-right),confirmed,photographed
+42,turn right (horizontal arrow),confirmed,photographed - a second right icon distinct from 35
+43,ferry,confirmed,photographed - boat icon
+44,keep left (two lane bars),confirmed,photographed - arrow branching left with two bars
+45,roundabout,confirmed,photographed - circular arrows
+46,blank,likely,nothing drawn (4 Aug sweep)
+47,blank,likely,nothing drawn (4 Aug sweep)
+48,blank,likely,nothing drawn (4 Aug sweep)
+49,blank,likely,nothing drawn (4 Aug sweep)
+50,blank,likely,nothing drawn (4 Aug sweep)
+51,blank,likely,nothing drawn (4 Aug sweep)
+52,blank,likely,nothing drawn (4 Aug sweep)
+53,blank,likely,nothing drawn (4 Aug sweep)
+54,weather - fog,source,from C4941q0 in the decompiled app - not observed
+55,weather - showers,source,from C4941q0 - not observed
+56,weather - thunderstorms,source,from C4941q0 - not observed
+58,weather - snow,source,from C4941q0 - not observed
+,,,
+NOT FOUND,slight left,,"no plain diagonal up-left arrow found in 31-45; the mirror of 41 does not appear to exist. SLIGHT_LEFT falls back to 37 (turn left) - right direction, slightly overstated angle."

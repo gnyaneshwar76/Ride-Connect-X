@@ -13,3 +13,23 @@
 .externalNativeBuild
 .cxx
 local.properties
+# Release signing — never commit
+keystore.properties
+*.jks
+*.keystore
+
+# Capture and tooling scratch — never publish.
+# ride-logs and live hold real device logcat and route history from the
+# rider's own rides; maps-apk holds third-party APKs; blender is bulk binary.
+# All four are untracked, and were also un-ignored: one `git add .` would have
+# pushed 800 MB including real route data to the remote.
+tools/ride-logs/
+tools/live/
+tools/maps-apk/
+tools/blender/
+
+# Firebase project config. Not a secret in the strict sense — it ships inside
+# every APK and its key is restricted server-side — but it names the project and
+# this repository is public. It was untracked AND un-ignored, one `git add .`
+# from being published.
+google-services.json

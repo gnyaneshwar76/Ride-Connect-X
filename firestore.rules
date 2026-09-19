@@ -1,0 +1,61 @@
+rules_version = '2';
+
+// RideConnectX — Firestore security rules
+//
+// Model: every document lives under users/{uid} and is readable and writable
+// only by that signed-in user. There is no shared or public data, so the
+// default is deny and each rule opens exactly one path.
+//
+// Deploy: Firebase Console -> Firestore Database -> Rules -> paste -> Publish.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Blocks a client from rewriting createdAt or forging another user's uid.
+    function profileImmutableFieldsIntact(uid) {
+      return !request.resource.data.keys().hasAny(['uid'])
+        || request.resource.data.uid == uid;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+
+      // Creation happens once, on first sign-in.
+      allow create: if isOwner(uid) && profileImmutableFieldsIntact(uid);
+
+      // Updates are merges from the app (settings, scooter, preferences).
+      allow update: if isOwner(uid) && profileImmutableFieldsIntact(uid);
+
+      // Account deletion is initiated by the user from Profile.
+      allow delete: if isOwner(uid);
+
+      match /favorites/{placeId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /rides/{rideId} {
+        allow read: if isOwner(uid);
+
+        // Rides are append-only history: they can be created but not rewritten,
+        // so a bug or a tampered client cannot silently alter past trips.
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasAll(['startedAt', 'distanceMeters'])
+          && request.resource.data.startedAt is int
+          && request.resource.data.distanceMeters is int
+          && request.resource.data.distanceMeters >= 0;
+
+        allow update: if false;
+        allow delete: if isOwner(uid);
+      }
+    }
+
+    // Anything not matched above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
