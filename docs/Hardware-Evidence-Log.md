@@ -113,3 +113,78 @@ Blocked — needs a release keystore, which does not exist yet.
 
 ### 8. Code 36 direction
 *Arrangement:* hold 34, then 36, and say whether they curl in **opposite** directions.
+
+
+---
+
+## Session — 20 September 2026 (phone only, no scooter)
+
+### Safety screen — PROVEN
+
+| # | Test | Result |
+|---|---|---|
+| 1 | Add contact by typing | PASS — saved, survived restart |
+| 2 | Add contact from picker | PASS — formatting preserved |
+| 3 | First contact becomes primary | PASS — SOS badge auto-assigned |
+| 6 | SOS dials via dialer, never directly | PASS — dialer opened pre-filled, did not call |
+| 7 | Location share link | PASS — `?q=17.501597,78.598744`, accuracy 21 m |
+| 8 | Location off fails safely | PASS — "No location fix yet", no invented coordinates |
+| 10 | Emergency number 112 | PASS |
+
+**Locale fix proven on hardware.** The share link used a dot decimal. Before the
+19 Sep fix this would have read `?q=17,501597,78,598744` on any comma-decimal
+phone — four tokens, pointing nowhere.
+
+**Account scoping proven indirectly.** The contacts are visible at all, which
+means ownerId stamping and query filtering both work. Broken stamping would
+have left the screen empty.
+
+**Privacy confirmed.** No contact name or phone number appears anywhere in
+logcat. The Safety code carries no log statements, deliberately.
+
+### Service screen — PROVEN
+
+| # | Test | Result |
+|---|---|---|
+| 11 | Service record saves | PASS — survived restart |
+| 12 | Odometer floor enforced | PASS — "Must be at least 2,427 km" |
+| 13 | Service-due maths | PASS — last 2,427, due 5,427, 3,000 km / 90 days |
+| 14 | Six default tasks seeded | PASS |
+| 15 | Edit task interval | PASS — forecast followed, survived restart |
+| 17 | Odometer card | PASS — 2,427 km, matching the cluster |
+
+### Accuracy note
+
+Shared location put the rider on Road No 2 while they were on Road No 4. The
+fix was 21 m accurate and the message said so. Cause is fix precision plus
+imprecise road naming in the map data, not a decode fault. Thresholds tightened
+in response: GOOD_ACCURACY_M 30 to 15, FIX_TIMEOUT_MS 12s to 20s.
+
+---
+
+## Rider feature requests — 20 September 2026
+
+Raised during testing. Not bugs; things that would make the app feel built
+rather than generated.
+
+1. **SOS location progress states.** After granting permission the rider had to
+   tap share again. It should carry straight on, and say what it is doing:
+   "waiting for location permission", then "getting an accurate location".
+
+2. **Service centre picker.** Free text is not enough. Offer service centres
+   across India, show popular ones, offer to detect location and list nearby
+   ones, and still allow free typing that matches on area, centre name or
+   anything relevant.
+
+3. **Odometer floor should follow the date.** If the rider enters a service
+   from the past, the floor must be the reading at that date, not the latest.
+   Back-filling old services is currently impossible.
+
+4. **Suggested notes.** Offer the common ones — engine oil change, brake pads,
+   general service — rather than an empty box.
+
+5. **Contrast and size.** The service-centre text and similar secondary labels
+   sit too close to the background and read small.
+
+6. **Absent readings show a dash.** Where there is no odometer reading yet,
+   show a dash or the previous reading. Never a placeholder number.

@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.core.util.isLocationOn
+import com.eshwar.rideconnectx.core.util.rememberSystemServices
 import com.eshwar.rideconnectx.data.local.OwnerScope
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -118,6 +120,7 @@ fun SafetyScreen(
     val c = Rcx.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val systemServices = rememberSystemServices()
 
     val contacts by vm.contacts.collectAsStateWithLifecycle()
     val primary by vm.primaryContact.collectAsStateWithLifecycle()
@@ -321,11 +324,22 @@ fun SafetyScreen(
                                 )
                             )
                         }
-                        LocationShare.Unavailable -> Toast.makeText(
-                            context,
-                            context.getString(R.string.safety_no_fix),
-                            Toast.LENGTH_LONG,
-                        ).show()
+                        LocationShare.Unavailable ->
+                            // Telling the rider "check that location is on" and
+                            // leaving them to find the toggle is the wrong move
+                            // in an emergency. Play Services can put the switch
+                            // in a dialog on top of this screen — one tap, and
+                            // they stay here. The toast is only for the case
+                            // where location IS on and the fix simply failed.
+                            if (!context.isLocationOn()) {
+                                systemServices.openLocationSettings()
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.safety_no_fix),
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                            }
                     }
                 }
             },

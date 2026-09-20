@@ -33,13 +33,13 @@ class CityLocator @Inject constructor(
 ) {
     private companion object {
         const val TAG = "RCX-Location"
-        const val FIX_TIMEOUT_MS = 12_000L
+        const val FIX_TIMEOUT_MS = 20_000L
 
         /** A cached fix older than this is not trusted for an emergency. */
         const val FRESH_ENOUGH_MS = 60_000L
 
         /** Metres. Roughly a house, rather than a street. */
-        const val GOOD_ACCURACY_M = 30f
+        const val GOOD_ACCURACY_M = 15f
     }
 
     val hasPermission: Boolean
