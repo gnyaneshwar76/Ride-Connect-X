@@ -231,7 +231,11 @@ fun ServiceScreen(
     editing?.let { record ->
         ServiceRecordSheet(
             record = record,
-            minimumKm = if (record.id == 0L) minimumKm else 0,
+            bounds = { servicedAt -> vm.boundsFor(record.id, servicedAt) },
+            pastCentres = records.sortedByDescending { it.servicedAt }
+                .map { it.centre.trim() }
+                .filter { it.isNotBlank() && it != "Not recorded" }
+                .distinctBy { it.lowercase() },
             onDismiss = { editing = null },
             onSave = { servicedAt, centre, odo, notes ->
                 val error = vm.save(record.id, servicedAt, centre, odo, notes)
@@ -602,7 +606,9 @@ private fun ServiceRecordCard(
             Column(Modifier.weight(1f)) {
                 Text(formatDate(record.servicedAt), style = RcxType.Label.copy(fontSize = 15.sp), color = c.text)
                 Spacer(Modifier.height(3.dp))
-                Text(record.centre, style = RcxType.BodySmall.copy(fontSize = 12.sp), color = c.muted)
+                // Brighter and a size up: the muted 12 sp read too close to the
+                // card background (rider, 20 Sep).
+                Text(record.centre, style = RcxType.BodySmall.copy(fontSize = 13.sp), color = c.text.copy(alpha = 0.78f))
             }
             Text(
                 unit.format(record.odometerKm),
@@ -615,8 +621,8 @@ private fun ServiceRecordCard(
             Spacer(Modifier.height(10.dp))
             Text(
                 record.notes,
-                style = RcxType.BodySmall.copy(fontSize = 12.sp),
-                color = c.muted,
+                style = RcxType.BodySmall.copy(fontSize = 13.sp),
+                color = c.text.copy(alpha = 0.78f),
             )
         }
 
@@ -706,7 +712,10 @@ private fun EmptyCard(
 @Composable
 private fun ServiceRecordSheet(
     record: ServiceRecordEntity,
-    minimumKm: Int,
+    /** Allowed (floor, ceiling) readings for a given service date. */
+    bounds: (Long) -> Pair<Int, Int?>,
+    /** Centres from the rider's earlier records, newest first. */
+    pastCentres: List<String>,
     onDismiss: () -> Unit,
     onSave: (servicedAt: Long, centre: String, odometerKm: Int?, notes: String) -> RecordError?,
 ) {
@@ -771,6 +780,31 @@ private fun ServiceRecordSheet(
                 placeholder = stringResource(R.string.service_centre_placeholder),
                 capitalization = KeyboardCapitalization.Words,
             )
+            // Centres the rider has used before, filtered as they type.
+            // ponytail: live Google Maps suggestions need the Places API (billing
+            // account); plug an autocomplete in here once that exists.
+            val matches = pastCentres
+                .filter { it.contains(centre.trim(), ignoreCase = true) && !it.equals(centre.trim(), ignoreCase = true) }
+                .take(4)
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 10.dp),
+            ) {
+                matches.forEach { m ->
+                    Text(
+                        m,
+                        style = RcxType.BodySmall.copy(fontSize = 13.sp),
+                        color = c.text,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(c.card2)
+                            .border(1.dp, c.border, RoundedCornerShape(50))
+                            .clickable { centre = m }
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                    )
+                }
+            }
 
             Spacer(Modifier.height(14.dp))
 
@@ -799,13 +833,29 @@ private fun ServiceRecordSheet(
                             unit.format(e.minimumKm),
                         )
                     )
-                else -> if (minimumKm > 0) {
-                    Text(
-                        stringResource(R.string.service_last_known, unit.format(minimumKm)),
-                        style = RcxType.BodySmall.copy(fontSize = 11.sp),
-                        color = c.muted,
-                        modifier = Modifier.padding(start = 4.dp, top = 5.dp),
+                is RecordError.OdometerTooHigh ->
+                    FieldError(
+                        stringResource(R.string.service_odometer_max_error, unit.format(e.maximumKm))
                     )
+                else -> {
+                    // Follows the chosen date, so back-filling an old service
+                    // shows the range that date allows.
+                    val (floor, ceiling) = bounds(servicedAt)
+                    val hint = when {
+                        ceiling != null -> stringResource(
+                            R.string.service_odometer_range, unit.format(floor), unit.format(ceiling),
+                        )
+                        floor > 0 -> stringResource(R.string.service_odometer_at_least, unit.format(floor))
+                        else -> null
+                    }
+                    hint?.let {
+                        Text(
+                            it,
+                            style = RcxType.BodySmall.copy(fontSize = 12.sp),
+                            color = c.text.copy(alpha = 0.72f),
+                            modifier = Modifier.padding(start = 4.dp, top = 5.dp),
+                        )
+                    }
                 }
             }
 
@@ -819,6 +869,36 @@ private fun ServiceRecordSheet(
                 capitalization = KeyboardCapitalization.Sentences,
                 singleLine = false,
             )
+            // Tap to add the common ones rather than typing them (rider, 20 Sep).
+            val suggestions = androidx.compose.ui.res.stringArrayResource(R.array.service_note_suggestions)
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 10.dp),
+            ) {
+                suggestions.forEach { s ->
+                    val added = notes.contains(s, ignoreCase = true)
+                    Text(
+                        s,
+                        style = RcxType.BodySmall.copy(fontSize = 13.sp),
+                        color = if (added) c.blue else c.text,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (added) c.blue.copy(alpha = 0.14f) else c.card2)
+                            .border(1.dp, if (added) c.blue else c.border, RoundedCornerShape(50))
+                            .clickable {
+                                // Tap again to take it back out (rider, 21 Sep).
+                                val parts = notes.split(',').map(String::trim).filter(String::isNotBlank)
+                                notes = if (added) {
+                                    parts.filterNot { it.equals(s, ignoreCase = true) }.joinToString(", ")
+                                } else {
+                                    (parts + s).joinToString(", ")
+                                }
+                            }
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
+                    )
+                }
+            }
 
             Spacer(Modifier.height(22.dp))
 

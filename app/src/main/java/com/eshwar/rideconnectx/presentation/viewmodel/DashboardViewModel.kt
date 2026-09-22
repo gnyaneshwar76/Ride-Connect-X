@@ -151,7 +151,14 @@ class DashboardViewModel @Inject constructor(
             bleRepository.telemetry.collect { data ->
                 // Before the first good frame there is nothing true to show, so
                 // the cards stay empty rather than reading a confident zero.
-                if (!data.isValid) return@collect
+                // Invalid only happens on sign-out, when the readings are
+                // cleared - so clear the cards too, to "—".
+                if (!data.isValid) {
+                    _uiState.update {
+                        it.copy(fuelSegments = null, fuel = null, odometer = null, tripAKm = null, tripBKm = null)
+                    }
+                    return@collect
+                }
                 // The Service screen has to work with the scooter out of range,
                 // so every reading is cached while the link is up — and the
                 // dashboard is the screen that is open while riding.

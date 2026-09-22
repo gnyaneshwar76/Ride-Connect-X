@@ -28,6 +28,13 @@ tools/live/
 tools/maps-apk/
 tools/blender/
 
+# The rider's private test tracker — kept on this computer only.
+/Test-Tracker.md
+
+# Laptop-reset backup of Claude's memory, council reports and chat history.
+# Private (email, notes) and ~900 MB — never published.
+/backup/
+
 # Firebase project config. Not a secret in the strict sense — it ships inside
 # every APK and its key is restricted server-side — but it names the project and
 # this repository is public. It was untracked AND un-ignored, one `git add .`

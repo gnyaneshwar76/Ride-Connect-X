@@ -24,8 +24,47 @@ import javax.inject.Inject
 sealed interface RecordError {
     /** The design's rule: a reading may not be lower than one already recorded. */
     data class OdometerTooLow(val minimumKm: Int) : RecordError
+    /** A later record, or the scooter now, already reads lower than this. */
+    data class OdometerTooHigh(val maximumKm: Int) : RecordError
     data object DateInFuture : RecordError
     data object OdometerMissing : RecordError
+}
+
+/**
+ * The readings a service on [servicedAt] may carry. The odometer only goes up,
+ * so it must be at least every record from that day or before, and at most
+ * every later record. The scooter's current reading counts as "today": a floor
+ * for a service logged today, a ceiling for one back-filled from the past.
+ *
+ * Before 21 Sep the floor was simply the highest reading ever seen, so a
+ * service from last year could never be entered (rider, 20 Sep).
+ *
+ * @param others (servicedAt, odometerKm) of every *other* record
+ * @return floor to ceiling; ceiling null when nothing bounds it from above
+ */
+fun odometerBounds(
+    others: List<Pair<Long, Int>>,
+    servicedAt: Long,
+    currentKm: Int,
+    now: Long = System.currentTimeMillis(),
+): Pair<Int, Int?> {
+    val today = sameDay(servicedAt, now)
+    val floor = maxOf(
+        others.filter { it.first <= servicedAt }.maxOfOrNull { it.second } ?: 0,
+        if (today) currentKm else 0,
+    )
+    val ceiling = listOfNotNull(
+        others.filter { it.first > servicedAt }.minOfOrNull { it.second },
+        currentKm.takeIf { !today && it > 0 },
+    ).minOrNull()
+    return floor to ceiling
+}
+
+private fun sameDay(a: Long, b: Long): Boolean {
+    val ca = java.util.Calendar.getInstance().apply { timeInMillis = a }
+    val cb = java.util.Calendar.getInstance().apply { timeInMillis = b }
+    return ca.get(java.util.Calendar.YEAR) == cb.get(java.util.Calendar.YEAR) &&
+        ca.get(java.util.Calendar.DAY_OF_YEAR) == cb.get(java.util.Calendar.DAY_OF_YEAR)
 }
 
 @HiltViewModel
@@ -57,6 +96,16 @@ class ServiceViewModel @Inject constructor(
     val minimumOdometerKm: StateFlow<Int> =
         repository.highestRecordedOdometerKm.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
+    private val currentOdometerKm: StateFlow<Int> =
+        repository.lastKnownOdometerKm.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+
+    /** Allowed readings for a record dated [servicedAt]; an edit ignores itself. */
+    fun boundsFor(id: Long, servicedAt: Long): Pair<Int, Int?> = odometerBounds(
+        others = records.value.filter { it.id != id }.map { it.servicedAt to it.odometerKm },
+        servicedAt = servicedAt,
+        currentKm = currentOdometerKm.value,
+    )
+
     init {
         // Fills the tasks table on first run so the list is never blank.
         appScope.launch { repository.seedDefaultTasksIfEmpty() }
@@ -87,11 +136,9 @@ class ServiceViewModel @Inject constructor(
         if (odometerKm == null || odometerKm <= 0) return RecordError.OdometerMissing
         if (servicedAt > System.currentTimeMillis()) return RecordError.DateInFuture
 
-        // An edit is allowed to keep its own reading, so it is compared against
-        // everything except itself.
-        val floor = if (id == 0L) minimumOdometerKm.value
-        else records.value.filter { it.id != id }.maxOfOrNull { it.odometerKm } ?: 0
+        val (floor, ceiling) = boundsFor(id, servicedAt)
         if (odometerKm < floor) return RecordError.OdometerTooLow(floor)
+        if (ceiling != null && odometerKm > ceiling) return RecordError.OdometerTooHigh(ceiling)
 
         val record = ServiceRecordEntity(
             id = id,

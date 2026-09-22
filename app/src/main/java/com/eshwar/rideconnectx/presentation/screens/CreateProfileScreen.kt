@@ -198,7 +198,7 @@ fun CreateProfileScreen(
                     RcxField(
                         value = ui.riderName,
                         onValueChange = vm::onRiderNameChange,
-                        placeholder = "e.g. Gnyaneshwar",
+                        placeholder = "e.g. Alex Johnson",
                         error = ui.nameError,
                         hint = "Your full name — this is what the cluster greets you with.",
                     )
@@ -214,7 +214,7 @@ fun CreateProfileScreen(
                     RcxField(
                         value = ui.nickname,
                         onValueChange = vm::onNicknameChange,
-                        placeholder = "e.g. Eshwar",
+                        placeholder = "e.g. Alex",
                         error = ui.nicknameError,
                         hint = "Required · shown on your dashboard · up to $NICKNAME_MAX characters",
                         highlight = ui.nicknameNudge,

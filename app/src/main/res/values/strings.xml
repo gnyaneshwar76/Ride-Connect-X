@@ -84,7 +84,7 @@
     <string name="guest_heading">What should we call you?</string>
     <string name="guest_subtitle">Just your name — nothing else needed.</string>
     <string name="guest_name_label">YOUR NAME</string>
-    <string name="guest_name_hint">e.g. Gnyaneshwar</string>
+    <string name="guest_name_hint">e.g. Alex</string>
     <string name="guest_nav_notice_title">Navigation requires Google Sign-In</string>
     <string name="guest_nav_notice_body">All other features available as guest.</string>
     <string name="guest_creating">Creating…</string>
@@ -237,6 +237,11 @@
     <string name="safety_call_name">Call %1$s</string>
     <string name="safety_call_emergency">Call emergency services</string>
     <string name="safety_getting_fix">Getting an accurate fix…</string>
+    <string name="safety_waiting_permission">Waiting for location permission…</string>
+    <string name="safety_waiting_permission_sub">Allow location — sharing continues automatically</string>
+    <string name="safety_turn_on_location">Turn on location…</string>
+    <string name="safety_turn_on_location_sub">Switch it on — sharing continues automatically</string>
+    <string name="safety_location_denied">Location permission is needed to share where you are.</string>
     <string name="safety_waiting_gps">Waiting for GPS to settle — this takes a few seconds</string>
     <string name="safety_sends_map_link">Sends a map link with how accurate it is</string>
     <string name="safety_approx_location">Location is set to Approximate, so a shared position can be a street or two out. Tap to allow precise location.</string>
@@ -320,6 +325,19 @@
     <string name="service_odometer_error">Enter the odometer reading.</string>
     <string name="service_odometer_min_error">Must be at least %1$s — the odometer cannot go backwards.</string>
     <string name="service_last_known">Last known reading: %1$s</string>
+    <string name="service_odometer_max_error">Must be at most %1$s — a later reading is already lower.</string>
+    <string name="service_odometer_range">For this date: between %1$s and %2$s</string>
+    <string name="service_odometer_at_least">For this date: at least %1$s</string>
+    <string-array name="service_note_suggestions">
+        <item>General service</item>
+        <item>Engine oil change</item>
+        <item>Air filter cleaned</item>
+        <item>Brake pads replaced</item>
+        <item>Spark plug replaced</item>
+        <item>Battery checked</item>
+        <item>Tyres checked</item>
+        <item>Washing</item>
+    </string-array>
     <string name="service_notes">Notes (optional)</string>
     <string name="service_notes_placeholder">What was done</string>
     <string name="service_save_record">Save Record</string>

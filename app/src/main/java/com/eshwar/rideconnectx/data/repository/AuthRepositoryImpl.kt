@@ -2,6 +2,8 @@ package com.eshwar.rideconnectx.data.repository
 
 import android.app.Activity
 import android.content.Context
+import com.eshwar.rideconnectx.data.local.ServicePreferencesStore
+import com.eshwar.rideconnectx.data.local.SessionDataStore
 import com.eshwar.rideconnectx.data.local.UserPreferencesStore
 import com.eshwar.rideconnectx.data.remote.FirebaseAuthDataSource
 import com.eshwar.rideconnectx.data.remote.FirestoreUserDataSource
@@ -16,10 +18,12 @@ import com.eshwar.rideconnectx.domain.repository.AuthRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.withTimeoutOrNull
 import android.util.Log
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -31,10 +35,23 @@ class AuthRepositoryImpl @Inject constructor(
     private val firestore: FirestoreUserDataSource,
     private val prefs: UserPreferencesStore,
     private val photoStore: com.eshwar.rideconnectx.core.util.ProfilePhotoStore,
+    private val sessionStore: SessionDataStore,
+    private val servicePrefs: ServicePreferencesStore,
+    private val database: com.eshwar.rideconnectx.data.local.db.RideDatabase,
     @ApplicationScope private val appScope: CoroutineScope,
 ) : AuthRepository {
 
-    private companion object { const val TAG = "RCX-Auth" }
+    private companion object {
+        const val TAG = "RCX-Auth"
+        const val LAST_READINGS = "lastReadings"
+        const val SAVE_TIMEOUT_MS = 5_000L
+
+        /** Every Room table carrying an ownerId column (DB v8). */
+        val OWNED_TABLES = listOf(
+            "emergency_contacts", "notifications", "rides", "service_records",
+            "service_tasks", "fuel_samples", "refuels",
+        )
+    }
 
     /**
      * Firebase drives the state for cloud accounts; DataStore covers guests,
@@ -109,6 +126,24 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun signOut(keepLocalProfile: Boolean) {
+        val session = prefs.session.first()
+        // The last readings go up to the account that saw them, then off the
+        // phone. Capped at a few seconds so offline never blocks sign-out; if
+        // the cloud does not confirm, they are held for this account only and
+        // uploaded at its next sign-in. Guests have no cloud; theirs are erased.
+        if (!session.isGuest && session.uid.isNotEmpty()) {
+            sessionStore.cachedTelemetry.first()?.let { c ->
+                val saved = withTimeoutOrNull(SAVE_TIMEOUT_MS) {
+                    uploadReadings(session.uid, c)
+                } ?: false
+                if (!saved) {
+                    Log.w(TAG, "Last readings not confirmed by cloud - held for next sign-in")
+                    sessionStore.savePendingReadings(session.uid, c)
+                }
+            }
+        }
+        clearReadings()
+
         remote.signOut(context)
         prefs.clearSession()
         // The boundary lives here, not in a ViewModel: `AuthViewModel.signOut`
@@ -120,11 +155,53 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun deleteAccount(): AuthResult {
-        val uid = prefs.session.first().uid
-        if (uid.isNotEmpty()) firestore.deleteUser(uid)
+    /**
+     * Order matters, and each step stops the rest on failure:
+     *  1. Confirm identity. Firebase refuses to delete a stale sign-in, and the
+     *     old code deleted the cloud data first - so that refusal left an
+     *     account with its data gone but the account itself still there.
+     *  2. Cloud data (needs the account to still exist - rules check the uid).
+     *  3. The account.
+     *  4. This account's data on the phone - other accounts' rows are kept.
+     * Runs on [appScope]: the screen navigates away as the account vanishes.
+     */
+    override suspend fun deleteAccount(activity: Activity, password: String?): AuthResult =
+        appScope.async { deleteAccountSteps(activity, password) }.await()
+
+    private suspend fun deleteAccountSteps(activity: Activity, password: String?): AuthResult {
+        val session = prefs.session.first()
+        if (session.isGuest || session.uid.isEmpty()) {
+            return AuthResult.Failure(AuthError.Unknown("Guests have no account to delete."))
+        }
+        val uid = session.uid
+
+        val proof = if (session.method == LoginMethod.EMAIL) {
+            remote.reauthenticateWithPassword(password.orEmpty())
+        } else {
+            remote.reauthenticateWithGoogle(activity)
+        }
+        if (proof is AuthResult.Failure) return proof
+
+        firestore.deleteUser(uid).onFailure {
+            Log.e(TAG, "Cloud delete failed", it)
+            return AuthResult.Failure(AuthError.Unknown("Couldn't delete your cloud data. Check your internet and try again."))
+        }
         val result = remote.deleteAccount()
+        if (result is AuthResult.Failure) return result
+
+        database.openHelper.writableDatabase.apply {
+            beginTransaction()
+            try {
+                OWNED_TABLES.forEach { execSQL("DELETE FROM $it WHERE ownerId = ?", arrayOf(uid)) }
+                setTransactionSuccessful()
+            } finally {
+                endTransaction()
+            }
+        }
+        sessionStore.clearPendingReadings()
+        remote.signOut(context)
         prefs.clearSession()
+        clearReadings()
         // Deleting the account is a stronger statement than signing out, so the
         // local profile and avatar go too. Leaving them meant the next account
         // signed in on this phone inherited the deleted rider's name, city,
@@ -167,6 +244,7 @@ class AuthRepositoryImpl @Inject constructor(
         // profile stayed local, the new account stayed empty, and the work was
         // lost the first time they reinstalled.
         if (isReturning) restoreFromCloud(user.uid) else carryLocalProfileToCloud(user.uid)
+        flushPendingReadings(user.uid)
 
         return synced.fold(
             onSuccess = {
@@ -213,6 +291,7 @@ class AuthRepositoryImpl @Inject constructor(
         // silently when the device already has one — see `restoreFromCloud`.
         cloud.photoBase64?.let { photoStore.restoreFromCloud(it) }
         if (cloud.isComplete) prefs.setProfileCompleted(true)
+        restoreLastReadings(data)
 
         Log.d(
             TAG,
@@ -265,6 +344,58 @@ class AuthRepositoryImpl @Inject constructor(
             TAG,
             "Carried local profile to users/$uid " +
                 "name=${riderName.isNotBlank()} vehicle=${vehicleId.isNotBlank()}",
+        )
+    }
+
+    /**
+     * True only once the cloud confirms. One document, merge-written: the cloud
+     * saves it whole or not at all, and a repeat overwrites rather than
+     * duplicates - so retrying is always safe.
+     */
+    private suspend fun uploadReadings(uid: String, c: SessionDataStore.CachedTelemetry): Boolean =
+        firestore.updateScooter(
+            uid,
+            mapOf(
+                LAST_READINGS to mapOf(
+                    "odometerKm" to c.odometerKm,
+                    "tripAKm" to c.tripAKm.toDouble(),
+                    "tripBKm" to c.tripBKm.toDouble(),
+                    "fuelSegments" to c.fuelSegments,
+                    "capturedAt" to c.capturedAt,
+                )
+            ),
+        ).isSuccess
+
+    /**
+     * Readings held from an offline sign-out of [uid]. They are newer than the
+     * cloud copy, so they go on screen first; the held copy is deleted only
+     * after the cloud confirms the upload. Signed in, Firestore itself waits
+     * for the network, so this simply completes when the internet is back.
+     */
+    private fun flushPendingReadings(uid: String) = appScope.launch {
+        val (owner, c) = sessionStore.pendingReadings.first() ?: return@launch
+        if (owner != uid) return@launch // someone else's - stays hidden
+        sessionStore.cacheTelemetry(c.odometerKm, c.tripAKm, c.tripBKm, c.fuelSegments, c.capturedAt)
+        if (uploadReadings(uid, c)) sessionStore.clearPendingReadings()
+    }
+
+    /** Readings and the service screen's odometer floor both belong to the account. */
+    private suspend fun clearReadings() {
+        sessionStore.clearTelemetry()
+        servicePrefs.clearOdometer()
+    }
+
+    /** The account's own last readings, saved by [signOut]. Absent = dashboard shows "—". */
+    private suspend fun restoreLastReadings(data: Map<String, Any>?) {
+        val r = (data?.get("scooter") as? Map<*, *>)?.get(LAST_READINGS) as? Map<*, *> ?: return
+        val odo = (r["odometerKm"] as? Number)?.toInt() ?: return
+        if (!ServicePreferencesStore.isPlausibleOdometer(0, odo)) return
+        sessionStore.cacheTelemetry(
+            odometerKm = odo,
+            tripAKm = (r["tripAKm"] as? Number)?.toFloat() ?: 0f,
+            tripBKm = (r["tripBKm"] as? Number)?.toFloat() ?: 0f,
+            fuelSegments = ((r["fuelSegments"] as? Number)?.toInt() ?: 0).coerceIn(0, 5),
+            capturedAt = (r["capturedAt"] as? Number)?.toLong() ?: 0L,
         )
     }
 

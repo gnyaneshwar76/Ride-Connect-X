@@ -148,6 +148,28 @@ class ProfileViewModel @Inject constructor(
     }
 
     /**
+     * Permanently deletes the account. [onResult] gets null on success, or the
+     * reason it stopped - in which case nothing further was deleted.
+     */
+    fun deleteAccount(activity: android.app.Activity, password: String?, onResult: (String?) -> Unit) {
+        appScope.launch {
+            bleRepository.disconnect()
+            val result = auth.deleteAccount(activity, password)
+            val error = (result as? com.eshwar.rideconnectx.domain.model.AuthResult.Failure)
+                ?.error?.let(::deleteErrorText)
+            withContext(Dispatchers.Main) { onResult(error) }
+        }
+    }
+
+    private fun deleteErrorText(e: com.eshwar.rideconnectx.domain.model.AuthError): String = when (e) {
+        is com.eshwar.rideconnectx.domain.model.AuthError.Cancelled -> "Cancelled — your account was not deleted."
+        is com.eshwar.rideconnectx.domain.model.AuthError.NoInternet -> "No internet — your account was not deleted."
+        is com.eshwar.rideconnectx.domain.model.AuthError.InvalidCredentials ->
+            "That didn't match this account — nothing was deleted."
+        else -> "Couldn't finish deleting the account — please try again."
+    }
+
+    /**
      * Deletes everything cached on this device: rides, notifications, service
      * records, emergency contacts and the paired-vehicle session.
      *
@@ -159,6 +181,7 @@ class ProfileViewModel @Inject constructor(
             bleRepository.disconnect()
             database.clearAllTables()
             session.clearSession()
+            session.clearTelemetry()
             // The odometer cache is not in Room, so clearAllTables misses it —
             // and it is the one value that survives as a floor on new records.
             servicePrefs.clearOdometer()

@@ -5,6 +5,8 @@ import com.eshwar.rideconnectx.core.util.rememberSystemServices
 import com.eshwar.rideconnectx.data.local.OwnerScope
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
 import android.net.Uri
@@ -161,6 +163,95 @@ fun SafetyScreen(
         context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")))
     }
 
+    /*
+     * Sharing location, as one flow that never needs a second tap (rider,
+     * 20 Sep: "after granting permission I had to tap share again"):
+     * permission → location switched on → fix → share sheet. Each wait says
+     * what it is waiting for, and the flow resumes by itself when it clears.
+     */
+    var sharePending by remember { mutableStateOf(false) }
+    var shareWaitingFor by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var permissionTick by remember { mutableIntStateOf(0) }
+
+    val requestLocationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        if (result.values.any { it }) {
+            permissionTick++
+        } else {
+            sharePending = false
+            shareWaitingFor = null
+            Toast.makeText(
+                context, context.getString(R.string.safety_location_denied), Toast.LENGTH_LONG,
+            ).show()
+        }
+    }
+
+    fun sendShare() {
+        sharePending = false
+        shareWaitingFor = null
+        vm.buildLocationMessage { result ->
+            when (result) {
+                is LocationShare.Ready -> {
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, result.text)
+                    }
+                    context.startActivity(
+                        Intent.createChooser(send, context.getString(R.string.safety_share_location))
+                    )
+                }
+                // Permission and the location switch are both settled by now,
+                // so this is a genuine failure to get a fix.
+                LocationShare.Unavailable -> Toast.makeText(
+                    context, context.getString(R.string.safety_no_fix), Toast.LENGTH_LONG,
+                ).show()
+            }
+        }
+    }
+
+    fun startShare() {
+        sharePending = true
+        val hasPermission = listOf(
+            Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION,
+        ).any {
+            androidx.core.content.ContextCompat.checkSelfPermission(context, it) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+        when {
+            !hasPermission -> {
+                shareWaitingFor = R.string.safety_waiting_permission to R.string.safety_waiting_permission_sub
+                requestLocationPermission.launch(
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                )
+            }
+            !context.isLocationOn() -> {
+                // Play Services puts the switch in a dialog over this screen.
+                shareWaitingFor = R.string.safety_turn_on_location to R.string.safety_turn_on_location_sub
+                systemServices.openLocationSettings()
+            }
+            else -> sendShare()
+        }
+    }
+
+    // Resume when the permission is granted.
+    LaunchedEffect(permissionTick) {
+        if (sharePending) startShare()
+    }
+    // Resume when location comes on. Polled, not read once: Android reports the
+    // popup's "Turn on" a moment before the providers actually switch, so a
+    // single check still saw "off" and the rider had to tap again (21 Sep).
+    LaunchedEffect(shareWaitingFor) {
+        if (shareWaitingFor?.first != R.string.safety_turn_on_location) return@LaunchedEffect
+        repeat(LOCATION_WAIT_POLLS) {
+            kotlinx.coroutines.delay(500)
+            if (context.isLocationOn()) {
+                startShare()
+                return@LaunchedEffect
+            }
+        }
+    }
+
     Box(Modifier.fillMaxSize().background(c.bg)) {
         Column(
             Modifier
@@ -309,40 +400,8 @@ fun SafetyScreen(
             onDismiss = { showSos = false },
             onCallContact = { number -> dial(number) },
             onCallServices = { dial(EMERGENCY_NUMBER) },
-            onShareLocation = {
-                vm.buildLocationMessage { result ->
-                    when (result) {
-                        is LocationShare.Ready -> {
-                            val send = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, result.text)
-                            }
-                            context.startActivity(
-                                Intent.createChooser(
-                                    send,
-                                    context.getString(R.string.safety_share_location),
-                                )
-                            )
-                        }
-                        LocationShare.Unavailable ->
-                            // Telling the rider "check that location is on" and
-                            // leaving them to find the toggle is the wrong move
-                            // in an emergency. Play Services can put the switch
-                            // in a dialog on top of this screen — one tap, and
-                            // they stay here. The toast is only for the case
-                            // where location IS on and the fix simply failed.
-                            if (!context.isLocationOn()) {
-                                systemServices.openLocationSettings()
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    context.getString(R.string.safety_no_fix),
-                                    Toast.LENGTH_LONG,
-                                ).show()
-                            }
-                    }
-                }
-            },
+            waitingFor = shareWaitingFor,
+            onShareLocation = { startShare() },
         )
     }
 
@@ -375,6 +434,9 @@ fun SafetyScreen(
 
 /** India's single emergency number. Dialled, never called automatically. */
 private const val EMERGENCY_NUMBER = "112"
+
+/** Half-second checks for location coming on after the popup: 30 = 15 s. */
+private const val LOCATION_WAIT_POLLS = 30
 
 /* ── Emergency ────────────────────────────────────────────────────── */
 
@@ -481,6 +543,8 @@ private fun SosSheet(
     onCallContact: (String) -> Unit,
     onCallServices: () -> Unit,
     onShareLocation: () -> Unit,
+    /** Title and subtitle res ids while sharing waits on the rider, else null. */
+    waitingFor: Pair<Int, Int>? = null,
 ) {
     val c = Rcx.colors
     ModalBottomSheet(
@@ -527,14 +591,16 @@ private fun SosSheet(
                 Spacer(Modifier.height(10.dp))
                 SosAction(
                     icon = Icons.Filled.LocationOn,
-                    title = if (locating)
-                        stringResource(R.string.safety_getting_fix)
-                    else
-                        stringResource(R.string.safety_share_location),
-                    subtitle = if (locating)
-                        stringResource(R.string.safety_waiting_gps)
-                    else
-                        stringResource(R.string.safety_sends_map_link),
+                    title = when {
+                        locating -> stringResource(R.string.safety_getting_fix)
+                        waitingFor != null -> stringResource(waitingFor.first)
+                        else -> stringResource(R.string.safety_share_location)
+                    },
+                    subtitle = when {
+                        locating -> stringResource(R.string.safety_waiting_gps)
+                        waitingFor != null -> stringResource(waitingFor.second)
+                        else -> stringResource(R.string.safety_sends_map_link)
+                    },
                     accent = c.blue,
                     onClick = onShareLocation,
                 )

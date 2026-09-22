@@ -137,6 +137,9 @@ class ServiceRepository @Inject constructor(
      * The highest odometer reading on record — what a new entry must not go
      * below. Exposed so the form can say *why* a reading was rejected.
      */
+    /** What the scooter itself last reported, 0 when never seen. */
+    val lastKnownOdometerKm: Flow<Int> = prefs.lastKnownOdometerKm
+
     val highestRecordedOdometerKm: Flow<Int> = combine(
         latestRecord,
         prefs.lastKnownOdometerKm,

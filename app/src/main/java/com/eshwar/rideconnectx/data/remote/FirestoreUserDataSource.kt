@@ -140,7 +140,18 @@ class FirestoreUserDataSource @Inject constructor(
                 .get().await().documents.mapNotNull { it.data }
         }
 
+    /**
+     * Deletes the account's cloud data. Firestore does not cascade: deleting
+     * users/{uid} alone left favorites and rides behind, orphaned but still
+     * stored. Subcollections go first, in batches under Firestore's 500-write
+     * limit, then the document itself. Safe to repeat if interrupted.
+     */
     suspend fun deleteUser(uid: String): Result<Unit> = runCatching {
+        for (sub in listOf(FAVORITES, RIDES)) {
+            userDoc(uid).collection(sub).get().await().documents.chunked(400).forEach { chunk ->
+                db.batch().apply { chunk.forEach { delete(it.reference) } }.commit().await()
+            }
+        }
         userDoc(uid).delete().await()
     }
 }

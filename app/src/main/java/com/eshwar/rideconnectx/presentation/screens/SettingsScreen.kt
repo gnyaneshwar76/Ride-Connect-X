@@ -433,6 +433,8 @@ fun ConfirmSheet(
     confirmLabel: String,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
+    /** Optional content between the body and the buttons, e.g. a password field. */
+    extra: (@Composable () -> Unit)? = null,
 ) {
     val c = Rcx.colors
     ModalBottomSheet(
@@ -444,6 +446,10 @@ fun ConfirmSheet(
             Text(title, style = RcxType.Section.copy(fontSize = 17.sp), color = c.text)
             Spacer(Modifier.height(8.dp))
             Text(body, style = RcxType.BodySmall.copy(fontSize = 13.sp), color = c.muted)
+            extra?.let {
+                Spacer(Modifier.height(16.dp))
+                it()
+            }
             Spacer(Modifier.height(20.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 PrimaryButton("Cancel", onDismiss, secondary = true, modifier = Modifier.weight(1f))
