@@ -41,3 +41,6 @@ tools/blender/
 # from being published.
 google-services.json
 docs/app-walkthrough.mp4
+
+# Firebase CLI deploy cache
+.firebase/
