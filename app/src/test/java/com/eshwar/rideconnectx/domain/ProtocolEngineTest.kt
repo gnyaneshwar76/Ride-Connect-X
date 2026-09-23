@@ -290,6 +290,7 @@ class ProtocolEngineTest {
         // reading, so a split that only fits one frame cannot pass both.
         val frame = realTelemetryFrame.copyOf()
         "000000897002188003739".forEachIndexed { i, ch -> frame[2 + i] = ch.code.toByte() }
+        frame[28] = ProtocolEngine.calculateChecksum(frame)
 
         val t = ProtocolEngine.parseTelemetry(frame)
 
@@ -420,5 +421,13 @@ class ProtocolEngineTest {
         // Right shape, wrong packet type.
         val wrongType = realTelemetryFrame.copyOf().also { it[1] = 0x31 }
         assertNull(ProtocolEngine.parseTelemetry(wrongType))
+    }
+
+    @Test
+    fun `a frame whose checksum does not match is rejected`() {
+        // Still all ASCII digits, so only byte 28 can catch it: this is the
+        // shape of the corruption that produced the 6,001,923 km card.
+        val corrupt = realTelemetryFrame.copyOf().also { it[4] = '6'.code.toByte() }
+        assertNull(ProtocolEngine.parseTelemetry(corrupt))
     }
 }

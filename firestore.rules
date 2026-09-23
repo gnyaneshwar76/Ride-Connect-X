@@ -21,6 +21,13 @@ service cloud.firestore {
         || request.resource.data.uid == uid;
     }
 
+    // profile.createdAt is set once, on create, and can never be rewritten.
+    function createdAtUnchanged() {
+      return !('profile' in resource.data)
+        || !('createdAt' in resource.data.profile)
+        || request.resource.data.profile.createdAt == resource.data.profile.createdAt;
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid);
 
@@ -28,7 +35,8 @@ service cloud.firestore {
       allow create: if isOwner(uid) && profileImmutableFieldsIntact(uid);
 
       // Updates are merges from the app (settings, scooter, preferences).
-      allow update: if isOwner(uid) && profileImmutableFieldsIntact(uid);
+      allow update: if isOwner(uid) && profileImmutableFieldsIntact(uid)
+        && createdAtUnchanged();
 
       // Account deletion is initiated by the user from Profile.
       allow delete: if isOwner(uid);

@@ -41,8 +41,9 @@ class FirestoreUserDataSource @Inject constructor(
 
     private fun userDoc(uid: String) = db.collection(USERS).document(uid)
 
-    suspend fun exists(uid: String): Boolean =
-        runCatching { userDoc(uid).get().await().exists() }.getOrDefault(false)
+    /** Null when the read failed (offline), which is not the same as "no account". */
+    suspend fun exists(uid: String): Boolean? =
+        runCatching { userDoc(uid).get().await().exists() }.getOrNull()
 
     /** Called on first sign-in. Seeds defaults without overwriting anything later. */
     suspend fun createUser(session: UserSession): Result<Unit> = runCatching {

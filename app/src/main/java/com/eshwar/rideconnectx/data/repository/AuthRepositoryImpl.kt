@@ -229,7 +229,12 @@ class AuthRepositoryImpl @Inject constructor(
         prefs.acceptTerms()
         prefs.acceptPrivacy()
 
+        // Unknown is not "new": treating a failed read as a first sign-in
+        // overwrote a returning rider's cloud profile with defaults.
         val isReturning = firestore.exists(user.uid)
+            ?: return AuthResult.Failure(
+                AuthError.CloudSyncFailure("Couldn't reach your account. Try again when you're online.")
+            )
         Log.d(TAG, "persist uid=${user.uid} method=${user.method} returning=$isReturning")
 
         val synced =

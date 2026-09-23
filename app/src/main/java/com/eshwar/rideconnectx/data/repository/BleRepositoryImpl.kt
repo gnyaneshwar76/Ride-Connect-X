@@ -190,8 +190,8 @@ class BleRepositoryImpl @Inject constructor(
                     _telemetry.value = it
                     // Persisted so the dashboard survives a dropout and a restart.
                     //
-                    // The frame's checksum (byte 28) is still unverified, so a
-                    // garbled reading can land here. The service odometer is
+                    // The parser now rejects a bad byte-28 checksum, but a
+                    // frame can still pass by chance. The service odometer is
                     // guarded by `isPlausibleOdometer`, but this cache is what
                     // the dashboard card actually shows and it had no guard at
                     // all — which is how a 6,001,923 km reading stayed on screen
