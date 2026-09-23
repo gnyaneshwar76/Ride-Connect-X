@@ -22,7 +22,10 @@ sealed interface AuthError {
         get() = when (this) {
             NoInternet -> "No internet connection. Check your network and try again."
             Cancelled -> "Sign-in cancelled."
-            NoCredentialAvailable -> "No Google account found on this device. Add one in Settings, then try again."
+            // Also what Credential Manager answers when this build's signing
+            // fingerprint isn't registered in Firebase, so don't claim the
+            // phone has no accounts.
+            NoCredentialAvailable -> "Couldn't find a Google account for this app. Check Settings → Accounts, or use email for now."
             WebClientIdMissing ->
                 "Google Sign-In isn't configured. Re-download google-services.json after enabling Google in Firebase Console."
             is InvalidCredentials -> detail
