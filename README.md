@@ -45,7 +45,7 @@ a5 37 | 000002427 | 006189 | 000308 | 01 | 35 | 00 00 00 | 70 | 7f
 
 **The checksum** is the one's complement of the low byte of the sum of bytes 1–27. That rule was solved against captured packets and later confirmed against a live frame from the vehicle: sum `0x8F` → complement `0x70`, and byte 28 was `0x70`.
 
-**Maneuver codes** were established one at a time on real hardware — a single code held on the cluster while the rider described the arrow drawn, with the distance field deliberately set to the code number so every screen labelled itself. Codes 20–26 turn out to rotate a roundabout exit arrow cleanly from sharp-left through straight to sharp-right. The full table lives in [`tools/cluster-codes.csv`](tools/cluster-codes.csv).
+**Maneuver codes** were established one at a time on real hardware — a single code held on the cluster while the rider described the arrow drawn, with the distance field deliberately set to the code number so every screen labelled itself. Codes 20–26 turn out to rotate a roundabout exit arrow cleanly from sharp-left through straight to sharp-right. The full table lives in [`tools/cluster/cluster-codes.csv`](tools/cluster/cluster-codes.csv).
 
 ---
 
@@ -65,11 +65,29 @@ No secret, key or vehicle identifier has ever been committed to this repository.
 
 ```bash
 git clone https://github.com/gnyaneshwar76/Ride-Connect-X.git
-cd Ride-Connect-X
+cd Ride-Connect-X/frontend
 ./gradlew assembleDebug
 ```
 
-You will need your own `app/google-services.json` from a Firebase project — it is deliberately not committed. Release builds additionally need a `keystore.properties` at the project root; without it the build fails loudly rather than quietly producing an unsigned APK.
+Open the `frontend/` folder (not the repository root) in Android Studio.
+
+You will need your own `frontend/app/google-services.json` from a Firebase project — it is deliberately not committed. Release builds additionally need a `keystore.properties` in `frontend/`; without it the build fails loudly rather than quietly producing an unsigned APK.
+
+---
+
+## Repository layout
+
+| Folder | What's in it |
+|---|---|
+| [`frontend/`](frontend) | The Android app — Kotlin, Compose, Gradle build |
+| [`backend/`](backend) | Firebase: Firestore rules, hosting config, and the public site (`public/`) |
+| [`tools/`](tools) | Cluster capture and sweep scripts (`cluster/`), GPX test routes (`gpx/`), image prep (`images/`) |
+| [`docs/`](docs) | `protocol/` · `testing/` · `design/` · `status/` · `archive/` |
+| [`brand/`](brand) | Logos and store artwork |
+
+Test evidence — photos and recordings of each feature working on the scooter — lives on the separate [`proofs`](../../tree/proofs) branch.
+
+Deploy the backend from `backend/`: `firebase deploy --only firestore:rules,hosting`.
 
 ---
 
