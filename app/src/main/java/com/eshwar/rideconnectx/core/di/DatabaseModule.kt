@@ -187,11 +187,12 @@ object DatabaseModule {
     @Singleton
     fun provideRideDatabase(@ApplicationContext context: Context): RideDatabase =
         Room.databaseBuilder(context, RideDatabase::class.java, "rideconnectx.db")
-            // Schema is v7; when it changes, add a real Migration here rather
-            // than destroying the rider's history.
+            // Schema is v8; when it changes, add a real Migration here rather
+            // than destroying the rider's history. A Migration defined but not
+            // listed here crashes every upgrading install on first open.
             .addMigrations(
                 MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
-                MIGRATION_6_7,
+                MIGRATION_6_7, MIGRATION_7_8,
             )
             .build()
 

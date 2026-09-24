@@ -33,6 +33,13 @@ class SessionDataStore @Inject constructor(
         private val TELE_TRIP_B = floatPreferencesKey("tele_trip_b_km")
         private val TELE_FUEL = intPreferencesKey("tele_fuel_segments")
         private val TELE_AT = longPreferencesKey("tele_captured_at")
+
+        private val PENDING_UID = stringPreferencesKey("pending_readings_uid")
+        private val PENDING_ODO = intPreferencesKey("pending_odometer_km")
+        private val PENDING_TRIP_A = floatPreferencesKey("pending_trip_a_km")
+        private val PENDING_TRIP_B = floatPreferencesKey("pending_trip_b_km")
+        private val PENDING_FUEL = intPreferencesKey("pending_fuel_segments")
+        private val PENDING_AT = longPreferencesKey("pending_captured_at")
     }
 
     /**
@@ -80,13 +87,72 @@ class SessionDataStore @Inject constructor(
         )
     }
 
-    suspend fun cacheTelemetry(odometerKm: Int, tripAKm: Float, tripBKm: Float, fuelSegments: Int) {
+    suspend fun cacheTelemetry(
+        odometerKm: Int,
+        tripAKm: Float,
+        tripBKm: Float,
+        fuelSegments: Int,
+        capturedAt: Long = System.currentTimeMillis(),
+    ) {
         context.dataStore.edit {
             it[TELE_ODO] = odometerKm
             it[TELE_TRIP_A] = tripAKm
             it[TELE_TRIP_B] = tripBKm
             it[TELE_FUEL] = fuelSegments
-            it[TELE_AT] = System.currentTimeMillis()
+            it[TELE_AT] = capturedAt
+        }
+    }
+
+    /**
+     * Readings from a sign-out that could not reach the cloud (offline), held
+     * for [uid] until that account signs in again - the cloud refuses uploads
+     * once signed out. Never shown to any other account.
+     *
+     * ponytail: one slot - a second offline sign-out overwrites the first. Fine
+     * because the scooter re-sends true values on connect; a per-uid list if
+     * shared phones make that matter.
+     */
+    val pendingReadings: Flow<Pair<String, CachedTelemetry>?> = context.dataStore.data.map { p ->
+        val uid = p[PENDING_UID] ?: return@map null
+        uid to CachedTelemetry(
+            odometerKm = p[PENDING_ODO] ?: return@map null,
+            tripAKm = p[PENDING_TRIP_A] ?: 0f,
+            tripBKm = p[PENDING_TRIP_B] ?: 0f,
+            fuelSegments = p[PENDING_FUEL] ?: 0,
+            capturedAt = p[PENDING_AT] ?: 0L,
+        )
+    }
+
+    suspend fun savePendingReadings(uid: String, c: CachedTelemetry) {
+        context.dataStore.edit {
+            it[PENDING_UID] = uid
+            it[PENDING_ODO] = c.odometerKm
+            it[PENDING_TRIP_A] = c.tripAKm
+            it[PENDING_TRIP_B] = c.tripBKm
+            it[PENDING_FUEL] = c.fuelSegments
+            it[PENDING_AT] = c.capturedAt
+        }
+    }
+
+    suspend fun clearPendingReadings() {
+        context.dataStore.edit {
+            listOf(PENDING_UID, PENDING_ODO, PENDING_TRIP_A, PENDING_TRIP_B, PENDING_FUEL, PENDING_AT)
+                .forEach { k -> it.remove(k) }
+        }
+    }
+
+    /**
+     * Forgets the last readings. Called on sign-out: they belong to the account
+     * that saw them, and were leaking to the next account signed in on this
+     * phone (found 20 Sep, eshwarp634 -> gnyaneshwarp2006).
+     */
+    suspend fun clearTelemetry() {
+        context.dataStore.edit {
+            it.remove(TELE_ODO)
+            it.remove(TELE_TRIP_A)
+            it.remove(TELE_TRIP_B)
+            it.remove(TELE_FUEL)
+            it.remove(TELE_AT)
         }
     }
 

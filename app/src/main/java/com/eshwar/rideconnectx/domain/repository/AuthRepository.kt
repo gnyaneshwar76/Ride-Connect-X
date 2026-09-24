@@ -37,5 +37,10 @@ interface AuthRepository {
      */
     suspend fun signOut(keepLocalProfile: Boolean = false)
 
-    suspend fun deleteAccount(): AuthResult
+    /**
+     * Deletes the account for good: confirm identity (Google picker, or the
+     * email account's [password]), then cloud data, then the account, then
+     * this account's data on the phone.
+     */
+    suspend fun deleteAccount(activity: android.app.Activity, password: String? = null): AuthResult
 }

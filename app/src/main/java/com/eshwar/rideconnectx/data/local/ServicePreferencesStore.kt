@@ -72,8 +72,9 @@ class ServicePreferencesStore @Inject constructor(
      * *high* sticks for good, and then rejects the rider's own real service
      * records as [ServiceRepository] OdometerTooLow. One such value already
      * reached this cache — 6,001,923 km against a real 2,248 (docs/HANDOFF.md).
-     * Telemetry carries a checksum in byte 28 that the parser does not verify,
-     * so the guard lives here, where every source of a reading passes through.
+     * The parser checks the byte-28 checksum, but one byte passes a garbled
+     * frame 1 time in 128, so the guard stays here, where every source of a
+     * reading passes through.
      */
     suspend fun recordOdometer(km: Int) {
         if (km <= 0) return

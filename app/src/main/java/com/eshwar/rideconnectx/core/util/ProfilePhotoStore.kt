@@ -47,6 +47,9 @@ class ProfilePhotoStore @Inject constructor(
         /** Edge of the copy that travels with the account. See [encodeForCloud]. */
         const val CLOUD_SIZE = 256
         const val CLOUD_QUALITY = 80
+
+        /** Size requested from Google for the account picture. */
+        const val GOOGLE_AVATAR_PX = 512
     }
 
     val photoFile: File get() = File(context.filesDir, FILE_NAME)
@@ -86,11 +89,14 @@ class ProfilePhotoStore @Inject constructor(
      * interrupting sign-in over.
      */
     suspend fun saveFromUrl(url: String): Uri? = withContext(Dispatchers.IO) {
-        if (url.isBlank()) return@withContext null
+        if (!url.startsWith("https://")) return@withContext null
+        // Google serves the account picture at 96px ("=s96-c"), which looks
+        // blurry in the avatar circle. The same URL gives any size on request.
+        val sized = url.replace(Regex("=s\\d+-c$"), "=s$GOOGLE_AVATAR_PX-c")
 
         runCatching {
             val temp = File(context.cacheDir, "avatar_download.jpg")
-            (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {
+            (java.net.URL(sized).openConnection() as java.net.HttpURLConnection).apply {
                 connectTimeout = 10_000
                 readTimeout = 10_000
                 instanceFollowRedirects = true
@@ -259,9 +265,12 @@ class ProfilePhotoStore @Inject constructor(
         if (shortestEdge <= 0) return null
 
         val options = BitmapFactory.Options().apply {
+            // lastOrNull: an image already smaller than OUTPUT_SIZE (Google's
+            // avatar is 96px) matches nothing, and `.last()` threw on it - which
+            // is why the Google picture never arrived and the "E" showed instead.
             inSampleSize = generateSequence(1) { it * 2 }
                 .takeWhile { shortestEdge / it >= OUTPUT_SIZE }
-                .last()
+                .lastOrNull() ?: 1
         }
 
         return context.contentResolver.openInputStream(uri)?.use {

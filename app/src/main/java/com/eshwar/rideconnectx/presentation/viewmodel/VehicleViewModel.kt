@@ -22,7 +22,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
+
+/** How long Create Profile waits for sign-in to finish saving the session. */
+private const val SESSION_WAIT_MS = 5_000L
 
 /** Which sub-sheet of the profile step is open, if any. */
 enum class VehiclePicker { None, Type, Model, Color }
@@ -117,7 +121,13 @@ class VehicleViewModel @Inject constructor(
         // again against the specific vehicle, so it starts unticked.
         viewModelScope.launch {
             val saved = prefs.riderName.first()
-            val session = prefs.session.first()
+            // Wait for sign-in to finish saving the session. Firebase flips the
+            // auth state - and navigates here - a moment before that write, so
+            // an immediate read saw "not signed in": no Google name, no Google
+            // picture, just the letter avatar (21 Sep, fresh install).
+            val session = withTimeoutOrNull(SESSION_WAIT_MS) {
+                prefs.session.first { it.isSignedIn }
+            } ?: prefs.session.first()
 
             // Auto-fill only for Google, where the name and picture come from an
             // account the rider already curated. Email and guest riders typed

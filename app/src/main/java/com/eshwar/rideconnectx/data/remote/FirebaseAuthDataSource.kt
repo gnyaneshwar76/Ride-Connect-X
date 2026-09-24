@@ -16,6 +16,7 @@ import com.eshwar.rideconnectx.domain.model.UserSession
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
@@ -88,26 +89,73 @@ class FirebaseAuthDataSource @Inject constructor(
      * empty, which on a phone with accounts cannot happen.
      */
     suspend fun signInWithGoogle(activity: Activity): AuthResult {
-        val clientId = webClientId ?: return AuthResult.Failure(AuthError.WebClientIdMissing)
-        val credentialManager = CredentialManager.create(activity)
+        val idToken = googleIdToken(activity).getOrElse { return it.asFailure() }
+        return signInWithFirebase(GoogleAuthProvider.getCredential(idToken, null))
+    }
 
-        val idToken = try {
+    /** Carries an [AuthError] out of [googleIdToken] through a [Result]. */
+    private class AuthErrorException(val error: AuthError) : Exception()
+
+    private fun Throwable.asFailure() =
+        AuthResult.Failure((this as? AuthErrorException)?.error ?: toAuthError())
+
+    /** Authorised accounts first, then every account — see [signInWithGoogle]. */
+    private suspend fun googleIdToken(activity: Activity): Result<String> {
+        val clientId = webClientId
+            ?: return Result.failure(AuthErrorException(AuthError.WebClientIdMissing))
+        val credentialManager = CredentialManager.create(activity)
+        return try {
             val token = requestGoogleIdToken(
                 credentialManager, activity, clientId, authorizedOnly = true,
-            )
-            // Nothing previously authorised — ask again showing every account.
-            token ?: requestGoogleIdToken(
+            ) ?: requestGoogleIdToken(
                 credentialManager, activity, clientId, authorizedOnly = false,
-            ) ?: return AuthResult.Failure(AuthError.NoCredentialAvailable)
+            )
+            token?.let { Result.success(it) }
+                ?: Result.failure(AuthErrorException(AuthError.NoCredentialAvailable))
         } catch (e: GetCredentialCancellationException) {
-            return AuthResult.Failure(AuthError.Cancelled)
+            Result.failure(AuthErrorException(AuthError.Cancelled))
         } catch (e: GoogleIdTokenParsingException) {
-            return AuthResult.Failure(AuthError.TokenFailure(e.message.orEmpty()))
+            Result.failure(AuthErrorException(AuthError.TokenFailure(e.message.orEmpty())))
         } catch (e: GetCredentialException) {
-            return AuthResult.Failure(AuthError.TokenFailure(e.message.orEmpty()))
+            Result.failure(AuthErrorException(AuthError.TokenFailure(e.message.orEmpty())))
         }
+    }
 
-        return signInWithFirebase(GoogleAuthProvider.getCredential(idToken, null))
+    /**
+     * Firebase refuses to delete an account unless the sign-in is fresh, so
+     * the rider proves it is them again first. Picking a *different* Google
+     * account here fails - Firebase checks it is the same user.
+     */
+    suspend fun reauthenticateWithGoogle(activity: Activity): AuthResult {
+        val user = auth.currentUser
+            ?: return AuthResult.Failure(AuthError.Unknown("You're not signed in."))
+        // Silent first: auto-select the account already authorised for this app,
+        // so the rider is not shown a sign-in picker just to confirm a delete
+        // (rider, 21 Sep). The picker appears only if the silent pass fails.
+        val silent = webClientId?.let { clientId ->
+            runCatching {
+                requestGoogleIdToken(
+                    CredentialManager.create(activity), activity, clientId,
+                    authorizedOnly = true, autoSelect = true,
+                )
+            }.getOrNull()
+        }
+        val idToken = silent ?: googleIdToken(activity).getOrElse { return it.asFailure() }
+        return runCatching {
+            user.reauthenticate(GoogleAuthProvider.getCredential(idToken, null)).await()
+            AuthResult.Success(user.toSession(LoginMethod.GOOGLE))
+        }.getOrElse { AuthResult.Failure(it.toAuthError()) }
+    }
+
+    suspend fun reauthenticateWithPassword(password: String): AuthResult {
+        val user = auth.currentUser
+            ?: return AuthResult.Failure(AuthError.Unknown("You're not signed in."))
+        val email = user.email
+            ?: return AuthResult.Failure(AuthError.Unknown("This account has no email."))
+        return runCatching {
+            user.reauthenticate(EmailAuthProvider.getCredential(email, password)).await()
+            AuthResult.Success(user.toSession(LoginMethod.EMAIL))
+        }.getOrElse { AuthResult.Failure(it.toAuthError()) }
     }
 
     /**
@@ -122,14 +170,16 @@ class FirebaseAuthDataSource @Inject constructor(
         activity: Activity,
         clientId: String,
         authorizedOnly: Boolean,
+        autoSelect: Boolean = false,
     ): String? {
         val request = GetCredentialRequest.Builder()
             .addCredentialOption(
                 GetGoogleIdOption.Builder()
                     .setFilterByAuthorizedAccounts(authorizedOnly)
                     .setServerClientId(clientId)
-                    // Never auto-select: see the note on signInWithGoogle.
-                    .setAutoSelectEnabled(false)
+                    // Off for sign-in (see signInWithGoogle); on only for the
+                    // silent re-check before deleting an account.
+                    .setAutoSelectEnabled(autoSelect)
                     .build()
             )
             .build()
@@ -193,7 +243,9 @@ class FirebaseAuthDataSource @Inject constructor(
     }
 
     suspend fun deleteAccount(): AuthResult = runCatching {
-        auth.currentUser?.delete()?.await()
+        val user = auth.currentUser
+            ?: return AuthResult.Failure(AuthError.Unknown("You're not signed in."))
+        user.delete().await()
         AuthResult.Success(UserSession())
     }.getOrElse { AuthResult.Failure(it.toAuthError()) }
 

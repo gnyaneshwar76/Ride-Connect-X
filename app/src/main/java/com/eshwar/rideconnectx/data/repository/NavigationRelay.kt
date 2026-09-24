@@ -6,6 +6,8 @@ import com.eshwar.rideconnectx.domain.model.NavManeuver
 import com.eshwar.rideconnectx.domain.model.NavState
 import com.eshwar.rideconnectx.domain.repository.BleRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,6 +39,11 @@ class NavigationRelay @Inject constructor(
 
     private companion object {
         const val TAG = "RCX-Nav"
+        /** Rider's ask: clear 20-30 s after reaching the destination. */
+        const val ARRIVAL_CLEAR_MS = 25_000L
+        /** Maps silent this long mid-route = frozen. Tunable; see [armWatchdog]. */
+        const val STALE_CLEAR_MS = 90_000L
+        const val ARRIVAL_METRES = 50
         val DISTANCE = Regex("""(\d+(?:[.,]\d+)?)\s*(km|m|mi|ft|yd)""", RegexOption.IGNORE_CASE)
     }
 
@@ -57,9 +64,41 @@ class NavigationRelay @Inject constructor(
     suspend fun onManeuver(maneuver: NavManeuver) {
         _state.value = NavState.Active(maneuver)
         relay(maneuver)
+        armWatchdog(arrived = maneuver.isArrival())
+    }
+
+    /**
+     * Clears the cluster when Maps stops talking. Two cases seen on the bike,
+     * 19 Sep 2026: the route ended but the ETA/km stayed on screen, and Maps
+     * froze with its notification still posted, so no "ended" event ever came.
+     *
+     * Every update re-arms it, so it only fires on silence:
+     *  - arrived: [ARRIVAL_CLEAR_MS] after the last update, the rider's ask.
+     *  - otherwise: [STALE_CLEAR_MS]. Longer on purpose - Maps posts nothing
+     *    while the rider waits at a red light, and a long Indian signal must
+     *    not blank a live route. If Maps speaks again, the next update simply
+     *    draws the arrow back.
+     */
+    private var watchdog: Job? = null
+
+    private fun armWatchdog(arrived: Boolean) {
+        watchdog?.cancel()
+        watchdog = appScope.launch {
+            delay(if (arrived) ARRIVAL_CLEAR_MS else STALE_CLEAR_MS)
+            Log.d(TAG, "No Maps update for a while (arrived=$arrived) - clearing cluster")
+            if (arrived) stop() else clearCluster()
+        }
+    }
+
+    /** Maps says "Arrive at…" / "…destination…", or under ~50 m remain. */
+    private fun NavManeuver.isArrival(): Boolean {
+        val text = instruction.lowercase()
+        if ("arriv" in text || "destination" in text) return true
+        return remainingMetres() in 1..ARRIVAL_METRES
     }
 
     fun stop() {
+        watchdog?.cancel()
         if (_state.value !is NavState.Inactive) {
             rideLog.sessionEnd()
             clearCluster()

@@ -157,18 +157,28 @@ class BleRepositoryImpl @Inject constructor(
         // Last known readings first, so the dashboard has something true to show
         // before (or without) a live frame. Marked valid because these ARE real
         // readings from this vehicle - just not necessarily current.
+        //
+        // Followed, not read once: sign-out clears the cache and sign-in restores
+        // the account's own copy from the cloud, and the dashboard must follow
+        // both. A cleared cache always wins, even mid-disconnect, so the next
+        // account never sees the previous one's readings.
         repositoryScope.launch {
-            sessionDataStore.cachedTelemetry.first()?.let { c ->
-                if (_telemetry.value.odometerKm == 0) {
-                    _telemetry.value = ScooterTelemetry(
-                        odometerKm = c.odometerKm,
-                        tripAKm = c.tripAKm,
-                        tripBKm = c.tripBKm,
-                        fuelSegments = c.fuelSegments,
-                        fuelLevel = c.fuelSegments / 5f,
-                        isValid = true,
-                    )
+            sessionDataStore.cachedTelemetry.collect { c ->
+                if (c == null) {
+                    _telemetry.value = ScooterTelemetry()
+                    return@collect
                 }
+                // Live frames also land in the cache; while connected they are
+                // already on screen.
+                if (_connectionState.value is ConnectionState.Connected) return@collect
+                _telemetry.value = ScooterTelemetry(
+                    odometerKm = c.odometerKm,
+                    tripAKm = c.tripAKm,
+                    tripBKm = c.tripBKm,
+                    fuelSegments = c.fuelSegments,
+                    fuelLevel = c.fuelSegments / 5f,
+                    isValid = true,
+                )
             }
         }
         startReconnectWatcher()
@@ -180,8 +190,8 @@ class BleRepositoryImpl @Inject constructor(
                     _telemetry.value = it
                     // Persisted so the dashboard survives a dropout and a restart.
                     //
-                    // The frame's checksum (byte 28) is still unverified, so a
-                    // garbled reading can land here. The service odometer is
+                    // The parser now rejects a bad byte-28 checksum, but a
+                    // frame can still pass by chance. The service odometer is
                     // guarded by `isPlausibleOdometer`, but this cache is what
                     // the dashboard card actually shows and it had no guard at
                     // all — which is how a 6,001,923 km reading stayed on screen

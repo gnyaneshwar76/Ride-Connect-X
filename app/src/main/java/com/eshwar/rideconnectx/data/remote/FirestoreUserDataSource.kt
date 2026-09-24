@@ -41,8 +41,9 @@ class FirestoreUserDataSource @Inject constructor(
 
     private fun userDoc(uid: String) = db.collection(USERS).document(uid)
 
-    suspend fun exists(uid: String): Boolean =
-        runCatching { userDoc(uid).get().await().exists() }.getOrDefault(false)
+    /** Null when the read failed (offline), which is not the same as "no account". */
+    suspend fun exists(uid: String): Boolean? =
+        runCatching { userDoc(uid).get().await().exists() }.getOrNull()
 
     /** Called on first sign-in. Seeds defaults without overwriting anything later. */
     suspend fun createUser(session: UserSession): Result<Unit> = runCatching {
@@ -140,7 +141,18 @@ class FirestoreUserDataSource @Inject constructor(
                 .get().await().documents.mapNotNull { it.data }
         }
 
+    /**
+     * Deletes the account's cloud data. Firestore does not cascade: deleting
+     * users/{uid} alone left favorites and rides behind, orphaned but still
+     * stored. Subcollections go first, in batches under Firestore's 500-write
+     * limit, then the document itself. Safe to repeat if interrupted.
+     */
     suspend fun deleteUser(uid: String): Result<Unit> = runCatching {
+        for (sub in listOf(FAVORITES, RIDES)) {
+            userDoc(uid).collection(sub).get().await().documents.chunked(400).forEach { chunk ->
+                db.batch().apply { chunk.forEach { delete(it.reference) } }.commit().await()
+            }
+        }
         userDoc(uid).delete().await()
     }
 }

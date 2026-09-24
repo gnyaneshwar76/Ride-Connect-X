@@ -477,6 +477,14 @@ object ProtocolEngine {
         if (data.size < 30 || data[0] != START_BYTE || data[29] != END_BYTE) return null
         if (data[1] != PacketType.TELEMETRY.toByte()) return null
 
+        // Byte 28 must match. Either branch is accepted: telemetry can arrive
+        // before `configureForDevice` has read the vehicle name, and a garbled
+        // frame matches neither. An unchecked frame is how 6,001,923 km got in.
+        var sum = 0
+        for (i in 1..27) sum += data[i].toInt() and 0xFF
+        val checksum = data[28].toInt() and 0xFF
+        if (checksum != (sum and 0xFF) && checksum != (sum.inv() and 0xFF)) return null
+
         // Every field is ASCII. A frame with anything else in the digit range is
         // not a shape we understand, and guessing at it would put invented
         // numbers on the rider's dashboard.

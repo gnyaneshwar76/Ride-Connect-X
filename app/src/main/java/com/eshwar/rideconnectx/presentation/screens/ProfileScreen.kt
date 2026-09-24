@@ -127,6 +127,9 @@ fun ProfileScreen(
     var confirmMigrate by remember { mutableStateOf(false) }
     var confirmSignOut by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var confirmDeleteAccount by remember { mutableStateOf(false) }
+    var deletingAccount by remember { mutableStateOf(false) }
+    val activity = LocalContext.current as android.app.Activity
 
     val connected = connection is ConnectionState.Connected
 
@@ -215,6 +218,18 @@ fun ProfileScreen(
                             chevron = false,
                             onClick = { confirmDelete = true },
                         )
+                        // Required by Google Play for any app that creates
+                        // accounts: deletion inside the app, not by email.
+                        if (!account.isGuest) {
+                            SettingsDivider()
+                            SettingsLinkRow(
+                                title = "Delete account",
+                                subtitle = "Permanently removes your account and its data",
+                                accent = c.red,
+                                chevron = false,
+                                onClick = { confirmDeleteAccount = true },
+                            )
+                        }
                     }
                 }
             }
@@ -293,6 +308,49 @@ fun ProfileScreen(
                 confirmSignOut = false
                 vm.signOut(onDone = onSignedOut)
             },
+        )
+    }
+
+    if (confirmDeleteAccount) {
+        val needsPassword = account.method == LoginMethod.EMAIL
+        var password by remember { mutableStateOf("") }
+        ConfirmSheet(
+            title = "Delete your account?",
+            body = "This permanently deletes your account, and with it your profile, " +
+                "saved places and rides in the cloud, plus this account's contacts, " +
+                "service records and rides on this phone. It can't be undone.\n\n" +
+                if (needsPassword) "Enter your password to confirm."
+                else "Google will ask you to confirm it's you.",
+            confirmLabel = if (deletingAccount) "Deleting…" else "Delete forever",
+            onDismiss = { if (!deletingAccount) confirmDeleteAccount = false },
+            onConfirm = {
+                if (deletingAccount || (needsPassword && password.isEmpty())) return@ConfirmSheet
+                deletingAccount = true
+                vm.deleteAccount(activity, password.takeIf { needsPassword }) { error ->
+                    deletingAccount = false
+                    if (error == null) {
+                        confirmDeleteAccount = false
+                        onSignedOut()
+                    } else {
+                        android.widget.Toast.makeText(activity, error, android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }
+            },
+            extra = if (needsPassword) {
+                {
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("Password") },
+                        singleLine = true,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            } else null,
         )
     }
 
