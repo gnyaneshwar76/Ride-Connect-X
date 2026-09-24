@@ -2,6 +2,8 @@ package com.eshwar.rideconnectx.presentation.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import com.eshwar.rideconnectx.core.util.rememberPermissionsController
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
@@ -23,6 +25,7 @@ import com.eshwar.rideconnectx.presentation.screens.NavigationScreen
 import com.eshwar.rideconnectx.presentation.screens.NotificationsScreen
 import com.eshwar.rideconnectx.presentation.screens.PermissionDetailsScreen
 import com.eshwar.rideconnectx.presentation.screens.PermissionsScreen
+import com.eshwar.rideconnectx.presentation.screens.ProfileFoundScreen
 import com.eshwar.rideconnectx.presentation.screens.ProfileScreen
 import com.eshwar.rideconnectx.presentation.screens.SafetyScreen
 import com.eshwar.rideconnectx.presentation.screens.ServiceScreen
@@ -47,6 +50,7 @@ object Routes {
 
     /** Terms and Privacy on a single page — what the profile step links to. */
     const val LEGAL = "legal"
+    const val PROFILE_FOUND = "profile_found"
     const val PERMISSIONS = "perms"
     const val VEHICLE = "vehicle"
 
@@ -159,14 +163,16 @@ fun NavGraph(navController: NavHostController) {
             val profileDone by authVm.profileCompleted.collectAsStateWithLifecycle()
             val perms = rememberPermissionsController()
 
-            // A returning rider's profile is restored from their account on
-            // sign-in, so they go straight to the dashboard. The old "profile
-            // found" confirmation read as a second setup (rider, 24 Sep).
-            val next: (Boolean) -> Unit = { done ->
-                if (done) {
-                    navController.navigate(Routes.DASHBOARD) { popUpTo(0) { inclusive = true } }
-                } else {
-                    navController.navigate(Routes.VEHICLE)
+            val scope = rememberCoroutineScope()
+            // A returning rider goes straight to the dashboard. Only a guest
+            // who just moved into a Google account is shown what was combined
+            // (rider, 24 Sep) — two accounts became one, so they should see it.
+            suspend fun next(done: Boolean) {
+                val merged = authVm.takeGuestMerged() // always consumed, so it can't show later
+                when {
+                    done && merged -> navController.navigate(Routes.PROFILE_FOUND)
+                    done -> navController.navigate(Routes.DASHBOARD) { popUpTo(0) { inclusive = true } }
+                    else -> navController.navigate(Routes.VEHICLE)
                 }
             }
             // Nothing to ask for: don't show the setup screen at all.
@@ -174,7 +180,22 @@ fun NavGraph(navController: NavHostController) {
                 if (perms.allRequiredGranted) next(authVm.isProfileCompleted())
             }
 
-            PermissionsScreen(onContinue = { next(profileDone) })
+            PermissionsScreen(onContinue = { scope.launch { next(profileDone) } })
+        }
+
+        composable(Routes.PROFILE_FOUND) {
+            ProfileFoundScreen(
+                onContinue = {
+                    navController.navigate(Routes.DASHBOARD) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onStartFresh = {
+                    navController.navigate(Routes.VEHICLE) {
+                        popUpTo(Routes.PROFILE_FOUND) { inclusive = true }
+                    }
+                },
+            )
         }
 
         // Create Profile — name, city, vehicle, paint and consent. Runs once,

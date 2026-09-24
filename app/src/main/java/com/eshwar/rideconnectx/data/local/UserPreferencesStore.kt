@@ -12,6 +12,7 @@ import com.eshwar.rideconnectx.domain.model.LoginMethod
 import com.eshwar.rideconnectx.domain.model.UserSession
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -63,6 +64,7 @@ class UserPreferencesStore @Inject constructor(
         val RIDER_NICKNAME = stringPreferencesKey("rider_nickname")
         val RIDER_LOCATION = stringPreferencesKey("rider_location")
         val PROFILE_DONE = booleanPreferencesKey("profile_completed")
+        val GUEST_MERGED = booleanPreferencesKey("guest_merged_pending")
     }
 
     /** Version stamped on acceptance, so a future revision can re-prompt. */
@@ -186,5 +188,13 @@ class UserPreferencesStore @Inject constructor(
 
     suspend fun setProfileCompleted(done: Boolean) = context.userPrefs.edit {
         it[PROFILE_DONE] = done
+    }
+
+    /** Set when a guest's data has just been moved into a Google account; read once. */
+    suspend fun setGuestMerged(merged: Boolean) = context.userPrefs.edit { it[GUEST_MERGED] = merged }
+    suspend fun takeGuestMerged(): Boolean {
+        val merged = context.userPrefs.data.first()[GUEST_MERGED] ?: false
+        if (merged) setGuestMerged(false)
+        return merged
     }
 }

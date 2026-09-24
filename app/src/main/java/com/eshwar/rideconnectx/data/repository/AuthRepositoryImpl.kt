@@ -225,6 +225,8 @@ class AuthRepositoryImpl @Inject constructor(
     private suspend fun AuthResult.persist(): AuthResult {
         if (this !is AuthResult.Success) return this
 
+        // Read before saveSession replaces it: was this phone a guest until now?
+        val wasGuest = prefs.session.first().isGuest
         prefs.saveSession(user)
 
         // Recorded here rather than in the ViewModel so it shares this scope and
@@ -254,6 +256,8 @@ class AuthRepositoryImpl @Inject constructor(
         // lost the first time they reinstalled.
         if (isReturning) restoreFromCloud(user.uid) else carryLocalProfileToCloud(user.uid)
         claimGuestRows(user.uid)
+        // Guest and account are now one: the rider is shown that once.
+        if (wasGuest) prefs.setGuestMerged(true)
         flushPendingReadings(user.uid)
 
         return synced.fold(

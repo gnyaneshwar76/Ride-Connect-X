@@ -19,7 +19,7 @@ import com.eshwar.rideconnectx.presentation.theme.Rcx
 import com.eshwar.rideconnectx.presentation.theme.RcxType
 
 /**
- * Shown wherever notification access matters, and only while it is off.
+ * Shown on the Notifications screen, and only while access is off.
  * Without it the cluster gets no turns, call lamps or message lamps, and the
  * Notifications screen used to just say "all caught up" (rider, 24 Sep).
  */
