@@ -5,6 +5,7 @@ import android.content.Context
 import com.eshwar.rideconnectx.data.local.ServicePreferencesStore
 import com.eshwar.rideconnectx.data.local.SessionDataStore
 import com.eshwar.rideconnectx.data.local.UserPreferencesStore
+import com.eshwar.rideconnectx.data.local.OwnerScope.Companion.GUEST
 import com.eshwar.rideconnectx.data.remote.FirebaseAuthDataSource
 import com.eshwar.rideconnectx.data.remote.FirestoreUserDataSource
 import com.eshwar.rideconnectx.domain.model.AuthError
@@ -64,7 +65,10 @@ class AuthRepositoryImpl @Inject constructor(
             prefs.session,
         ) { firebaseUser, localSession ->
             when {
-                firebaseUser != null -> AuthState.Authenticated(
+                // An email account counts only once its address is verified;
+                // Google accounts always are.
+                firebaseUser != null && (firebaseUser.isEmailVerified ||
+                    firebaseUser.providerData.none { it.providerId == "password" }) -> AuthState.Authenticated(
                     localSession.takeIf { it.uid == firebaseUser.uid }
                         ?: with(remote) { firebaseUser.toSession(localSession.method.orGoogle()) }
                 )
@@ -249,6 +253,7 @@ class AuthRepositoryImpl @Inject constructor(
         // profile stayed local, the new account stayed empty, and the work was
         // lost the first time they reinstalled.
         if (isReturning) restoreFromCloud(user.uid) else carryLocalProfileToCloud(user.uid)
+        claimGuestRows(user.uid)
         flushPendingReadings(user.uid)
 
         return synced.fold(
@@ -350,6 +355,35 @@ class AuthRepositoryImpl @Inject constructor(
             "Carried local profile to users/$uid " +
                 "name=${riderName.isNotBlank()} vehicle=${vehicleId.isNotBlank()}",
         )
+    }
+
+    /**
+     * Hands everything saved as a guest to the account that just signed in.
+     *
+     * OwnerScope promised this and nothing did it: a guest's emergency contact
+     * stayed owned by "guest" and vanished from the account's Safety screen.
+     * `UPDATE OR IGNORE` skips a contact the account already has (the unique
+     * phone index); that duplicate stays with the guest rather than failing.
+     */
+    private fun claimGuestRows(uid: String) {
+        database.openHelper.writableDatabase.apply {
+            beginTransaction()
+            try {
+                OWNED_TABLES.forEach {
+                    execSQL("UPDATE OR IGNORE $it SET ownerId = ? WHERE ownerId = ?", arrayOf(uid, GUEST))
+                }
+                // The account may already have an SOS contact; keep only its oldest primary.
+                execSQL(
+                    "UPDATE emergency_contacts SET isPrimary = 0 WHERE ownerId = ? AND isPrimary = 1 " +
+                        "AND id <> (SELECT id FROM emergency_contacts WHERE ownerId = ? AND isPrimary = 1 " +
+                        "ORDER BY createdAt ASC LIMIT 1)",
+                    arrayOf(uid, uid),
+                )
+                setTransactionSuccessful()
+            } finally {
+                endTransaction()
+            }
+        }
     }
 
     /**

@@ -36,11 +36,13 @@ class SystemServices(
     val locationOn: Boolean,
     val turnOnBluetooth: () -> Unit,
     val openLocationSettings: () -> Unit,
+    /** Straight to Android's Location page — for after the dialog was declined. */
+    val openLocationPage: () -> Unit,
     val refresh: () -> Unit,
 )
 
 @Composable
-fun rememberSystemServices(): SystemServices {
+fun rememberSystemServices(onLocationDeclined: () -> Unit = {}): SystemServices {
     val context = LocalContext.current
 
     var bluetoothOn by remember { mutableStateOf(context.isBluetoothOn()) }
@@ -60,7 +62,12 @@ fun rememberSystemServices(): SystemServices {
     // The resolution is an IntentSender, not an Intent — different contract.
     val openLocation = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
-    ) { refresh() }
+    ) { result ->
+        refresh()
+        // "No thanks" on the dialog. Callers used to keep saying "turning on
+        // location…" with nothing happening (rider, 24 Sep).
+        if (result.resultCode != android.app.Activity.RESULT_OK) onLocationDeclined()
+    }
 
     /** Last-resort route to the Location page in Settings. */
     val openLocationPage = rememberLauncherForActivityResult(
@@ -117,6 +124,9 @@ fun rememberSystemServices(): SystemServices {
                         }
                     }
                 }
+        },
+        openLocationPage = {
+            runCatching { openLocationPage.launch(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }
         },
         refresh = refresh,
     )

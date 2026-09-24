@@ -14,6 +14,7 @@ import com.eshwar.rideconnectx.domain.model.AuthResult
 import com.eshwar.rideconnectx.domain.model.LoginMethod
 import com.eshwar.rideconnectx.domain.model.UserSession
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import com.google.firebase.auth.EmailAuthProvider
@@ -85,8 +86,9 @@ class FirebaseAuthDataSource @Inject constructor(
      *    only when that finds nothing, ask again with the filter off to show
      *    every account on the device.
      *
-     * "No accounts" is therefore only reported after *both* passes come back
-     * empty, which on a phone with accounts cannot happen.
+     * Since 24 Sep the explicit tap goes straight to Google's full account
+     * chooser instead ([GetSignInWithGoogleOption]); the passes above are kept
+     * for the silent re-check before deleting an account.
      */
     suspend fun signInWithGoogle(activity: Activity): AuthResult {
         val idToken = googleIdToken(activity).getOrElse { return it.asFailure() }
@@ -105,10 +107,11 @@ class FirebaseAuthDataSource @Inject constructor(
             ?: return Result.failure(AuthErrorException(AuthError.WebClientIdMissing))
         val credentialManager = CredentialManager.create(activity)
         return try {
+            // Google's full account chooser: every account on the phone, with
+            // "Add account". The bottom-sheet option listed only the accounts
+            // already used with this app (rider saw 5 of their 12, 24 Sep).
             val token = requestGoogleIdToken(
-                credentialManager, activity, clientId, authorizedOnly = true,
-            ) ?: requestGoogleIdToken(
-                credentialManager, activity, clientId, authorizedOnly = false,
+                credentialManager, activity, clientId, authorizedOnly = false, fullChooser = true,
             )
             token?.let { Result.success(it) }
                 ?: Result.failure(AuthErrorException(AuthError.NoCredentialAvailable))
@@ -171,18 +174,20 @@ class FirebaseAuthDataSource @Inject constructor(
         clientId: String,
         authorizedOnly: Boolean,
         autoSelect: Boolean = false,
+        fullChooser: Boolean = false,
     ): String? {
-        val request = GetCredentialRequest.Builder()
-            .addCredentialOption(
-                GetGoogleIdOption.Builder()
-                    .setFilterByAuthorizedAccounts(authorizedOnly)
-                    .setServerClientId(clientId)
-                    // Off for sign-in (see signInWithGoogle); on only for the
-                    // silent re-check before deleting an account.
-                    .setAutoSelectEnabled(autoSelect)
-                    .build()
-            )
-            .build()
+        val option = if (fullChooser) {
+            GetSignInWithGoogleOption.Builder(clientId).build()
+        } else {
+            GetGoogleIdOption.Builder()
+                .setFilterByAuthorizedAccounts(authorizedOnly)
+                .setServerClientId(clientId)
+                // Off for sign-in (see signInWithGoogle); on only for the
+                // silent re-check before deleting an account.
+                .setAutoSelectEnabled(autoSelect)
+                .build()
+        }
+        val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
 
         val credential = try {
             credentialManager.getCredential(activity, request).credential
@@ -214,15 +219,27 @@ class FirebaseAuthDataSource @Inject constructor(
             val user = auth.createUserWithEmailAndPassword(email.trim(), password).await().user
                 ?: return AuthResult.Failure(AuthError.Unknown("Firebase returned no user."))
             user.updateProfile(userProfileChangeRequest { displayName = name.trim() }).await()
-            AuthResult.Success(user.toSession(LoginMethod.EMAIL).copy(name = name.trim()))
+            // Nothing is signed in until the address is proven: a typo or a
+            // made-up address used to get a working account (rider, 24 Sep).
+            requireVerified(user)
         }.getOrElse { AuthResult.Failure(it.toAuthError()) }
 
     suspend fun signInWithEmail(email: String, password: String): AuthResult =
         runCatching {
             val user = auth.signInWithEmailAndPassword(email.trim(), password).await().user
                 ?: return AuthResult.Failure(AuthError.Unknown("Firebase returned no user."))
-            AuthResult.Success(user.toSession(LoginMethod.EMAIL))
+            if (user.isEmailVerified) AuthResult.Success(user.toSession(LoginMethod.EMAIL)) else requireVerified(user)
         }.getOrElse { AuthResult.Failure(it.toAuthError()) }
+
+    /** Sends (or re-sends) the link, then signs back out until it is opened. */
+    private suspend fun requireVerified(user: FirebaseUser): AuthResult {
+        // A resend inside Firebase's rate limit fails; the earlier link still works.
+        runCatching { user.sendEmailVerification().await() }
+            .onFailure { android.util.Log.w("RCX-Auth", "Verification email not sent", it) }
+        val email = user.email.orEmpty()
+        auth.signOut()
+        return AuthResult.Failure(AuthError.EmailNotVerified(email))
+    }
 
     suspend fun sendPasswordReset(email: String): AuthResult = runCatching {
         auth.sendPasswordResetEmail(email.trim()).await()

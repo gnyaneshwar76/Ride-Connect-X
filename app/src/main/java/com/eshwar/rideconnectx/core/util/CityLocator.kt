@@ -1,5 +1,9 @@
 package com.eshwar.rideconnectx.core.util
 
+import com.google.android.gms.location.CurrentLocationRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import kotlinx.coroutines.tasks.await
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
@@ -106,50 +110,24 @@ class CityLocator @Inject constructor(
     }
 
     /**
-     * Listens for up to [FIX_TIMEOUT_MS], keeping the most accurate fix seen and
-     * stopping early once one is good enough. GPS reports coarsely first and
-     * tightens over a few seconds; taking the first callback is what makes a
-     * shared location land on the wrong street.
+     * One fresh fix from the fused provider (GPS + Wi-Fi + cell), which answers
+     * in a second or two where raw GPS took up to [FIX_TIMEOUT_MS] — and the
+     * old listener's timeout threw away the best fix it had seen, so a slow
+     * lock returned nothing at all (rider, 24 Sep: "taking so much time").
+     * GPS still works with no signal or data.
      */
     @SuppressLint("MissingPermission")
-    private suspend fun bestFreshFix(): Location? = withTimeoutOrNull(FIX_TIMEOUT_MS) {
-        val manager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
-            ?: return@withTimeoutOrNull null
-
-        suspendCancellableCoroutine { cont ->
-            val provider = when {
-                manager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
-                manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
-                else -> null
-            }
-            if (provider == null) {
-                cont.resume(null)
-                return@suspendCancellableCoroutine
-            }
-
-            var best: Location? = null
-            lateinit var listener: android.location.LocationListener
-            listener = android.location.LocationListener { location ->
-                val current = best
-                if (current == null || location.accuracy < current.accuracy) best = location
-                if (location.isGoodEnough() && cont.isActive) {
-                    manager.removeUpdates(listener)
-                    cont.resume(best)
-                }
-            }
-
-            runCatching {
-                manager.requestLocationUpdates(provider, 0L, 0f, listener)
-            }.onFailure {
-                Log.w(TAG, "requestLocationUpdates failed", it)
-                if (cont.isActive) cont.resume(null)
-            }
-
-            // Timing out is normal, not a failure — hand back the best so far.
-            cont.invokeOnCancellation {
-                manager.removeUpdates(listener)
-            }
-        }
+    private suspend fun bestFreshFix(): Location? {
+        val request = CurrentLocationRequest.Builder()
+            .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+            .setDurationMillis(FIX_TIMEOUT_MS)
+            .setMaxUpdateAgeMillis(FRESH_ENOUGH_MS)
+            .build()
+        return runCatching {
+            LocationServices.getFusedLocationProviderClient(context)
+                .getCurrentLocation(request, null)
+                .await()
+        }.onFailure { Log.w(TAG, "Fused location failed", it) }.getOrNull()
     }
 
     @SuppressLint("MissingPermission")

@@ -44,3 +44,6 @@ docs/app-walkthrough.mp4
 
 # Firebase CLI deploy cache
 .firebase/
+
+# Scratch space — stays on this computer, never published.
+/temporary/

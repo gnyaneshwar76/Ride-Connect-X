@@ -56,6 +56,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eshwar.rideconnectx.domain.model.ServiceStatus
 import com.eshwar.rideconnectx.R
+import com.eshwar.rideconnectx.presentation.components.NotificationAccessWarning
 import com.eshwar.rideconnectx.presentation.components.RcxPhotoFill
 import com.eshwar.rideconnectx.presentation.components.RcxSurface
 import com.eshwar.rideconnectx.presentation.components.RiderAvatar
@@ -251,6 +252,8 @@ fun DashboardScreen(
             }
 
             Spacer(Modifier.height(16.dp))
+
+            NotificationAccessWarning(Modifier.padding(bottom = 16.dp))
 
             // ── Quick actions ───────────────────────────────────────
             Text(stringResource(R.string.dash_quick_actions), style = RcxType.MonoTiny.copy(fontSize = 10.sp), color = c.muted)

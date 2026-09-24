@@ -46,9 +46,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eshwar.rideconnectx.domain.model.NavManeuver
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import com.eshwar.rideconnectx.core.util.rememberNotificationAccess
 import com.eshwar.rideconnectx.domain.model.NavState
 import com.eshwar.rideconnectx.R
@@ -82,13 +79,6 @@ fun NavigationScreen(
     // Reading Maps' turn-by-turn needs notification access, which is granted on
     // a Settings page rather than by a dialog — so re-check whenever we return.
     val notificationAccess = rememberNotificationAccess()
-    val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) notificationAccess.refresh()
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-    }
 
     val openMaps = {
         vm.onHandOffToMaps()

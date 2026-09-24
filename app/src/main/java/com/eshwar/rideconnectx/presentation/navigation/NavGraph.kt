@@ -2,6 +2,7 @@ package com.eshwar.rideconnectx.presentation.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import com.eshwar.rideconnectx.core.util.rememberPermissionsController
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -22,7 +23,6 @@ import com.eshwar.rideconnectx.presentation.screens.NavigationScreen
 import com.eshwar.rideconnectx.presentation.screens.NotificationsScreen
 import com.eshwar.rideconnectx.presentation.screens.PermissionDetailsScreen
 import com.eshwar.rideconnectx.presentation.screens.PermissionsScreen
-import com.eshwar.rideconnectx.presentation.screens.ProfileFoundScreen
 import com.eshwar.rideconnectx.presentation.screens.ProfileScreen
 import com.eshwar.rideconnectx.presentation.screens.SafetyScreen
 import com.eshwar.rideconnectx.presentation.screens.ServiceScreen
@@ -54,7 +54,6 @@ object Routes {
     const val CHANGE_VEHICLE = "vehicle_change"
     const val DASHBOARD = "dash"
     /** Shown after sign-in when the account already holds a profile. */
-    const val PROFILE_FOUND = "profile_found"
     const val BLE = "ble"
     const val NAVIGATION = "nav"
     const val STATS = "stats"
@@ -158,34 +157,24 @@ fun NavGraph(navController: NavHostController) {
         composable(Routes.PERMISSIONS) {
             val authVm: AuthViewModel = hiltViewModel()
             val profileDone by authVm.profileCompleted.collectAsStateWithLifecycle()
+            val perms = rememberPermissionsController()
 
-            PermissionsScreen(
-                onContinue = {
-                    // A returning rider's profile is pulled back from their
-                    // account on sign-in. Rather than adopting it silently or
-                    // ignoring it, show what was found and let them choose.
-                    if (profileDone) {
-                        navController.navigate(Routes.PROFILE_FOUND)
-                    } else {
-                        navController.navigate(Routes.VEHICLE)
-                    }
+            // A returning rider's profile is restored from their account on
+            // sign-in, so they go straight to the dashboard. The old "profile
+            // found" confirmation read as a second setup (rider, 24 Sep).
+            val next: (Boolean) -> Unit = { done ->
+                if (done) {
+                    navController.navigate(Routes.DASHBOARD) { popUpTo(0) { inclusive = true } }
+                } else {
+                    navController.navigate(Routes.VEHICLE)
                 }
-            )
-        }
+            }
+            // Nothing to ask for: don't show the setup screen at all.
+            LaunchedEffect(Unit) {
+                if (perms.allRequiredGranted) next(authVm.isProfileCompleted())
+            }
 
-        composable(Routes.PROFILE_FOUND) {
-            ProfileFoundScreen(
-                onContinue = {
-                    navController.navigate(Routes.DASHBOARD) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                },
-                onStartFresh = {
-                    navController.navigate(Routes.VEHICLE) {
-                        popUpTo(Routes.PROFILE_FOUND) { inclusive = true }
-                    }
-                },
-            )
+            PermissionsScreen(onContinue = { next(profileDone) })
         }
 
         // Create Profile — name, city, vehicle, paint and consent. Runs once,

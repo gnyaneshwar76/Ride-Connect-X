@@ -122,7 +122,11 @@ fun SafetyScreen(
     val c = Rcx.colors
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val systemServices = rememberSystemServices()
+    // Set when the rider says "No thanks" to turning location on; the next
+    // tap goes straight to the Location page instead of re-asking.
+    var locationDeclined by remember { mutableStateOf(false) }
+    var onLocationDeclined by remember { mutableStateOf({}) }
+    val systemServices = rememberSystemServices(onLocationDeclined = { onLocationDeclined() })
 
     val contacts by vm.contacts.collectAsStateWithLifecycle()
     val primary by vm.primaryContact.collectAsStateWithLifecycle()
@@ -173,11 +177,32 @@ fun SafetyScreen(
     var shareWaitingFor by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var permissionTick by remember { mutableIntStateOf(0) }
 
+    fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_LONG).show()
+
+    onLocationDeclined = {
+        sharePending = false
+        shareWaitingFor = null
+        locationDeclined = true
+        toast("Location is off, so your position can't be shared. Tap Share again to open location settings.")
+    }
+
     val requestLocationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
-        if (result.values.any { it }) {
+        if (result[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
             permissionTick++
+        } else if (result.values.any { it }) {
+            // Approximate only: a point up to a few km out is worse than none
+            // when someone is coming to find you (rider, 24 Sep). Don't share it.
+            sharePending = false
+            shareWaitingFor = null
+            toast("Precise location is needed to share where you are. Turn on \"Use precise location\" for RideConnectX.")
+            context.startActivity(
+                Intent(
+                    android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", context.packageName, null),
+                )
+            )
         } else {
             sharePending = false
             shareWaitingFor = null
@@ -212,12 +237,9 @@ fun SafetyScreen(
 
     fun startShare() {
         sharePending = true
-        val hasPermission = listOf(
-            Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION,
-        ).any {
-            androidx.core.content.ContextCompat.checkSelfPermission(context, it) ==
-                android.content.pm.PackageManager.PERMISSION_GRANTED
-        }
+        // Precise only. With approximate granted, asking for FINE again shows
+        // Android's "Change to precise location" dialog.
+        val hasPermission = vm.hasPreciseLocation
         when {
             !hasPermission -> {
                 shareWaitingFor = R.string.safety_waiting_permission to R.string.safety_waiting_permission_sub
@@ -226,9 +248,10 @@ fun SafetyScreen(
                 )
             }
             !context.isLocationOn() -> {
-                // Play Services puts the switch in a dialog over this screen.
                 shareWaitingFor = R.string.safety_turn_on_location to R.string.safety_turn_on_location_sub
-                systemServices.openLocationSettings()
+                // Play Services puts the switch in a dialog over this screen;
+                // once declined, the Location page is the only way left.
+                if (locationDeclined) systemServices.openLocationPage() else systemServices.openLocationSettings()
             }
             else -> sendShare()
         }
@@ -246,10 +269,13 @@ fun SafetyScreen(
         repeat(LOCATION_WAIT_POLLS) {
             kotlinx.coroutines.delay(500)
             if (context.isLocationOn()) {
+                locationDeclined = false
                 startShare()
                 return@LaunchedEffect
             }
         }
+        // Gave up waiting: say so instead of leaving "turning on location…" up.
+        onLocationDeclined()
     }
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
@@ -401,7 +427,11 @@ fun SafetyScreen(
             onCallContact = { number -> dial(number) },
             onCallServices = { dial(EMERGENCY_NUMBER) },
             waitingFor = shareWaitingFor,
-            onShareLocation = { startShare() },
+            // One share at a time: repeat taps opened two or three share
+            // sheets while the fix was still coming (rider, 24 Sep).
+            onShareLocation = {
+                if (sharePending || locating) toast("Getting your location — please wait…") else startShare()
+            },
         )
     }
 

@@ -16,6 +16,8 @@ sealed interface AuthError {
     data class WeakPassword(val detail: String) : AuthError
     data class TokenFailure(val detail: String) : AuthError
     data class CloudSyncFailure(val detail: String) : AuthError
+    /** Email account whose address was never confirmed; a link has been (re)sent. */
+    data class EmailNotVerified(val email: String) : AuthError
     data class Unknown(val detail: String) : AuthError
 
     val message: String
@@ -33,6 +35,8 @@ sealed interface AuthError {
             is WeakPassword -> detail
             is TokenFailure -> "Couldn't verify your Google account. $detail"
             is CloudSyncFailure -> "Signed in, but your data couldn't sync. $detail"
+            is EmailNotVerified ->
+                "We've sent a verification link to $email. Open it, then sign in. Not your address? Sign up again with the right one."
             is Unknown -> detail
         }
 }

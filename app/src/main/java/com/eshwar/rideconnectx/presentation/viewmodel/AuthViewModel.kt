@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -61,6 +62,9 @@ class AuthViewModel @Inject constructor(
      */
     val profileCompleted: StateFlow<Boolean> = prefs.profileCompleted
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    /** The stored value, not the StateFlow's `false` placeholder before it loads. */
+    suspend fun isProfileCompleted(): Boolean = prefs.profileCompleted.first()
 
     private val _ui = MutableStateFlow(SignInUiState(googleAvailable = auth.isGoogleSignInAvailable))
     val ui: StateFlow<SignInUiState> = _ui.asStateFlow()
