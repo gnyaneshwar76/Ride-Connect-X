@@ -94,7 +94,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [x] N10 service-centre field accepted an odometer number — centre must contain letters; odometer numbers only
 - [x] N11 R2 regression: "Find nearby on Maps" not visible on Add Service Record with no past centres — must always show (no live Places search)
 - [x] N8 (low) location share takes 3–4 s — start the fix when the SOS sheet opens
-- [ ] N12 verify: Google sign-in swiped away mid-spinner, reopened straight to Dashboard — was sign-in complete?
+- [x] N12 verify: Google sign-in swiped away mid-spinner, reopened straight to Dashboard — was sign-in complete?
 - [ ] _new failures from 26–27 Sep testing go here_
 
 ### Waiting on an owner decision
@@ -393,3 +393,70 @@ assembleDebug` passes, **108/108** unit tests (100 before; +5 N9, +3 N10).
 - **Files:** `viewmodel/SafetyViewModel.kt`, `screens/SafetyScreen.kt`.
 - **Phone check:** open SOS, wait ~3 s, tap share: the message is ready almost
   at once. With "Approximate" only: still refused as before.
+
+### Re-test rework (26 Sep, 19:30 report) — third cloud session
+Built with a placeholder `google-services.json`: `./gradlew testDebugUnitTest
+assembleDebug` passes, **110/110** unit tests. N2, N5, N6 passed on the phone.
+
+**N1 rework: dialogs must chain by themselves** — `d5a4870`
+- **Cause:** only the first step was launched automatically; each later step
+  waited for a tap on its button.
+- **Change:** the Permissions screen launches the next step as soon as the
+  previous one is answered (allow or deny): Notifications → Nearby devices →
+  Bluetooth on (only if off) → Location → Location on (only if off). A
+  permission is answered when its result arrives; a radio prompt when the app
+  is back in front. Never two at once. The button remains for anything refused.
+- **Files:** `screens/PermissionsScreen.kt`, `core/util/SetupSteps.kt` (comment).
+- **Phone check:** fresh install, Bluetooth and location off. After sign-in,
+  without touching any button: Notifications dialog → answer → Nearby devices
+  dialog → answer → "turn on Bluetooth" → answer → Location dialog → answer →
+  location switch dialog. Deny one: the next still comes. Then Create Profile.
+
+**N3 change: reset instead of resume** — `eb0249d`
+- **Change:** on launch, signed in with setup not completed (no guest-merge
+  question waiting) → Firebase signed out, session, unfinished local profile,
+  photo and cached readings cleared, app opens on Intro. Back → "Leave setup?"
+  → Exit on Create Profile does the same reset, then closes. The reset writes
+  nothing to Firestore; Create Profile only writes to the cloud on Continue.
+- **Not covered:** if Android kills the app in the background and later
+  restores it from Recents (not a swipe-away), Android restores the screen, so
+  setup continues where it was rather than resetting.
+- **Files:** `navigation/SetupGate.kt`, `navigation/NavGraph.kt`,
+  `screens/CreateProfileScreen.kt`, `viewmodel/AuthViewModel.kt`,
+  `domain/repository/AuthRepository.kt`, `data/repository/AuthRepositoryImpl.kt`,
+  test `SetupGateTest`.
+- **Phone check:** (a) sign in with a Google account with no profile, reach
+  Create Profile, type a name, swipe the app away, reopen: Intro, signed out;
+  sign in again: Create Profile is empty apart from the Google name. (b) Same,
+  but press Back → Exit: app closes; reopen: Intro. (c) As a guest: same two
+  checks; the guest name is gone.
+
+**N4 rework: guest name came back on Back/forward** — `906c29f`
+- **Cause:** the form reads the stored profile once; the guest name was put
+  back into it by sign-in. (1) Sign-in restored any profile fields in the
+  account's cloud document, complete or not, so a name with no vehicle (the
+  guest name merge-written by the original leak) came down on every sign-in.
+  (2) "Save to an account" carried an unfinished profile and wrote it into the
+  new account's Firestore document. Nothing in the form used rememberSaveable
+  or SavedStateHandle for the name.
+- **Change:** only a complete cloud profile (name + vehicle) is restored; an
+  unfinished local profile is cleared, never carried. The stale cloud name is
+  overwritten when the account finishes setup.
+- **Files:** `domain/model/ProfileHandover.kt`, `data/repository/AuthRepositoryImpl.kt`,
+  test `ProfileHandoverTest`.
+- **Phone check:** the same guest → Google account as before. Create Profile
+  shows the Google name. Back → Exit, reopen, sign in again (N3 resets): still
+  the Google name, never "rocky bhai". Finish setup, sign out, sign in: your
+  own name and vehicle come back.
+
+**N12 verify: swiped away mid sign-in, reopened to Dashboard** — `eb0249d`
+- **Finding:** Dashboard was correct. Since the AUDIT fix the account's
+  session is saved as the very last step of sign-in, and the app counts an
+  account as signed in only once it is saved. Sign-in keeps running in the
+  background after a swipe, so it had finished and restored the complete
+  profile. A sign-in killed before that last step opens on Intro, signed out.
+- **Gap fixed:** in that killed case Firebase still held the account while the
+  app showed signed out. Launch now signs Firebase out too.
+- **Phone check:** repeat the swipe on an account with a profile: Dashboard
+  with its name and vehicle, or Intro if it had not finished — never setup.
+
