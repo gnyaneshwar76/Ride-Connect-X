@@ -119,6 +119,18 @@ class VehicleRepository @Inject constructor(
         }
     }
 
+    /** A removed picture; blank reads back as "no photo" (see CloudProfile). */
+    fun clearPhotoInCloud() {
+        appScope.launch {
+            val session = prefs.session.first()
+            if (!session.syncsToCloud) return@launch
+            firestore.updateProfileFields(session.uid, mapOf("photoBase64" to "")).fold(
+                onSuccess = { Log.d(TAG, "Avatar removed from cloud") },
+                onFailure = { Log.e(TAG, "Avatar removal sync failed", it) },
+            )
+        }
+    }
+
     /**
      * Sends just the picture, for when that is the only thing that changed.
      *

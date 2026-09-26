@@ -95,6 +95,8 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [x] N11 R2 regression: "Find nearby on Maps" not visible on Add Service Record with no past centres — must always show (no live Places search)
 - [x] N8 (low) location share takes 3–4 s — start the fix when the SOS sheet opens
 - [x] N12 verify: Google sign-in swiped away mid-spinner, reopened straight to Dashboard — was sign-in complete?
+- [ ] Full-app basic-logic audit (27 Sep overnight) — items below
+  - [x] AUD-1 Profile name/city edit and photo removal saved on the phone only; the next sign-in brought the old ones back
 - [ ] _new failures from 26–27 Sep testing go here_
 
 ### Waiting on an owner decision

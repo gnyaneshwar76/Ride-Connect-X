@@ -104,6 +104,8 @@ class ProfileViewModel @Inject constructor(
         appScope.launch {
             photoStore.clear()
             _photoVersion.value += 1
+            // Or the account's copy came back at the next sign-in (AUD-4).
+            vehicleRepository.clearPhotoInCloud()
         }
     }
 
@@ -120,6 +122,9 @@ class ProfileViewModel @Inject constructor(
         appScope.launch {
             prefs.saveRiderName(name)
             prefs.saveRiderLocation(location)
+            // Saved on the phone only, the next sign-in restored the old name
+            // and city from the account (AUD-4).
+            vehicleRepository.syncSelectionToCloud(riderName = name.trim(), location = location.trim())
         }
     }
 
