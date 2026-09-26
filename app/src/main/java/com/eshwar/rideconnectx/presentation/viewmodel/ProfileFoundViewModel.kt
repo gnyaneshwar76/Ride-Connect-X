@@ -3,67 +3,73 @@ package com.eshwar.rideconnectx.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eshwar.rideconnectx.data.local.UserPreferencesStore
-import com.eshwar.rideconnectx.data.repository.VehicleRepository
-import com.eshwar.rideconnectx.domain.model.Vehicle
-import com.eshwar.rideconnectx.domain.model.VehicleColor
+import com.eshwar.rideconnectx.domain.model.AuthResult
+import com.eshwar.rideconnectx.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** What the rider's account already holds, ready to be confirmed or replaced. */
-data class FoundProfile(
-    val riderName: String = "",
-    val location: String = "",
-    val vehicle: Vehicle? = null,
-    val color: VehicleColor? = null,
-) {
-    val hasSomethingToShow: Boolean get() = riderName.isNotBlank() || vehicle != null
-}
+/** The account being signed into, and the guest whose data is waiting. */
+data class GuestMergeQuestion(
+    val accountName: String = "",
+    val accountEmail: String = "",
+    val guestName: String = "",
+)
 
 /**
- * Backs the screen shown when signing in finds an existing profile.
+ * Backs "Add your guest data to this account?".
  *
- * The rider decides whether to carry on with it or start over — the app does not
- * silently adopt old data, and it does not silently discard it either.
+ * Asked when a guest signs into an account that already has a profile. The app
+ * used to merge silently (rider, 26 Sep); now nothing moves until the rider
+ * answers, and they can pick another account instead.
  */
 @HiltViewModel
 class ProfileFoundViewModel @Inject constructor(
     private val prefs: UserPreferencesStore,
-    private val vehicles: VehicleRepository,
+    private val auth: AuthRepository,
 ) : ViewModel() {
 
-    val profile: StateFlow<FoundProfile> =
-        combine(prefs.riderName, prefs.riderLocation, vehicles.selection) { name, city, sel ->
-            FoundProfile(
-                riderName = name,
-                location = city,
-                vehicle = sel.vehicle,
-                color = sel.color,
+    val question: StateFlow<GuestMergeQuestion> =
+        combine(prefs.session, prefs.riderName) { account, guestName ->
+            GuestMergeQuestion(
+                accountName = account.name,
+                accountEmail = account.email,
+                guestName = guestName,
             )
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, FoundProfile())
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, GuestMergeQuestion())
 
-    /**
-     * Clears the restored details so Create Profile genuinely starts blank.
-     *
-     * The vehicle and colour are cleared too. Leaving them behind meant "set up
-     * a new profile" still arrived with the old scooter already chosen, which is
-     * not starting over.
-     *
-     * Only local state is touched. The cloud copy stays until the rider finishes
-     * the new profile and it gets written over, so backing out here costs them
-     * nothing.
-     */
-    fun startFresh(onDone: () -> Unit) {
+    private val _busy = MutableStateFlow(false)
+    val busy: StateFlow<Boolean> = _busy.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    /** [onDone] gets whether the account's profile is complete. */
+    fun add(onDone: (Boolean) -> Unit) {
+        if (_busy.value) return
         viewModelScope.launch {
-            prefs.saveRiderName("")
-            prefs.saveRiderLocation("")
-            prefs.saveVehicle("")
-            prefs.saveColor("")
-            prefs.setProfileCompleted(false)
+            _busy.value = true
+            _error.value = null
+            when (val result = auth.addGuestDataToAccount()) {
+                is AuthResult.Success -> onDone(prefs.profileCompleted.first())
+                is AuthResult.Failure -> _error.value = result.error.message
+            }
+            _busy.value = false
+        }
+    }
+
+    fun chooseAnother(onDone: () -> Unit) {
+        if (_busy.value) return
+        viewModelScope.launch {
+            _busy.value = true
+            auth.declineGuestMerge()
             onDone()
         }
     }

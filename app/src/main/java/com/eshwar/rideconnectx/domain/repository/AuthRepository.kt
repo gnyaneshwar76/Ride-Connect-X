@@ -38,6 +38,18 @@ interface AuthRepository {
     suspend fun signOut(keepLocalProfile: Boolean = false)
 
     /**
+     * Answers "Add your guest data to this account?", asked when a guest signs
+     * into an account that already has a profile. Nothing is merged before this.
+     */
+    suspend fun addGuestDataToAccount(): AuthResult
+
+    /**
+     * The other answer: leave this account, keeping the guest data on the phone
+     * and ready for the account chosen next.
+     */
+    suspend fun declineGuestMerge()
+
+    /**
      * Deletes the account for good: confirm identity (Google picker, or the
      * email account's [password]), then cloud data, then the account, then
      * this account's data on the phone.

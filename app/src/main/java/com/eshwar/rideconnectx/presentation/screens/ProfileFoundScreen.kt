@@ -17,12 +17,9 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,27 +37,28 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eshwar.rideconnectx.presentation.components.PrimaryButton
 import com.eshwar.rideconnectx.presentation.components.RiderAvatar
-import com.eshwar.rideconnectx.presentation.components.VehicleArtwork
 import com.eshwar.rideconnectx.presentation.theme.Rcx
 import com.eshwar.rideconnectx.presentation.theme.RcxType
 import com.eshwar.rideconnectx.presentation.viewmodel.ProfileFoundViewModel
 
 /**
- * Shown when signing in turns up a profile already attached to the account.
+ * "Add your guest data to this account?"
  *
- * Reinstalling used to drop the rider back into Create Profile as though they
- * were new, which defeats the point of signing in. Restoring silently would be
- * the opposite mistake — so the details are shown and the rider chooses.
+ * Shown when a guest signs into an account that already has a profile. The
+ * guest's rides, service records and emergency contacts used to be merged into
+ * it without a word (rider, 26 Sep). Nothing moves until the rider answers:
+ * add them to this account, or go back and choose another one.
  */
 @Composable
 fun ProfileFoundScreen(
-    onContinue: () -> Unit,
-    onStartFresh: () -> Unit,
+    onAdded: (profileDone: Boolean) -> Unit,
+    onChooseAnother: () -> Unit,
     vm: ProfileFoundViewModel = hiltViewModel(),
 ) {
     val c = Rcx.colors
-    val profile by vm.profile.collectAsStateWithLifecycle()
-    val accent = profile.color?.primary ?: c.blue
+    val q by vm.question.collectAsStateWithLifecycle()
+    val busy by vm.busy.collectAsStateWithLifecycle()
+    val error by vm.error.collectAsStateWithLifecycle()
 
     Box(
         Modifier
@@ -84,124 +82,83 @@ fun ProfileFoundScreen(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    Icons.Default.CheckCircle,
+                    Icons.Default.Group,
                     contentDescription = null,
-                    tint = c.green,
+                    tint = c.blue,
                     modifier = Modifier.size(22.dp),
                 )
                 Spacer(Modifier.size(8.dp))
                 Text(
-                    "Guest data added",
-                    style = RcxType.Wordmark.copy(fontSize = 22.sp),
+                    "Add your guest data to this account?",
+                    style = RcxType.Wordmark.copy(fontSize = 20.sp),
                     color = c.text,
                 )
             }
 
             Spacer(Modifier.height(6.dp))
             Text(
-                "Your guest contacts, services and rides are now saved to this " +
-                    "Google account, together with its profile. Continue, or start over.",
+                "This account already has a rider profile. Adding moves the rides, " +
+                    "service records and emergency contacts you saved as " +
+                    "${q.guestName.ifBlank { "a guest" }} into it, and keeps the " +
+                    "account's own profile. Or choose another account.",
                 style = RcxType.Body.copy(fontSize = 14.sp),
                 color = c.muted,
             )
 
             Spacer(Modifier.height(24.dp))
 
-            // ── The saved profile ────────────────────────────────────
-            Column(
+            // ── The account being signed into ────────────────────────
+            Row(
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
                     .background(c.card)
-                    .border(1.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
+                    .border(1.dp, c.blue.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
                     .padding(18.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // The account's own picture, restored alongside the rest of
-                    // the profile. A generic person glyph on the screen that
-                    // asks "is this you?" was answering its own question badly.
-                    RiderAvatar(name = profile.riderName, size = 52.dp, accent = accent)
-
-                    Spacer(Modifier.size(14.dp))
-
-                    Column(Modifier.weight(1f)) {
+                RiderAvatar(name = q.accountName, size = 52.dp, accent = c.blue)
+                Spacer(Modifier.size(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        q.accountName.ifBlank { "Your account" },
+                        style = RcxType.Wordmark.copy(fontSize = 18.sp),
+                        color = c.text,
+                    )
+                    if (q.accountEmail.isNotBlank()) {
+                        Spacer(Modifier.height(2.dp))
                         Text(
-                            profile.riderName.ifBlank { "Rider" },
-                            style = RcxType.Wordmark.copy(fontSize = 18.sp),
-                            color = c.text,
-                        )
-                        if (profile.location.isNotBlank()) {
-                            Spacer(Modifier.height(2.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = c.muted,
-                                    modifier = Modifier.size(13.dp),
-                                )
-                                Spacer(Modifier.size(4.dp))
-                                Text(
-                                    profile.location,
-                                    style = RcxType.Body.copy(fontSize = 13.sp),
-                                    color = c.muted,
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Only drawn when a vehicle was actually chosen — an empty
-                // placeholder here would look like something failed to load.
-                profile.vehicle?.let { vehicle ->
-                    Spacer(Modifier.height(16.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                "YOUR VEHICLE",
-                                style = RcxType.Mono.copy(fontSize = 10.sp),
-                                color = c.muted,
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                vehicle.name,
-                                style = RcxType.Wordmark.copy(fontSize = 17.sp),
-                                color = c.text,
-                            )
-                            profile.color?.let {
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    it.name,
-                                    style = RcxType.Body.copy(fontSize = 12.sp),
-                                    color = c.muted,
-                                )
-                            }
-                        }
-                        VehicleArtwork(
-                            vehicle = vehicle,
-                            body = accent,
-                            outline = accent,
-                            modifier = Modifier.size(width = 112.dp, height = 58.dp),
+                            q.accountEmail,
+                            style = RcxType.Body.copy(fontSize = 13.sp),
+                            color = c.muted,
                         )
                     }
                 }
             }
 
+            error?.let {
+                Spacer(Modifier.height(12.dp))
+                Text(it, style = RcxType.Body.copy(fontSize = 13.sp), color = c.red)
+            }
+
             Spacer(Modifier.height(28.dp))
 
             PrimaryButton(
-                label = "Continue as ${profile.riderName.ifBlank { "this rider" }}",
-                onClick = onContinue,
+                label = if (busy) "Adding…" else "Add to this account",
+                onClick = { vm.add(onAdded) },
+                enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
             )
 
             Spacer(Modifier.height(6.dp))
 
             TextButton(
-                onClick = { vm.startFresh(onStartFresh) },
+                onClick = { vm.chooseAnother(onChooseAnother) },
+                enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    "Set up a new profile instead",
+                    "Choose another account",
                     style = RcxType.Body.copy(fontSize = 14.sp, fontWeight = FontWeight.Medium),
                     color = c.muted,
                 )
@@ -209,8 +166,7 @@ fun ProfileFoundScreen(
 
             Spacer(Modifier.height(4.dp))
             Text(
-                "Starting over replaces the saved profile on this account " +
-                    "once you finish setting it up.",
+                "Your guest data stays on this phone until you decide.",
                 style = RcxType.Body.copy(fontSize = 12.sp),
                 color = c.muted,
                 modifier = Modifier.fillMaxWidth(),

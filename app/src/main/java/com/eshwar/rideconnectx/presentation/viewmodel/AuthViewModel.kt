@@ -67,8 +67,8 @@ class AuthViewModel @Inject constructor(
     /** The stored value, not the StateFlow's `false` placeholder before it loads. */
     suspend fun isProfileCompleted(): Boolean = prefs.profileCompleted.first()
 
-    /** True once, right after a guest's data was moved into this account. */
-    suspend fun takeGuestMerged(): Boolean = prefs.takeGuestMerged()
+    /** A guest signed into an account with a profile and has not yet chosen what to do. */
+    suspend fun isGuestMergePending(): Boolean = prefs.guestMergePending.first()
 
     private val _ui = MutableStateFlow(SignInUiState(googleAvailable = auth.isGoogleSignInAvailable))
     val ui: StateFlow<SignInUiState> = _ui.asStateFlow()

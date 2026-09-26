@@ -10,6 +10,12 @@ enum class HandoverAction {
 
     /** The rider asked for it to follow them, and the account has none of its own. */
     CARRY,
+
+    /**
+     * A guest's data meets an account that already has a profile: ask the
+     * rider before merging, and let them pick another account instead.
+     */
+    ASK,
 }
 
 /**
@@ -25,12 +31,21 @@ object ProfileHandover {
      * @param localOwner who the local profile belongs to; blank when unknown.
      * @param carry the rider chose "Save to an account" / "Move to another account".
      * @param accountHasProfile the account already holds a complete profile.
+     * @param localIsGuest the local profile belongs to a guest.
      */
-    fun decide(localOwner: String, uid: String, carry: Boolean, accountHasProfile: Boolean): HandoverAction =
+    fun decide(
+        localOwner: String,
+        uid: String,
+        carry: Boolean,
+        accountHasProfile: Boolean,
+        localIsGuest: Boolean = false,
+    ): HandoverAction =
         when {
             localOwner == uid -> HandoverAction.KEEP
-            // An account's own profile always wins over a carried one.
             carry && !accountHasProfile -> HandoverAction.CARRY
+            // Never a silent switch (rider, 26 Sep).
+            carry && localIsGuest -> HandoverAction.ASK
+            // An account's own profile always wins over a carried one.
             else -> HandoverAction.CLEAR
         }
 }

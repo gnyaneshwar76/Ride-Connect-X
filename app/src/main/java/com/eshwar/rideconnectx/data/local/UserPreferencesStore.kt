@@ -64,7 +64,8 @@ class UserPreferencesStore @Inject constructor(
         val RIDER_NICKNAME = stringPreferencesKey("rider_nickname")
         val RIDER_LOCATION = stringPreferencesKey("rider_location")
         val PROFILE_DONE = booleanPreferencesKey("profile_completed")
-        val GUEST_MERGED = booleanPreferencesKey("guest_merged_pending")
+        /** A guest signed into an account with a profile and has not yet said whether to merge. */
+        val GUEST_MERGE_ASK = booleanPreferencesKey("guest_merge_ask")
 
         /** Whose profile the rider fields above are: a uid, or `OwnerScope.GUEST`. */
         val PROFILE_OWNER = stringPreferencesKey("profile_owner")
@@ -209,11 +210,10 @@ class UserPreferencesStore @Inject constructor(
         it[PROFILE_DONE] = done
     }
 
-    /** Set when a guest's data has just been moved into a Google account; read once. */
-    suspend fun setGuestMerged(merged: Boolean) = context.userPrefs.edit { it[GUEST_MERGED] = merged }
-    suspend fun takeGuestMerged(): Boolean {
-        val merged = context.userPrefs.data.first()[GUEST_MERGED] ?: false
-        if (merged) setGuestMerged(false)
-        return merged
-    }
+    /**
+     * Kept on disk, not in memory, so leaving the app at the question brings
+     * the rider back to it rather than past it.
+     */
+    val guestMergePending: Flow<Boolean> = context.userPrefs.data.map { it[GUEST_MERGE_ASK] ?: false }
+    suspend fun setGuestMergePending(pending: Boolean) = context.userPrefs.edit { it[GUEST_MERGE_ASK] = pending }
 }

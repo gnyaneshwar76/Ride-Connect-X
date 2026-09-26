@@ -238,8 +238,6 @@ class AuthRepositoryImpl @Inject constructor(
     private suspend fun AuthResult.persist(): AuthResult {
         if (this !is AuthResult.Success) return this
 
-        // Read before saveSession replaces it: was this phone a guest until now?
-        val wasGuest = prefs.session.first().isGuest
         prefs.saveSession(user)
 
         // Recorded here rather than in the ViewModel so it shares this scope and
@@ -273,6 +271,7 @@ class AuthRepositoryImpl @Inject constructor(
             uid = user.uid,
             carry = prefs.profileCarry.first(),
             accountHasProfile = CloudProfile.from(cloudData).isComplete,
+            localIsGuest = localOwner == GUEST,
         )
         Log.d(TAG, "profile handover $action (local owner ${localOwner.ifBlank { "unknown" }})")
         when (action) {
@@ -286,11 +285,13 @@ class AuthRepositoryImpl @Inject constructor(
                 // Only a guest's rows are unowned; an account's stay its own.
                 if (localOwner == GUEST) claimGuestRows(user.uid)
             }
+            // Nothing moves until the rider answers; see addGuestDataToAccount.
+            HandoverAction.ASK -> prefs.setGuestMergePending(true)
         }
-        prefs.setProfileOwner(user.uid)
-        // Guest and account are now one: the rider is shown that once.
-        if (wasGuest) prefs.setGuestMerged(true)
-        flushPendingReadings(user.uid)
+        if (action != HandoverAction.ASK) {
+            prefs.setProfileOwner(user.uid)
+            flushPendingReadings(user.uid)
+        }
 
         return synced.fold(
             onSuccess = {
@@ -304,6 +305,32 @@ class AuthRepositoryImpl @Inject constructor(
                 )
             },
         )
+    }
+
+    override suspend fun addGuestDataToAccount(): AuthResult = appScope.async {
+        val session = prefs.session.first()
+        val data = firestore.fetchUser(session.uid).getOrElse {
+            Log.e(TAG, "Guest merge: account read failed", it)
+            return@async AuthResult.Failure(
+                AuthError.CloudSyncFailure("Couldn't reach your account. Try again when you're online.")
+            )
+        }
+        // The account's profile wins; the guest's rides, service records and
+        // contacts join it.
+        clearLocalProfile()
+        restoreFromCloud(session.uid, data)
+        claimGuestRows(session.uid)
+        prefs.setProfileOwner(session.uid)
+        prefs.setGuestMergePending(false)
+        flushPendingReadings(session.uid)
+        AuthResult.Success(session)
+    }.await()
+
+    override suspend fun declineGuestMerge() {
+        remote.signOut(context)
+        prefs.clearSession()
+        prefs.setGuestMergePending(false)
+        // The guest profile and its "take me with you" mark stay for the next account.
     }
 
     /**

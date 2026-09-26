@@ -30,4 +30,17 @@ class ProfileHandoverTest {
     fun `an account's own profile wins over a carried one`() {
         assertEquals(HandoverAction.CLEAR, ProfileHandover.decide("uidA", "uidB", carry = true, accountHasProfile = true))
     }
+
+    @Test
+    fun `a guest meeting an account with a profile is asked, never switched silently`() {
+        assertEquals(
+            HandoverAction.ASK,
+            ProfileHandover.decide("guest", "uidB", carry = true, accountHasProfile = true, localIsGuest = true),
+        )
+        // A guest going to an empty account needs no question.
+        assertEquals(
+            HandoverAction.CARRY,
+            ProfileHandover.decide("guest", "uidB", carry = true, accountHasProfile = false, localIsGuest = true),
+        )
+    }
 }

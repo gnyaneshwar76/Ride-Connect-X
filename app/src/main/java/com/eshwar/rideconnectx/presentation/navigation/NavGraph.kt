@@ -50,6 +50,7 @@ object Routes {
 
     /** Terms and Privacy on a single page — what the profile step links to. */
     const val LEGAL = "legal"
+    /** "Add your guest data to this account?" — a guest signing into an account with a profile. */
     const val PROFILE_FOUND = "profile_found"
     const val PERMISSIONS = "perms"
     const val VEHICLE = "vehicle"
@@ -57,7 +58,6 @@ object Routes {
     /** The same form as [VEHICLE], but only the vehicle part of it. */
     const val CHANGE_VEHICLE = "vehicle_change"
     const val DASHBOARD = "dash"
-    /** Shown after sign-in when the account already holds a profile. */
     const val BLE = "ble"
     const val NAVIGATION = "nav"
     const val STATS = "stats"
@@ -95,6 +95,7 @@ fun NavGraph(navController: NavHostController) {
                         val destination = SetupGate.launchRoute(
                             signedIn = authState is AuthState.Authenticated,
                             profileDone = authVm.isProfileCompleted(),
+                            guestMergePending = authVm.isGuestMergePending(),
                         )
                         navController.navigate(destination) {
                             popUpTo(Routes.SPLASH) { inclusive = true }
@@ -168,15 +169,13 @@ fun NavGraph(navController: NavHostController) {
             val perms = rememberPermissionsController()
 
             val scope = rememberCoroutineScope()
-            // A returning rider goes straight to the dashboard. Only a guest
-            // who just moved into a Google account is shown what was combined
-            // (rider, 24 Sep) — two accounts became one, so they should see it.
+            // A returning rider goes straight to the dashboard. A guest who
+            // signed into an account that already has a profile is asked first
+            // whether to add their guest data to it (rider, 26 Sep).
             suspend fun next(done: Boolean) {
-                val merged = authVm.takeGuestMerged() // always consumed, so it can't show later
-                when {
-                    done && merged -> navController.navigate(Routes.PROFILE_FOUND)
-                    done -> navController.navigate(Routes.DASHBOARD) { popUpTo(0) { inclusive = true } }
-                    else -> navController.navigate(Routes.VEHICLE)
+                when (val route = SetupGate.afterPermissions(done, authVm.isGuestMergePending())) {
+                    Routes.VEHICLE -> navController.navigate(route)
+                    else -> navController.navigate(route) { popUpTo(0) { inclusive = true } }
                 }
             }
             // Nothing to ask for: don't show the setup screen at all.
@@ -189,14 +188,15 @@ fun NavGraph(navController: NavHostController) {
 
         composable(Routes.PROFILE_FOUND) {
             ProfileFoundScreen(
-                onContinue = {
-                    navController.navigate(Routes.DASHBOARD) {
+                onAdded = { profileDone ->
+                    // Setup resumes if the account's own profile is unfinished.
+                    navController.navigate(SetupGate.launchRoute(signedIn = true, profileDone = profileDone)) {
                         popUpTo(0) { inclusive = true }
                     }
                 },
-                onStartFresh = {
-                    navController.navigate(Routes.VEHICLE) {
-                        popUpTo(Routes.PROFILE_FOUND) { inclusive = true }
+                onChooseAnother = {
+                    navController.navigate(Routes.SIGN_IN) {
+                        popUpTo(0) { inclusive = true }
                     }
                 },
             )
