@@ -9,7 +9,7 @@ Source code: [`main`](../../tree/main)
 
 | Verified | Partly verified | Failing | Not yet tested | Not in this release | Total |
 |---|---|---|---|---|---|
-| 44 | 7 | 3 | 31 | 5 | 90 |
+| 49 | 5 | 2 | 29 | 5 | 90 |
 
 ## A. Vehicle link and cluster
 
@@ -55,8 +55,8 @@ Source code: [`main`](../../tree/main)
 | C4 | Message lamp — SMS | ⏳ Not yet tested | — |
 | C5 | Unknown apps rejected (security) | ⏳ Not yet tested | — |
 | C6 | Music etc. ignored | ⏳ Not yet tested | — |
-| C7 | In-app notification list | ⏳ Not yet tested | — |
-| C8 | Notification access revoked | ❌ Failing — fix in progress | 24 Sep 2026 |
+| C7 | In-app notification list | ❌ Failing — fix in progress | 26 Sep 2026 |
+| C8 | Notification access revoked | 🟡 Partly verified | 26 Sep 2026 |
 
 ## D. Safety and SOS
 
@@ -70,7 +70,7 @@ Source code: [`main`](../../tree/main)
 | D6 | SOS opens dialer, never auto-calls | ✅ Verified | 20 Sep 2026 |
 | D7 | Location share link | ✅ Verified | 20 Sep 2026 |
 | D8 | Location off fails safely | ✅ Verified | 20 Sep 2026 |
-| D9 | Approximate-location warning | ❌ Failing — fix in progress | 24 Sep 2026 |
+| D9 | Approximate-location warning | ✅ Verified | 26 Sep 2026 |
 | D10 | 112 emergency dial | ✅ Verified | 20 Sep 2026 |
 
 ## E. Service
@@ -84,7 +84,7 @@ Source code: [`main`](../../tree/main)
 | E5 | 6 default tasks | ✅ Verified | 20 Sep 2026 |
 | E6 | Edit task interval | ✅ Verified | 20 Sep 2026 |
 | E7 | Refuel entry | ⛔ Not in this release | — |
-| E8 | Reminder fires | ⏳ Not yet tested | — |
+| E8 | Reminder fires | ❌ Failing — fix in progress | 26 Sep 2026 |
 | E9 | Odometer card | ✅ Verified | 20 Sep 2026 |
 
 ## F. Rides
@@ -102,11 +102,11 @@ Source code: [`main`](../../tree/main)
 | ID | Feature | Status | Verified on |
 |---|---|---|---|
 | G1 | Google sign-in | ✅ Verified | 23 Sep 2026 |
-| G2 | Email sign-up / sign-in | 🟡 Partly verified | 24 Sep 2026 |
+| G2 | Email sign-up / sign-in | 🟡 Partly verified | 26 Sep 2026 |
 | G3 | Guest mode | ✅ Verified | 24 Sep 2026 |
-| G4 | Guest → account keeps data | ❌ Failing — fix in progress | 24 Sep 2026 |
+| G4 | Guest → account keeps data | ✅ Verified | 26 Sep 2026 |
 | G5 | Sign-out clears profile | ✅ Verified | 24 Sep 2026 |
-| G6 | Account separation | ✅ Verified | 24 Sep 2026 |
+| G6 | Account separation | ✅ Verified | 26 Sep 2026 |
 | G7 | Photo from gallery | ✅ Verified | 24 Sep 2026 |
 | G8 | Photo + name from Google | ✅ Verified | 21 Sep 2026 |
 | G9 | Profile restored on sign-in | ✅ Verified | 23 Sep 2026 |
@@ -122,7 +122,7 @@ Source code: [`main`](../../tree/main)
 | H2 | Language switch | ⛔ Not in this release | — |
 | H3 | Auto-connect toggle | ✅ Verified | 24 Sep 2026 |
 | H4 | Onboarding runs once | ✅ Verified | 23 Sep 2026 |
-| H5 | Permission flow | 🟡 Partly verified | 24 Sep 2026 |
+| H5 | Permission flow | ✅ Verified | 26 Sep 2026 |
 | H6 | Battery / background prompt | ✅ Verified | 24 Sep 2026 |
 | H7 | Terms and privacy recorded | ✅ Verified | 23 Sep 2026 |
 | H8 | About screen version | ✅ Verified | 23 Sep 2026 |
@@ -136,7 +136,7 @@ Source code: [`main`](../../tree/main)
 | I3 | No debug logs in release | ⏳ Not yet tested | — |
 | I4 | App Check enforced | ⛔ Not in this release | — |
 | I5 | Firebase rules published | ✅ Verified | 21 Sep 2026 |
-| I6 | Database upgrade | 🟡 Partly verified | 19 Sep 2026 |
+| I6 | Database upgrade | ✅ Verified | 26 Sep 2026 |
 | I7 | Play data-safety form | ⏳ Not yet tested | — |
 | I8 | Privacy policy public link | ✅ Verified | 21 Sep 2026 |
 
@@ -144,7 +144,7 @@ Source code: [`main`](../../tree/main)
 
 | ID | Feature | Status | Verified on |
 |---|---|---|---|
-| R1 | SOS share continues by itself after permission / location-on, and says what it waits for | 🟡 Partly verified | 24 Sep 2026 |
+| R1 | SOS share continues by itself after permission / location-on, and says what it waits for | ✅ Verified | 26 Sep 2026 |
 | R2 | Service centre: past centres as suggestions + "Find nearby on Maps" (India-wide list needs paid Places API — not built) | 🟡 Partly verified | 24 Sep 2026 |
 | R3 | Odometer rule follows the service date (back-fill old services) | ✅ Verified | 24 Sep 2026 |
 | R4 | Suggested notes chips | ✅ Verified | 24 Sep 2026 |
@@ -155,4 +155,4 @@ Source code: [`main`](../../tree/main)
 
 Files are named `<ID>-<short-description>`, for example `B3-roundabout-exit-2.jpg`, and kept in a folder per section (`A-vehicle-link/`, `B-navigation/`, …). Long recordings are published as [release](../../releases) attachments and linked from the table.
 
-_Last updated: 24 Sep 2026_
+_Last updated: 26 Sep 2026_
