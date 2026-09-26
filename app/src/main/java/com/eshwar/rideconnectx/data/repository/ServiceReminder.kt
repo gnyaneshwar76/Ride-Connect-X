@@ -1,23 +1,12 @@
 package com.eshwar.rideconnectx.data.repository
 
-import android.Manifest
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.util.Log
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.eshwar.rideconnectx.MainActivity
 import com.eshwar.rideconnectx.core.di.ApplicationScope
 import com.eshwar.rideconnectx.core.di.ServiceEntryPoint
 import com.eshwar.rideconnectx.data.local.ServicePreferencesStore
@@ -88,31 +77,7 @@ class ServiceReminder @Inject constructor(
         ).filter { it.isNotBlank() }.joinToString(" ")
         Log.d(TAG, "Reminder $key for $owner")
         notifications.notify(NotificationKind.SERVICE, title, body, ownerId = owner)
-        postToPhone(title, body)
-    }
-
-    /** Skipped quietly without the permission; the Notifications page warns (N7). */
-    private fun postToPhone(title: String, body: String) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.getSystemService(NotificationManager::class.java).createNotificationChannel(
-                NotificationChannel(CHANNEL, "Service reminders", NotificationManager.IMPORTANCE_DEFAULT)
-            )
-        }
-        val open = PendingIntent.getActivity(
-            context, 0, Intent(context, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
-        )
-        val notification = NotificationCompat.Builder(context, CHANNEL)
-            .setSmallIcon(android.R.drawable.stat_sys_warning)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setContentIntent(open)
-            .setAutoCancel(true)
-            .build()
-        runCatching { NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification) }
+        notifications.postToPhone(CHANNEL, "Service reminders", NOTIFICATION_ID, title, body)
     }
 
     private companion object {

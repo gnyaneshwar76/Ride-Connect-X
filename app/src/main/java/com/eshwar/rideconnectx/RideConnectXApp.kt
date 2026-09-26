@@ -43,7 +43,9 @@ class RideConnectXApp : Application() {
             Log.w("RCX-App", "App Check setup failed; continuing without it", it)
         }
         // Service reminders (N9): watched while the app runs, checked daily when not.
-        EntryPointAccessors.fromApplication(this, ServiceEntryPoint::class.java)
-            .serviceReminder().start()
+        val entry = EntryPointAccessors.fromApplication(this, ServiceEntryPoint::class.java)
+        entry.serviceReminder().start()
+        // Settings → Connection alerts (AUD-2).
+        entry.connectionAlerts().start()
     }
 }
