@@ -11,6 +11,9 @@ import com.eshwar.rideconnectx.data.remote.FirestoreUserDataSource
 import com.eshwar.rideconnectx.domain.model.AuthError
 import com.eshwar.rideconnectx.domain.model.AuthResult
 import com.eshwar.rideconnectx.domain.model.AuthState
+import com.eshwar.rideconnectx.domain.model.CloudProfile
+import com.eshwar.rideconnectx.domain.model.HandoverAction
+import com.eshwar.rideconnectx.domain.model.ProfileHandover
 import com.eshwar.rideconnectx.domain.model.GuestNameRules
 import com.eshwar.rideconnectx.domain.model.LoginMethod
 import com.eshwar.rideconnectx.domain.model.UserSession
@@ -120,6 +123,10 @@ class AuthRepositoryImpl @Inject constructor(
             return AuthResult.Failure(AuthError.InvalidCredentials(it))
         }
         val session = UserSession(name = clean, method = LoginMethod.GUEST)
+        // A guest never inherits an account's profile; only a guest's own
+        // (one that went to sign in and came back) is kept.
+        if (prefs.profileOwner.first() != GUEST) clearLocalProfile()
+        prefs.setProfileOwner(GUEST)
         prefs.saveSession(session)
         // A guest types their name on the screen before Create Profile, and
         // Create Profile then asked for it again with an empty field — because
@@ -154,9 +161,16 @@ class AuthRepositoryImpl @Inject constructor(
         // reaches this same method, and a profile left behind is merge-written
         // into the *next* uid's document by `carryLocalProfileToCloud`.
         if (!keepLocalProfile) {
-            prefs.clearProfile()
-            photoStore.clear()
+            clearLocalProfile()
+        } else {
+            // Owned by whoever is leaving, and marked to follow them.
+            prefs.setProfileOwner(prefs.profileOwner.first().ifBlank { session.uid.ifBlank { GUEST } }, carry = true)
         }
+    }
+
+    private suspend fun clearLocalProfile() {
+        prefs.clearProfile()
+        photoStore.clear()
     }
 
     /**
@@ -210,8 +224,7 @@ class AuthRepositoryImpl @Inject constructor(
         // local profile and avatar go too. Leaving them meant the next account
         // signed in on this phone inherited the deleted rider's name, city,
         // vehicle and face.
-        prefs.clearProfile()
-        photoStore.clear()
+        clearLocalProfile()
         return result
     }
 
@@ -243,19 +256,38 @@ class AuthRepositoryImpl @Inject constructor(
             )
         Log.d(TAG, "persist uid=${user.uid} method=${user.method} returning=$isReturning")
 
+        val cloudData = if (isReturning) firestore.fetchUser(user.uid).getOrNull() else null
         val synced =
             if (isReturning) firestore.touchLogin(user) else firestore.createUser(user)
 
         // The whole point of signing in with an account: a returning rider gets
         // their profile back instead of being asked to build it again.
         //
-        // And the mirror of it: a rider arriving at a *new* account with a
-        // profile already on the device — a guest signing up, or someone moving
-        // to a different email — takes that profile with them. Without this the
-        // profile stayed local, the new account stayed empty, and the work was
-        // lost the first time they reinstalled.
-        if (isReturning) restoreFromCloud(user.uid) else carryLocalProfileToCloud(user.uid)
-        claimGuestRows(user.uid)
+        // And the mirror of it: a rider who asked to take their profile to an
+        // account with none of its own — a guest signing up, or someone moving
+        // to a different email — takes it with them. Anything else on the phone
+        // belongs to someone else and is cleared, never carried.
+        val localOwner = prefs.profileOwner.first()
+        val action = ProfileHandover.decide(
+            localOwner = localOwner,
+            uid = user.uid,
+            carry = prefs.profileCarry.first(),
+            accountHasProfile = CloudProfile.from(cloudData).isComplete,
+        )
+        Log.d(TAG, "profile handover $action (local owner ${localOwner.ifBlank { "unknown" }})")
+        when (action) {
+            HandoverAction.KEEP -> if (isReturning) restoreFromCloud(user.uid, cloudData)
+            HandoverAction.CLEAR -> {
+                clearLocalProfile()
+                if (isReturning) restoreFromCloud(user.uid, cloudData)
+            }
+            HandoverAction.CARRY -> {
+                carryLocalProfileToCloud(user.uid)
+                // Only a guest's rows are unowned; an account's stay its own.
+                if (localOwner == GUEST) claimGuestRows(user.uid)
+            }
+        }
+        prefs.setProfileOwner(user.uid)
         // Guest and account are now one: the rider is shown that once.
         if (wasGuest) prefs.setGuestMerged(true)
         flushPendingReadings(user.uid)
@@ -288,13 +320,13 @@ class AuthRepositoryImpl @Inject constructor(
      * Deliberately forgiving: a missing or partial document leaves the rider on
      * Create Profile rather than dropping them onto a dashboard with no vehicle.
      */
-    private suspend fun restoreFromCloud(uid: String) {
-        val data = firestore.fetchUser(uid).getOrElse {
-            Log.e(TAG, "Cloud restore failed for users/$uid", it)
+    private suspend fun restoreFromCloud(uid: String, data: Map<String, Any>?) {
+        if (data == null) {
+            Log.e(TAG, "Cloud restore failed for users/$uid")
             return
         }
 
-        val cloud = com.eshwar.rideconnectx.domain.model.CloudProfile.from(data)
+        val cloud = CloudProfile.from(data)
 
         cloud.riderName?.let { prefs.saveRiderName(it) }
         cloud.nickname?.let { prefs.saveRiderNickname(it) }
@@ -316,7 +348,8 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Takes the profile already on this device up to a freshly created account.
+     * Takes the profile already on this device up to an account with none of
+     * its own — only when the rider asked for it (see [ProfileHandover]).
      *
      * This is what makes "guest, then sign up" and "move to another email" keep
      * the rider's work. `clearSession()` deliberately leaves the rider name,

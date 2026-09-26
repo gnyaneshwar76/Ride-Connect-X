@@ -65,6 +65,12 @@ class UserPreferencesStore @Inject constructor(
         val RIDER_LOCATION = stringPreferencesKey("rider_location")
         val PROFILE_DONE = booleanPreferencesKey("profile_completed")
         val GUEST_MERGED = booleanPreferencesKey("guest_merged_pending")
+
+        /** Whose profile the rider fields above are: a uid, or `OwnerScope.GUEST`. */
+        val PROFILE_OWNER = stringPreferencesKey("profile_owner")
+
+        /** Set by "Save to / Move to another account": the next account takes this profile. */
+        val PROFILE_CARRY = booleanPreferencesKey("profile_carry")
     }
 
     /** Version stamped on acceptance, so a future revision can re-prompt. */
@@ -124,7 +130,20 @@ class UserPreferencesStore @Inject constructor(
         context.userPrefs.edit {
             it.remove(RIDER_NAME); it.remove(RIDER_NICKNAME); it.remove(RIDER_LOCATION)
             it.remove(VEHICLE_ID); it.remove(COLOR_ID); it.remove(PROFILE_DONE)
+            it.remove(PROFILE_OWNER); it.remove(PROFILE_CARRY)
         }
+    }
+
+    /**
+     * Who the local profile belongs to. Blank for a profile saved before this
+     * existed, which is treated as nobody's — see `ProfileHandover`.
+     */
+    val profileOwner: Flow<String> = context.userPrefs.data.map { it[PROFILE_OWNER].orEmpty() }
+    val profileCarry: Flow<Boolean> = context.userPrefs.data.map { it[PROFILE_CARRY] ?: false }
+
+    suspend fun setProfileOwner(owner: String, carry: Boolean = false) = context.userPrefs.edit {
+        it[PROFILE_OWNER] = owner
+        it[PROFILE_CARRY] = carry
     }
 
     suspend fun acceptTerms() = context.userPrefs.edit {
