@@ -21,8 +21,8 @@ data class SetupProgress(
  *
  * It used to fire every permission dialog back to back and then both "turn it
  * on" prompts together, so the rider saw a stack of system dialogs with no idea
- * which was which (rider, 26 Sep). Now each step is the answer to one tap on a
- * button that names it, and a step is never asked twice in one run.
+ * which was which (rider, 26 Sep). Now each step comes up by itself once the
+ * one before it is answered, and a step is never asked twice in one run.
  */
 object SetupSteps {
     fun next(p: SetupProgress): SetupStep = when {

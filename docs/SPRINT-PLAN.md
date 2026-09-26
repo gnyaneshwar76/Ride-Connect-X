@@ -81,10 +81,11 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [ ] A3 auto-reconnect showed pairing after reinstall (expected: backup is off — confirm with force-stop test) — code reviewed, no change; owner force-stop check below
 - [ ] B4 code 36 arrow direction unconfirmed (hardware check, not code)
 - [ ] I6 database upgrade — columns not verified
-- [x] N1 permissions are all requested at once — must be one by one (guest and sign-in setup)
+- [x] N1 permissions are all requested at once — must be one by one (guest and sign-in setup) — **rework 26 Sep 19:30:** dialogs must chain automatically, no button taps
 - [x] N2 guest name typed on the guest screen does not prefill Create Profile's Name (nickname must stay empty)
-- [x] N3 Back during Create Profile exits, and reopening skips setup into a half-made account — must resume setup, never skip it
+- [ ] N3 Back during Create Profile exits, and reopening skips setup into a half-made account — must resume setup, never skip it — **changed 26 Sep 19:30:** unfinished setup must reset (sign out, clear) on relaunch and on Back → Exit
 - [x] N4 a previous person's local name (guest "rocky bhai") prefilled another Google account's setup — local profile must be cleared/scoped per account
+  - [ ] N4 rework: guest → Google with no profile, Back and forward on Create Profile brings the guest name back
 - [x] N5 guest signing into an account that already has a profile: no prompt — must ask "add your guest data to this account?" or let them pick another account
 - [x] N6 an account whose profile exists in Firestore was asked to create a profile again after sign-out/sign-in — restore must always run and mark setup done
 - [x] AUDIT after the above: walk every sign-in / sign-out / guest / setup path end to end and fix basic-logic gaps (stale state, back-navigation, half-finished setup)
@@ -93,6 +94,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [x] N10 service-centre field accepted an odometer number — centre must contain letters; odometer numbers only
 - [x] N11 R2 regression: "Find nearby on Maps" not visible on Add Service Record with no past centres — must always show (no live Places search)
 - [x] N8 (low) location share takes 3–4 s — start the fix when the SOS sheet opens
+- [ ] N12 verify: Google sign-in swiped away mid-spinner, reopened straight to Dashboard — was sign-in complete?
 - [ ] _new failures from 26–27 Sep testing go here_
 
 ### Waiting on an owner decision

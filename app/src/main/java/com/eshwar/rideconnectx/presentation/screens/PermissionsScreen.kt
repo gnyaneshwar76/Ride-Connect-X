@@ -34,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -88,10 +89,10 @@ fun PermissionsScreen(
     var bluetoothPrompted by rememberSaveable { mutableStateOf(false) }
     var locationPrompted by rememberSaveable { mutableStateOf(false) }
 
-    // One thing at a time (rider, 26 Sep): every dialog used to fire back to
-    // back, then both radio prompts together. Now the first step comes up on
-    // its own, as before, and each one after it waits for a tap on the button,
-    // which names what it will ask for.
+    // One thing at a time, automatically (rider, 26 Sep): every dialog used to
+    // fire at once; then each waited for a button tap. Now the next dialog
+    // comes up by itself once the one before it is answered, allowed or not.
+    // The button stays as the way back to anything refused.
     val step = SetupSteps.next(
         SetupProgress(
             notificationsAnswered = perms.state(AppPermissions.notifications) == PermState.Granted ||
@@ -114,9 +115,12 @@ fun PermissionsScreen(
         SetupStep.LOCATION_ON -> { locationPrompted = true; services.openLocationSettings() }
         SetupStep.DONE -> Unit
     }
-    LaunchedEffect(Unit) {
-        perms.refresh()
-        services.refresh()
+    // A radio prompt is answered when the app comes back to the front.
+    var awaitingRadio by remember { mutableStateOf(false) }
+    val permissionOpen = AppPermissions.essential.any { perms.state(it) == PermState.Requesting }
+    LaunchedEffect(step, permissionOpen, awaitingRadio) {
+        if (permissionOpen || awaitingRadio || step == SetupStep.DONE) return@LaunchedEffect
+        if (step == SetupStep.BLUETOOTH_ON || step == SetupStep.LOCATION_ON) awaitingRadio = true
         ask(step)
     }
 
@@ -128,6 +132,7 @@ fun PermissionsScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 perms.refresh()
                 services.refresh()
+                awaitingRadio = false
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
