@@ -291,10 +291,9 @@ checked on the phone only.
 - **One-off effect after installing:** an older install whose saved session has
   no account id shows as signed out once. Signing in again restores everything.
 - **Phone check:**
-  1. As a guest, start setup but leave Create Profile unfinished. Profile is not
-     reachable, so instead start Google sign-in and kill the app while the
-     account chooser or the loading spinner is showing. Reopen: you get Intro /
-     Sign In, not setup or the Dashboard.
+  1. Signed out, start Google sign-in, pick the account, and swipe the app away
+     from Recents while the spinner is still showing. Reopen: you get Intro /
+     Sign In, not setup or the Dashboard. Signing in again works normally.
   2. With a finished account, Profile → "Move to another account" → sign into
      another account with no profile. You land on the Dashboard with the carried
      profile. Repeat after leaving a guest's setup half done: you land in setup,
