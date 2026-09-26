@@ -282,6 +282,7 @@ class AuthRepositoryImpl @Inject constructor(
             carry = prefs.profileCarry.first(),
             accountHasProfile = CloudProfile.from(cloudData).isComplete,
             localIsGuest = localOwner == GUEST,
+            localComplete = prefs.profileCompleted.first(),
         )
         Log.d(TAG, "profile handover $action (local owner ${localOwner.ifBlank { "unknown" }})")
         when (action) {
@@ -374,7 +375,11 @@ class AuthRepositoryImpl @Inject constructor(
             return
         }
 
-        val cloud = CloudProfile.from(data)
+        // Only a finished profile comes down. A partial one — a name with no
+        // vehicle, e.g. a guest's name merge-written before N4 — kept putting
+        // "rocky bhai" back into another account's Create Profile (rider,
+        // 26 Sep). Finishing setup overwrites it in the cloud.
+        val cloud = CloudProfile.from(data).takeIf { it.isComplete } ?: CloudProfile()
 
         cloud.riderName?.let { prefs.saveRiderName(it) }
         cloud.nickname?.let { prefs.saveRiderNickname(it) }

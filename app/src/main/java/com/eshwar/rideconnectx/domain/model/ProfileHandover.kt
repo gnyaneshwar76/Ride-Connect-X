@@ -32,6 +32,8 @@ object ProfileHandover {
      * @param carry the rider chose "Save to an account" / "Move to another account".
      * @param accountHasProfile the account already holds a complete profile.
      * @param localIsGuest the local profile belongs to a guest.
+     * @param localComplete the local profile finished setup. An unfinished one
+     *   is never carried: it would be a half-made profile in the new account.
      */
     fun decide(
         localOwner: String,
@@ -39,10 +41,11 @@ object ProfileHandover {
         carry: Boolean,
         accountHasProfile: Boolean,
         localIsGuest: Boolean = false,
+        localComplete: Boolean = true,
     ): HandoverAction =
         when {
             localOwner == uid -> HandoverAction.KEEP
-            carry && !accountHasProfile -> HandoverAction.CARRY
+            carry && !accountHasProfile -> if (localComplete) HandoverAction.CARRY else HandoverAction.CLEAR
             // Never a silent switch (rider, 26 Sep).
             carry && localIsGuest -> HandoverAction.ASK
             // An account's own profile always wins over a carried one.

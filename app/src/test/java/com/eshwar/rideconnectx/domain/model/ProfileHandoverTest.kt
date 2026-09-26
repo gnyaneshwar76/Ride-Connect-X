@@ -43,4 +43,13 @@ class ProfileHandoverTest {
             ProfileHandover.decide("guest", "uidB", carry = true, accountHasProfile = false, localIsGuest = true),
         )
     }
+
+    @Test
+    fun `an unfinished profile is never carried into another account`() {
+        // N4 rework: a half-made guest profile must not become the account's.
+        assertEquals(
+            HandoverAction.CLEAR,
+            ProfileHandover.decide("guest", "uidB", carry = true, accountHasProfile = false, localIsGuest = true, localComplete = false),
+        )
+    }
 }

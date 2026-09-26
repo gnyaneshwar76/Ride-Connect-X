@@ -85,7 +85,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [x] N2 guest name typed on the guest screen does not prefill Create Profile's Name (nickname must stay empty)
 - [x] N3 Back during Create Profile exits, and reopening skips setup into a half-made account — must resume setup, never skip it — **changed 26 Sep 19:30:** unfinished setup must reset (sign out, clear) on relaunch and on Back → Exit
 - [x] N4 a previous person's local name (guest "rocky bhai") prefilled another Google account's setup — local profile must be cleared/scoped per account
-  - [ ] N4 rework: guest → Google with no profile, Back and forward on Create Profile brings the guest name back
+  - [x] N4 rework: guest → Google with no profile, Back and forward on Create Profile brings the guest name back
 - [x] N5 guest signing into an account that already has a profile: no prompt — must ask "add your guest data to this account?" or let them pick another account
 - [x] N6 an account whose profile exists in Firestore was asked to create a profile again after sign-out/sign-in — restore must always run and mark setup done
 - [x] AUDIT after the above: walk every sign-in / sign-out / guest / setup path end to end and fix basic-logic gaps (stale state, back-navigation, half-finished setup)
