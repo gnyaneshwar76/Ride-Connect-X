@@ -127,6 +127,10 @@ class AuthViewModel @Inject constructor(
 
     fun signOut() = viewModelScope.launch { auth.signOut() }
 
+    suspend fun resetUnfinishedSetup() = auth.resetUnfinishedSetup()
+
+    suspend fun dropUnfinishedSignIn() = auth.dropUnfinishedSignIn()
+
     fun markPermissionsCompleted() = viewModelScope.launch { prefs.setPermissionsCompleted(true) }
 
     /**

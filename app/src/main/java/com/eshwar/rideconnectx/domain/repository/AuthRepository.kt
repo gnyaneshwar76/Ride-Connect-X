@@ -50,6 +50,19 @@ interface AuthRepository {
     suspend fun declineGuestMerge()
 
     /**
+     * Setup was left unfinished (app killed, or Back → Exit): sign out and clear
+     * everything it started, so the next launch begins cleanly. Writes nothing
+     * to the cloud.
+     */
+    suspend fun resetUnfinishedSetup()
+
+    /**
+     * Signs Firebase out when a sign-in was killed before it finished on the
+     * phone: the account is not signed in here, but Firebase still holds it.
+     */
+    suspend fun dropUnfinishedSignIn()
+
+    /**
      * Deletes the account for good: confirm identity (Google picker, or the
      * email account's [password]), then cloud data, then the account, then
      * this account's data on the phone.

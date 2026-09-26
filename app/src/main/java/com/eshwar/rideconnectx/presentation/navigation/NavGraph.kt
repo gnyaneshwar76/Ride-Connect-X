@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.navigation
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.launch
@@ -92,13 +93,16 @@ fun NavGraph(navController: NavHostController) {
                 onFinished = {
                     // Auto-login: an already-authenticated user never sees the
                     // sign-in flow. Loading resolves before the animation ends,
-                    // so there is no extra wait. Unfinished setup resumes.
+                    // so there is no extra wait. Unfinished setup starts over.
                     scope.launch {
-                        val destination = SetupGate.launchRoute(
-                            signedIn = authState is AuthState.Authenticated,
-                            profileDone = authVm.isProfileCompleted(),
-                            guestMergePending = authVm.isGuestMergePending(),
-                        )
+                        val signedIn = authState is AuthState.Authenticated
+                        val profileDone = authVm.isProfileCompleted()
+                        val mergePending = authVm.isGuestMergePending()
+                        when {
+                            SetupGate.mustReset(signedIn, profileDone, mergePending) -> authVm.resetUnfinishedSetup()
+                            !signedIn -> authVm.dropUnfinishedSignIn()
+                        }
+                        val destination = SetupGate.launchRoute(signedIn, profileDone, mergePending)
                         navController.navigate(destination) {
                             popUpTo(Routes.SPLASH) { inclusive = true }
                         }
@@ -213,7 +217,16 @@ fun NavGraph(navController: NavHostController) {
         // vehicle and greets the rider by name.
         composable(Routes.VEHICLE) {
             // Back here asks before leaving; see CreateProfileScreen.
+            val authVm: AuthViewModel = hiltViewModel()
+            val activity = LocalActivity.current
+            val scope = rememberCoroutineScope()
             CreateProfileScreen(
+                onExitSetup = {
+                    scope.launch {
+                        authVm.resetUnfinishedSetup()
+                        activity?.finish()
+                    }
+                },
                 onContinue = {
                     navController.navigate(Routes.DASHBOARD) {
                         // The whole setup run, not just this step. Popping only

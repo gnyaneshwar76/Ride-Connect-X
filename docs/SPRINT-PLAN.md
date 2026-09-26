@@ -83,7 +83,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [ ] I6 database upgrade — columns not verified
 - [x] N1 permissions are all requested at once — must be one by one (guest and sign-in setup) — **rework 26 Sep 19:30:** dialogs must chain automatically, no button taps
 - [x] N2 guest name typed on the guest screen does not prefill Create Profile's Name (nickname must stay empty)
-- [ ] N3 Back during Create Profile exits, and reopening skips setup into a half-made account — must resume setup, never skip it — **changed 26 Sep 19:30:** unfinished setup must reset (sign out, clear) on relaunch and on Back → Exit
+- [x] N3 Back during Create Profile exits, and reopening skips setup into a half-made account — must resume setup, never skip it — **changed 26 Sep 19:30:** unfinished setup must reset (sign out, clear) on relaunch and on Back → Exit
 - [x] N4 a previous person's local name (guest "rocky bhai") prefilled another Google account's setup — local profile must be cleared/scoped per account
   - [ ] N4 rework: guest → Google with no profile, Back and forward on Create Profile brings the guest name back
 - [x] N5 guest signing into an account that already has a profile: no prompt — must ask "add your guest data to this account?" or let them pick another account

@@ -163,6 +163,22 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun resetUnfinishedSetup() = appScope.async {
+        Log.d(TAG, "Unfinished setup reset")
+        remote.signOut(context)
+        prefs.clearSession()
+        prefs.setGuestMergePending(false)
+        clearReadings()
+        clearLocalProfile()
+    }.await()
+
+    override suspend fun dropUnfinishedSignIn() {
+        val user = remote.currentUser ?: return
+        if (prefs.session.first().uid == user.uid) return
+        Log.d(TAG, "Sign-in killed before it finished - Firebase signed out")
+        remote.signOut(context)
+    }
+
     private suspend fun clearLocalProfile() {
         prefs.clearProfile()
         photoStore.clear()

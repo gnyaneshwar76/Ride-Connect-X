@@ -3,7 +3,6 @@ package com.eshwar.rideconnectx.presentation.screens
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -120,6 +119,8 @@ fun CreateProfileScreen(
     onLegal: () -> Unit = {},
     mode: ProfileFormMode = ProfileFormMode.CREATE,
     onBack: (() -> Unit)? = null,
+    /** Back → Exit mid-setup: undo the unfinished setup, then leave. */
+    onExitSetup: () -> Unit = {},
     vm: VehicleViewModel = hiltViewModel(),
 ) {
     val c = Rcx.colors
@@ -128,20 +129,19 @@ fun CreateProfileScreen(
     val creating = mode == ProfileFormMode.CREATE
 
     // Back mid-setup used to drop the rider out of the app without a word. It
-    // still leaves, but asks first, and setup resumes on the next launch.
-    val activity = LocalActivity.current
+    // asks first, and leaving undoes the unfinished setup (rider, 26 Sep).
     var confirmLeave by remember { mutableStateOf(false) }
     BackHandler(enabled = creating) { confirmLeave = true }
     if (confirmLeave) {
         ConfirmSheet(
-            title = "Finish setting up later?",
-            body = "Your profile isn't saved yet. Next time you open RideConnectX, " +
-                "you'll carry on from here.",
+            title = "Leave setup?",
+            body = "Your profile isn't saved. You'll be signed out, and next time " +
+                "you open RideConnectX you'll start again.",
             confirmLabel = "Exit",
             onDismiss = { confirmLeave = false },
             onConfirm = {
                 confirmLeave = false
-                activity?.finish()
+                onExitSetup()
             },
         )
     }
