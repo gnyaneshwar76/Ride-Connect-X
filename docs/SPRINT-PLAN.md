@@ -78,7 +78,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [x] D9 approximate location was shared instead of refused
 
 ### Open — to fix after testing
-- [ ] A3 auto-reconnect showed pairing after reinstall (expected: backup is off — confirm with force-stop test)
+- [ ] A3 auto-reconnect showed pairing after reinstall (expected: backup is off — confirm with force-stop test) — code reviewed, no change; owner force-stop check below
 - [ ] B4 code 36 arrow direction unconfirmed (hardware check, not code)
 - [ ] I6 database upgrade — columns not verified
 - [ ] _new failures from 26–27 Sep testing go here_
@@ -97,3 +97,42 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 ## Cloud report
 
 _Written by the cloud session when the queue is done._
+
+Branch `temp/sprint-fixes`. Unit tests: **85/85** pass
+(`./gradlew testDebugUnitTest assembleDebug`, placeholder google-services.json).
+
+### Password rules on sign-up — fixed (`60eb69f`)
+- **Cause:** sign-up only required Firebase's 6-character minimum, and the rule
+  was never shown before submit.
+- **Change:** new `PasswordRules` (8+ characters, a letter and a number). Shown
+  under the password field on Create Account only, muted until met, green once
+  met; Create Account stays disabled until then. Sign-in keeps the old 6-char
+  gate so existing accounts still work. Firebase's weak-password message now
+  states the same rule.
+- **Files:** `domain/model/UserSession.kt`, `presentation/viewmodel/AuthViewModel.kt`,
+  `presentation/screens/SignInScreen.kt`, `res/values/strings.xml`,
+  `data/remote/FirebaseAuthDataSource.kt`, test `domain/model/PasswordRulesTest.kt`.
+- **Tests:** new `PasswordRulesTest` passes; 85/85.
+- **Phone check:** Sign In → Email → "New here? Create account". Type `abc12` —
+  rule line grey, button disabled. Type `abcdefgh` — still grey/disabled. Type
+  `abcdefg1` — rule turns green, button enabled, account is created. Then sign
+  out and sign in to an older account with a short password — must still work,
+  and no rule line is shown on the sign-in form.
+
+### A3 auto-reconnect after reinstall — no code change
+- **Cause:** expected behaviour. `android:allowBackup="false"` plus
+  `data_extraction_rules.xml` exclude every DataStore file, so an uninstall
+  wipes `last_device_address`. With no saved address,
+  `BleRepositoryImpl.reconnectLastDevice()` and the reconnect watcher have
+  nothing to reconnect to, so the rider must pair again.
+- **Force-stop path reviewed:** `MainActivity.onCreate` (cold start) calls
+  `reconnectLastDevice()`, which reads the saved address and connects; the
+  saved address passes `ScooterCandidateFilter`; the service connects by
+  address via `getRemoteDevice` with no scan needed; the watcher retries every
+  3–30 s. Nothing clears the saved device except Forget vehicle and Delete
+  local data. Startup never routes to the pairing screen by itself (Splash →
+  Dashboard). No defect found.
+- **Phone check:** with the scooter paired and on, Settings → Apps →
+  RideConnectX → Force stop, then reopen. Expected: Dashboard, and "Connected"
+  within ~10 s without opening Pair Vehicle. If it does not connect, capture
+  `adb logcat -s RCX-BLE` and send it — that would be a real bug.
