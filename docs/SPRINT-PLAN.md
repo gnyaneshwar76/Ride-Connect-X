@@ -92,7 +92,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [x] N9 service reminder never fired for an overdue service ("300 days over") — one in-app entry (C7) and one phone notification (E8), not repeated
 - [x] N10 service-centre field accepted an odometer number — centre must contain letters; odometer numbers only
 - [x] N11 R2 regression: "Find nearby on Maps" not visible on Add Service Record with no past centres — must always show (no live Places search)
-- [ ] N8 (low) location share takes 3–4 s — start the fix when the SOS sheet opens
+- [x] N8 (low) location share takes 3–4 s — start the fix when the SOS sheet opens
 - [ ] _new failures from 26–27 Sep testing go here_
 
 ### Waiting on an owner decision

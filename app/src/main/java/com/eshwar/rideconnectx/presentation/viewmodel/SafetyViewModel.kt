@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.viewmodel
 
+import android.location.Location
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eshwar.rideconnectx.core.di.ApplicationScope
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import java.util.Locale
@@ -102,6 +104,20 @@ class SafetyViewModel @Inject constructor(
 
     fun acknowledgeSafetyInfo() = appScope.launch { repository.acknowledgeSafetyInfo() }
 
+    private var prefetch: Deferred<Location?>? = null
+    private var prefetchedAt = 0L
+
+    /**
+     * Starts looking for a fix as the SOS sheet opens, so it is usually ready
+     * by the tap — the share took 3-4 s from the tap (rider, 26 Sep). Only a
+     * precise fix is worth it; the share itself still refuses approximate.
+     */
+    fun prefetchLocation() {
+        if (!hasPreciseLocation || prefetch?.isActive == true) return
+        prefetchedAt = System.currentTimeMillis()
+        prefetch = viewModelScope.async { locator.currentLocation() }
+    }
+
     /**
      * Builds the message SOS shares. Never invents coordinates — with no fix it
      * reports [LocationShare.Unavailable] so the rider is told rather than
@@ -110,7 +126,11 @@ class SafetyViewModel @Inject constructor(
     fun buildLocationMessage(onResult: (LocationShare) -> Unit) {
         viewModelScope.launch {
             _locating.value = true
-            val fix = locator.currentLocation()
+            // The fix started when the sheet opened, if it is still recent;
+            // otherwise a fresh one. Used once, so the next share looks again.
+            val early = prefetch?.takeIf { System.currentTimeMillis() - prefetchedAt < PREFETCH_VALID_MS }
+            prefetch = null
+            val fix = early?.await() ?: locator.currentLocation()
             _locating.value = false
             if (fix == null) {
                 onResult(LocationShare.Unavailable)
@@ -141,5 +161,10 @@ class SafetyViewModel @Inject constructor(
                 )
             )
         }
+    }
+
+    private companion object {
+        /** A fix fetched earlier than this is looked for again at the tap. */
+        const val PREFETCH_VALID_MS = 60_000L
     }
 }

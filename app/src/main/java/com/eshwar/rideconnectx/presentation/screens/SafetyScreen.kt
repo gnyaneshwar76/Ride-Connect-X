@@ -407,6 +407,9 @@ fun SafetyScreen(
         }
     }
 
+    // The fix is started as the sheet opens, not at the tap (N8).
+    LaunchedEffect(showSos) { if (showSos && shareLocation) vm.prefetchLocation() }
+
     if (showSos) {
         SosSheet(
             primary = primary,
