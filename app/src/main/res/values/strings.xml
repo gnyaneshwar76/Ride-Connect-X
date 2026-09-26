@@ -327,6 +327,7 @@
     <string name="service_date_future_error">A service cannot be dated in the future.</string>
     <string name="service_centre">Service centre</string>
     <string name="service_centre_placeholder">Where it was serviced</string>
+    <string name="service_find_nearby">Find nearby on Maps</string>
     <string name="service_centre_error">Enter the centre\'s name — a number isn\'t a centre. The reading goes in Odometer below.</string>
     <string name="service_odometer">Odometer (km)</string>
     <string name="service_odometer_error">Enter the odometer reading.</string>

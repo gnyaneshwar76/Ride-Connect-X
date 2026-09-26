@@ -69,6 +69,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
@@ -783,9 +784,12 @@ private fun ServiceRecordSheet(
             if (error is RecordError.CentreInvalid) {
                 FieldError(stringResource(R.string.service_centre_error))
             }
-            // Centres the rider has used before, filtered as they type.
+            // Centres the rider has used before, filtered as they type, after a
+            // Maps search that is always there — even with no past centres,
+            // where the row used to be empty and looked missing (rider, 26 Sep).
             // ponytail: live Google Maps suggestions need the Places API (billing
             // account); plug an autocomplete in here once that exists.
+            val context = LocalContext.current
             val matches = pastCentres
                 .filter { it.contains(centre.trim(), ignoreCase = true) && !it.equals(centre.trim(), ignoreCase = true) }
                 .take(4)
@@ -794,6 +798,16 @@ private fun ServiceRecordSheet(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(top = 10.dp),
             ) {
+                Text(
+                    stringResource(R.string.service_find_nearby),
+                    style = RcxType.BodySmall.copy(fontSize = 13.sp),
+                    color = c.blue,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .border(1.dp, c.blue.copy(alpha = 0.5f), RoundedCornerShape(50))
+                        .clickable { openNearbyServiceCentres(context) }
+                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                )
                 matches.forEach { m ->
                     Text(
                         m,
@@ -1100,6 +1114,18 @@ private fun FieldLabel(text: String) {
         color = Rcx.colors.muted,
         modifier = Modifier.padding(bottom = 8.dp, start = 2.dp),
     )
+}
+
+/** Maps searches around the rider; the browser when no Maps app is installed. */
+private fun openNearbyServiceCentres(context: android.content.Context) {
+    val query = android.net.Uri.encode("Suzuki service centre")
+    val maps = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("geo:0,0?q=$query"))
+    val web = android.content.Intent(
+        android.content.Intent.ACTION_VIEW,
+        android.net.Uri.parse("https://www.google.com/maps/search/?api=1&query=$query"),
+    )
+    runCatching { context.startActivity(maps) }
+        .recoverCatching { context.startActivity(web) }
 }
 
 @Composable
