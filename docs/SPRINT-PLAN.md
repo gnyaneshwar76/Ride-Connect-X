@@ -312,3 +312,9 @@ checked on the phone only.
      profile. Repeat after leaving a guest's setup half done: you land in setup,
      not on the Dashboard.
 
+
+### Third cloud session — re-check (26 Sep)
+- Pulled `temp/sprint-fixes` at `d3849c4`, rebuilt with a placeholder
+  `google-services.json`: `./gradlew testDebugUnitTest assembleDebug` passes,
+  **100/100** unit tests. No code changes; N1–N6 and AUDIT stand as reported
+  above. Ready for the owner's phone re-test.
