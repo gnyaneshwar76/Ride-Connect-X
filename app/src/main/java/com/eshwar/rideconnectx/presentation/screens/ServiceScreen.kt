@@ -780,6 +780,9 @@ private fun ServiceRecordSheet(
                 placeholder = stringResource(R.string.service_centre_placeholder),
                 capitalization = KeyboardCapitalization.Words,
             )
+            if (error is RecordError.CentreInvalid) {
+                FieldError(stringResource(R.string.service_centre_error))
+            }
             // Centres the rider has used before, filtered as they type.
             // ponytail: live Google Maps suggestions need the Places API (billing
             // account); plug an autocomplete in here once that exists.

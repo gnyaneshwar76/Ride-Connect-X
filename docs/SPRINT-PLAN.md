@@ -90,7 +90,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [x] AUDIT after the above: walk every sign-in / sign-out / guest / setup path end to end and fix basic-logic gaps (stale state, back-navigation, half-finished setup)
 - [x] N7 no warning when the app's own Notifications permission is off — warning card on the Notifications page with tap-to-allow, re-checked on resume
 - [x] N9 service reminder never fired for an overdue service ("300 days over") — one in-app entry (C7) and one phone notification (E8), not repeated
-- [ ] N10 service-centre field accepted an odometer number — centre must contain letters; odometer numbers only
+- [x] N10 service-centre field accepted an odometer number — centre must contain letters; odometer numbers only
 - [ ] N11 R2 regression: "Find nearby on Maps" not visible on Add Service Record with no past centres — must always show (no live Places search)
 - [ ] N8 (low) location share takes 3–4 s — start the fix when the SOS sheet opens
 - [ ] _new failures from 26–27 Sep testing go here_

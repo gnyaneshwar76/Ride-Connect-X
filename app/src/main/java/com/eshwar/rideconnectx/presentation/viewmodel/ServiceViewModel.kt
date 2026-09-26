@@ -28,7 +28,16 @@ sealed interface RecordError {
     data class OdometerTooHigh(val maximumKm: Int) : RecordError
     data object DateInFuture : RecordError
     data object OdometerMissing : RecordError
+    /** A centre with no letters — an odometer typed into the wrong field. */
+    data object CentreInvalid : RecordError
 }
+
+/**
+ * A centre is a name, so it needs at least one letter. Blank is allowed and
+ * stored as "Not recorded". Digits-only used to be saved as the centre when an
+ * odometer reading went into the wrong field (rider, 26 Sep).
+ */
+fun isValidCentre(centre: String): Boolean = centre.isBlank() || centre.any(Char::isLetter)
 
 /**
  * The readings a service on [servicedAt] may carry. The odometer only goes up,
@@ -133,6 +142,7 @@ class ServiceViewModel @Inject constructor(
         odometerKm: Int?,
         notes: String,
     ): RecordError? {
+        if (!isValidCentre(centre)) return RecordError.CentreInvalid
         if (odometerKm == null || odometerKm <= 0) return RecordError.OdometerMissing
         if (servicedAt > System.currentTimeMillis()) return RecordError.DateInFuture
 
