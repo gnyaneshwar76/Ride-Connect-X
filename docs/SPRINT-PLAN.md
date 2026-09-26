@@ -95,7 +95,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [x] N11 R2 regression: "Find nearby on Maps" not visible on Add Service Record with no past centres — must always show (no live Places search)
 - [x] N8 (low) location share takes 3–4 s — start the fix when the SOS sheet opens
 - [x] N12 verify: Google sign-in swiped away mid-spinner, reopened straight to Dashboard — was sign-in complete?
-- [ ] Full-app basic-logic audit (27 Sep overnight) — items below
+- [x] Full-app basic-logic audit (27 Sep overnight) — items below
   - [x] AUD-1 Profile name/city edit and photo removal saved on the phone only; the next sign-in brought the old ones back
   - [x] AUD-2 Settings → Connection alerts did nothing (saved, never read)
   - [x] AUD-3 Settings → Auto start navigation did nothing (saved, never read)
@@ -468,4 +468,79 @@ assembleDebug` passes, **110/110** unit tests. N2, N5, N6 passed on the phone.
   app showed signed out. Launch now signs Firebase out too.
 - **Phone check:** repeat the swipe on an account with a profile: Dashboard
   with its name and vehicle, or Intro if it had not finished — never setup.
+
+### Full-app audit — overnight 26→27 Sep (third cloud session)
+Built with a placeholder `google-services.json`: `./gradlew testDebugUnitTest
+assembleDebug` passes, **114/114** unit tests (110 before; +3 AUD-2, +1 AUD-5).
+Owner-decision items (R2 Places, emails, Firestore rules, signing/App Check,
+branch layout) were not touched.
+
+| ID | Commit | Cause → change | Files |
+|---|---|---|---|
+| AUD-1 | `a7aabfc` | Profile name/city edit and photo removal were saved on the phone only, so the next sign-in restored the old ones → edits sync to the account; a removed photo is cleared there | `ProfileViewModel.kt`, `VehicleRepository.kt` |
+| AUD-2 | `c8183a8` | Settings → Connection alerts was saved, never read → in-app entry + phone notification on connect and on a dropped link; the rider's own disconnect is not an alert | `ConnectionAlerts.kt`, `ConnectionAlertRule.kt` (+test), `NotificationRepository.kt`, `ServiceReminder.kt`, `ServiceEntryPoints.kt`, `RideConnectXApp.kt` |
+| AUD-3 | `3fcfa1a` | Settings → Auto start navigation was never read → off: a route started only in Maps stays off the cluster until started from the app. On (default) unchanged | `NavigationRelay.kt` |
+| AUD-4 | `0ee0530` | Settings → Ride notifications could never fire: no ride is ever recorded → switch hidden until ride recording exists | `SettingsScreen.kt` |
+| AUD-5 | `83e2618` | Editing a service task reset its position so it jumped to the top; a task name could be just a number → edit keeps position; name needs a letter, max 40 | `ServiceTaskDao.kt`, `ServiceRepository.kt`, `ServicePlan.kt`, `ServiceScreen.kt`, `strings.xml`, test `ServiceCentreTest` |
+| AUD-6 | `3ad4214` | "Save to an account" said rides/records/contacts "stay on this phone either way" — false for a guest → correct text for guest and account | `ProfileScreen.kt` |
+| AUD-7 | `5358091` | The nickname the Dashboard greets you by could only be set in Create Profile → editable on Profile (same rules), synced | `ProfileScreen.kt`, `ProfileViewModel.kt` |
+| AUD-8 | `88f54b9` | Safety → Helmet reminder was never read → "Helmet on?" phone notification when the scooter connects | `ConnectionAlerts.kt` |
+
+**Checked, no defect found:** Safety contacts (limit 3, duplicate numbers,
+first contact becomes primary, primary handed on when deleted, dialer
+sanitising, delete confirmation); SOS with no contacts (still offers
+emergency services and location share); service record delete confirmation;
+Delete local data (clears Room, pairing, readings, odometer cache); Forget
+vehicle; pairing with Bluetooth off or permission refused (stated on screen).
+
+**Found, not fixed — needs an owner decision (feature work, not a basic fix):**
+- **Rides are never recorded.** `RideRepository.recordRide` has no callers, so
+  Statistics always shows "No rides yet" and ride summaries (AUD-4) cannot
+  exist. Building ride detection (start/stop from the BLE link and odometer)
+  is a feature; say if you want it next.
+- N3 caveat: if Android kills the app in the background and it is restored from
+  Recents (not swiped away), setup continues where it was instead of resetting.
+
+## Morning phone re-test checklist (27 Sep)
+
+Install the latest `temp/sprint-fixes` build. Run in order; note pass/fail.
+
+1. **N1** Fresh install, Bluetooth and location off. Sign in. Without tapping
+   any button, the dialogs come one after another: Notifications → Nearby
+   devices → turn on Bluetooth → Location → location switch. Deny one: the
+   next still comes. Then Create Profile.
+2. **N3a** Google account with no profile → Create Profile → type a name →
+   swipe the app away → reopen: Intro, signed out.
+3. **N3b** Same, but Back → "Leave setup?" → Exit: app closes; reopen: Intro.
+4. **N3c** Repeat 2 and 3 as a guest: the guest name is gone afterwards.
+5. **N4** Guest "rocky bhai" → Profile → Save to an account → a Google account
+   with no profile: Create Profile shows the Google name. Back → Exit, reopen,
+   sign in again: still the Google name, never "rocky bhai".
+6. **N12** Account with a profile: start Google sign-in, swipe away during the
+   spinner, reopen: Dashboard (finished) or Intro (not finished), never setup.
+7. **N7** Android 13+: turn app notifications off in system Settings. Open
+   Notifications: "Notifications are off" card; tap → allow. Card goes.
+8. **N9** Overdue account: open the app → one "Service overdue … days over"
+   phone notification and one Notifications entry. Reopen: no second one.
+   Edit the record's date to 4+ months ago: one new reminder.
+9. **N10** Add Service Record, centre `2000` → red error, not saved.
+   Service task named `3000` → refused (AUD-5).
+10. **N11** Add Service Record on an account with no records: "Find nearby on
+    Maps" chip visible, opens Maps.
+11. **N8** Open SOS, wait 3 s, tap share: message ready almost at once.
+12. **AUD-1** Profile → Edit: change name and city, remove the photo. Sign out,
+    sign back in: the new name/city, no photo.
+13. **AUD-7** Profile → Edit: change the nickname → Dashboard greets you by it;
+    blank or 15+ characters is refused.
+14. **AUD-5** Service → edit the third task's distance → it stays third.
+15. **AUD-2 / AUD-8** Connection alerts on, helmet reminder on. Turn the
+    scooter on: "Vehicle connected" in Notifications plus a phone notification,
+    and "Helmet on?". Turn the scooter off while connected: "Vehicle
+    disconnected". Disconnect from the app instead: no "disconnected" alert.
+16. **AUD-3** Settings → Auto start navigation off. Start a route in Maps
+    only: cluster shows nothing. Start navigation from the app: turns appear.
+    Turn it back on afterwards.
+17. **AUD-4** Settings → Notifications: no "Ride notifications" switch.
+18. **AUD-6** As a guest: Profile → Save to an account: the sheet says your
+    rides, service records and contacts go with you.
 
