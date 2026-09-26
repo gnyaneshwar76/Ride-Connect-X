@@ -94,13 +94,18 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun continueAsGuest() {
+    /**
+     * [onDone] runs only once the guest is saved. The screen used to navigate in
+     * the same tap, which cleared this ViewModel and cancelled the save partway —
+     * so the name typed here never reached Create Profile (rider, 26 Sep).
+     */
+    fun continueAsGuest(onDone: () -> Unit) {
         val name = _ui.value.guestName
         GuestNameRules.validate(name)?.let { error ->
             _ui.update { it.copy(guestNameError = error) }
             return
         }
-        run { auth.continueAsGuest(name) }
+        run(onSuccess = onDone) { auth.continueAsGuest(name) }
     }
 
     fun resetPassword() {
@@ -128,7 +133,7 @@ class AuthViewModel @Inject constructor(
      * Legal acceptance is recorded on sign-in because the Sign In screen states
      * that continuing constitutes agreement.
      */
-    private fun run(block: suspend () -> AuthResult) {
+    private fun run(onSuccess: () -> Unit = {}, block: suspend () -> AuthResult) {
         viewModelScope.launch {
             _ui.update { it.copy(isBusy = true, errorMessage = null) }
             when (val result = block()) {
@@ -136,6 +141,7 @@ class AuthViewModel @Inject constructor(
                     prefs.acceptTerms()
                     prefs.acceptPrivacy()
                     _ui.update { it.copy(isBusy = false) }
+                    onSuccess()
                 }
                 is AuthResult.Failure ->
                     _ui.update { it.copy(isBusy = false, errorMessage = result.error.message) }

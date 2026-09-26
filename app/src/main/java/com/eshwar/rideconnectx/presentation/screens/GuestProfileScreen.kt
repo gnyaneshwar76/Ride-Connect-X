@@ -144,7 +144,7 @@ fun GuestProfileScreen(
                             capitalization = KeyboardCapitalization.Words,
                             imeAction = ImeAction.Done,
                         ),
-                        keyboardActions = KeyboardActions(onDone = { vm.continueAsGuest() }),
+                        keyboardActions = KeyboardActions(onDone = { vm.continueAsGuest(onContinue) }),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = c.card,
                             unfocusedContainerColor = c.card,
@@ -204,7 +204,7 @@ fun GuestProfileScreen(
             PrimaryButton(
                 label = if (state.isBusy) stringResource(R.string.guest_creating)
                 else stringResource(R.string.common_continue),
-                onClick = { vm.continueAsGuest(); onContinue() },
+                onClick = { vm.continueAsGuest(onContinue) },
                 enabled = state.canContinueGuest,
                 modifier = Modifier
                     .fillMaxWidth()

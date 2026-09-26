@@ -132,7 +132,9 @@ class VehicleViewModel @Inject constructor(
             // Auto-fill only for Google, where the name and picture come from an
             // account the rider already curated. Email and guest riders typed
             // whatever they typed to get in — prefilling that here would be
-            // presumptuous, and they should fill this in deliberately.
+            // presumptuous, and they should fill this in deliberately. A guest's
+            // name is the exception, and is already in `saved`: the guest screen
+            // asks for exactly this name, so asking twice was the bug.
             val fromGoogle = session.method == LoginMethod.GOOGLE
 
             _ui.update {
