@@ -196,13 +196,9 @@ fun SettingsScreen(
                 // ── Notifications ────────────────────────────────────
                 item {
                     SettingsGroup(stringResource(R.string.settings_notifications), Icons.Filled.Notifications) {
-                        SettingsToggleRow(
-                            title = stringResource(R.string.settings_ride_notifs),
-                            subtitle = stringResource(R.string.settings_ride_notifs_sub),
-                            checked = s.rideNotifications,
-                            onCheckedChange = vm::setRideNotifications,
-                        )
-                        SettingsDivider()
+                        // "Ride notifications" (summaries when a ride ends) is
+                        // hidden until rides are recorded: nothing records one
+                        // yet, so the switch could never do anything (AUD-4).
                         SettingsToggleRow(
                             title = stringResource(R.string.settings_service_reminders),
                             subtitle = stringResource(R.string.settings_service_reminders_sub),
