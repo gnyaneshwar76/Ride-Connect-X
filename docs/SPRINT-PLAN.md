@@ -110,6 +110,19 @@ Branch `temp/sprint-fixes`. Unit tests: **100/100** pass after N1–N6 + AUDIT
 google-services.json). Real sign-in, Firestore and permission dialogs are
 checked on the phone only.
 
+### Second cloud session, 26 Sep — verification only, no code change
+- The scheduled run started a second session on this branch at the same time.
+  It made its own N1 fix, found N1–N6 + AUDIT already pushed here, and dropped
+  its commit rather than overwrite them. Nothing of it was pushed.
+- Independently rebuilt `6bb12bd` from clean with the placeholder
+  google-services.json: `./gradlew testDebugUnitTest assembleDebug` passes,
+  **100/100** tests.
+- Reviewed the N2–N6 + AUDIT sign-in and setup logic (`ProfileHandover`,
+  `AuthState.resolve`, `SetupGate`, `AuthRepositoryImpl.persist`,
+  `addGuestDataToAccount` / `declineGuestMerge`). It matches the fix this
+  session had planned on its own. No defects found.
+- **Phone checks:** the same as the N1–N6 and AUDIT sections above.
+
 ### Password rules on sign-up — fixed (`60eb69f`)
 - **Cause:** sign-up only required Firebase's 6-character minimum, and the rule
   was never shown before submit.
