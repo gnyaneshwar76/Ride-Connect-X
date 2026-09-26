@@ -51,6 +51,7 @@ import com.eshwar.rideconnectx.data.local.db.NotificationEntity
 import com.eshwar.rideconnectx.data.local.db.NotificationKind
 import com.eshwar.rideconnectx.presentation.components.BackHeader
 import com.eshwar.rideconnectx.presentation.components.NotificationAccessWarning
+import com.eshwar.rideconnectx.presentation.components.PostNotificationsWarning
 import com.eshwar.rideconnectx.presentation.components.RcxPhoto
 import com.eshwar.rideconnectx.presentation.theme.Rcx
 import com.eshwar.rideconnectx.presentation.theme.RcxColors
@@ -103,6 +104,7 @@ fun NotificationsScreen(
                 },
             )
 
+            PostNotificationsWarning(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp))
             NotificationAccessWarning(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp))
 
             if (items.isEmpty()) {
