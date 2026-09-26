@@ -67,17 +67,12 @@ class AuthRepositoryImpl @Inject constructor(
             remote.authStateChanges.onStart { emit(remote.currentUser) },
             prefs.session,
         ) { firebaseUser, localSession ->
-            when {
-                // An email account counts only once its address is verified;
-                // Google accounts always are.
-                firebaseUser != null && (firebaseUser.isEmailVerified ||
-                    firebaseUser.providerData.none { it.providerId == "password" }) -> AuthState.Authenticated(
-                    localSession.takeIf { it.uid == firebaseUser.uid }
-                        ?: with(remote) { firebaseUser.toSession(localSession.method.orGoogle()) }
-                )
-                localSession.isGuest -> AuthState.Authenticated(localSession)
-                else -> AuthState.Unauthenticated
-            }
+            // An email account counts only once its address is verified;
+            // Google accounts always are.
+            val verifiedUid = firebaseUser?.takeIf { user ->
+                user.isEmailVerified || user.providerData.none { it.providerId == "password" }
+            }?.uid
+            AuthState.resolve(verifiedUid, localSession)
         }.onStart { emit(AuthState.Loading) }
 
     override val isGoogleSignInAvailable: Boolean get() = remote.isGoogleSignInAvailable
@@ -238,8 +233,6 @@ class AuthRepositoryImpl @Inject constructor(
     private suspend fun AuthResult.persist(): AuthResult {
         if (this !is AuthResult.Success) return this
 
-        prefs.saveSession(user)
-
         // Recorded here rather than in the ViewModel so it shares this scope and
         // cannot be lost to the same cancellation that used to drop the
         // Firestore write. The Sign In screen states that continuing is consent.
@@ -287,12 +280,18 @@ class AuthRepositoryImpl @Inject constructor(
                 if (localOwner == GUEST) claimGuestRows(user.uid)
             }
             // Nothing moves until the rider answers; see addGuestDataToAccount.
-            HandoverAction.ASK -> prefs.setGuestMergePending(true)
+            HandoverAction.ASK -> Unit
         }
+        // Set either way, so a question left by a sign-in that never finished
+        // cannot be put to a different account.
+        prefs.setGuestMergePending(action == HandoverAction.ASK)
         if (action != HandoverAction.ASK) {
             prefs.setProfileOwner(user.uid)
             flushPendingReadings(user.uid)
         }
+        // Last: saving the session is what makes the account signed in on this
+        // phone (AuthState.resolve), so nothing routes on a half-done sign-in.
+        prefs.saveSession(user)
 
         return synced.fold(
             onSuccess = {
@@ -312,18 +311,14 @@ class AuthRepositoryImpl @Inject constructor(
         Log.e(TAG, "Account unreachable - sign-in undone")
         remote.signOut(context)
         prefs.clearSession()
-        return AuthResult.Failure(
-            AuthError.CloudSyncFailure("Couldn't reach your account. Try again when you're online.")
-        )
+        return AuthResult.Failure(AuthError.Unknown("Couldn't reach your account. Check your internet and try again."))
     }
 
     override suspend fun addGuestDataToAccount(): AuthResult = appScope.async {
         val session = prefs.session.first()
         val data = firestore.fetchUser(session.uid).getOrElse {
             Log.e(TAG, "Guest merge: account read failed", it)
-            return@async AuthResult.Failure(
-                AuthError.CloudSyncFailure("Couldn't reach your account. Try again when you're online.")
-            )
+            return@async AuthResult.Failure(AuthError.Unknown("Couldn't reach your account. Check your internet and try again."))
         }
         // The account's profile wins; the guest's rides, service records and
         // contacts join it.
@@ -511,7 +506,4 @@ class AuthRepositoryImpl @Inject constructor(
             capturedAt = (r["capturedAt"] as? Number)?.toLong() ?: 0L,
         )
     }
-
-    private fun LoginMethod.orGoogle() =
-        if (this == LoginMethod.NONE || this == LoginMethod.GUEST) LoginMethod.GOOGLE else this
 }

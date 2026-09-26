@@ -141,8 +141,10 @@ class ProfileViewModel @Inject constructor(
     fun signOut(keepLocalProfile: Boolean = false, onDone: () -> Unit) {
         appScope.launch {
             bleRepository.disconnect()
+            // Setup progress goes with the profile: kept on a move, cleared on a
+            // sign-out. Forcing it true on a move sent an unfinished profile
+            // straight to the next account's dashboard.
             auth.signOut(keepLocalProfile)
-            prefs.setProfileCompleted(keepLocalProfile)
             withContext(Dispatchers.Main) { onDone() }
         }
     }

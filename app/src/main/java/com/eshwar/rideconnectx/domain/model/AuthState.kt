@@ -4,6 +4,24 @@ sealed interface AuthState {
     data object Loading : AuthState
     data object Unauthenticated : AuthState
     data class Authenticated(val user: UserSession) : AuthState
+
+    companion object {
+        /**
+         * An account counts as signed in only once sign-in has finished on this
+         * phone — its session is saved last, after the profile is settled. A
+         * Firebase user alone (sign-in still running, or killed halfway) used
+         * to count, which let a half-finished sign-in resume into setup with
+         * nothing restored and rows saved as a guest's.
+         *
+         * @param firebaseUid the Firebase user, if its email is verified
+         *   (Google accounts always are); null otherwise.
+         */
+        fun resolve(firebaseUid: String?, local: UserSession): AuthState = when {
+            firebaseUid != null && local.uid == firebaseUid && !local.isGuest -> Authenticated(local)
+            local.isGuest -> Authenticated(local)
+            else -> Unauthenticated
+        }
+    }
 }
 
 sealed interface AuthError {

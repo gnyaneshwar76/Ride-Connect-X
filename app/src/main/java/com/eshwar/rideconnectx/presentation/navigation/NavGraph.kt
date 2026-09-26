@@ -171,7 +171,6 @@ fun NavGraph(navController: NavHostController) {
 
         composable(Routes.PERMISSIONS) {
             val authVm: AuthViewModel = hiltViewModel()
-            val profileDone by authVm.profileCompleted.collectAsStateWithLifecycle()
             val perms = rememberPermissionsController()
 
             val scope = rememberCoroutineScope()
@@ -189,7 +188,8 @@ fun NavGraph(navController: NavHostController) {
                 if (perms.allRequiredGranted) next(authVm.isProfileCompleted())
             }
 
-            PermissionsScreen(onContinue = { scope.launch { next(profileDone) } })
+            // The stored value, not the StateFlow's `false` before it loads.
+            PermissionsScreen(onContinue = { scope.launch { next(authVm.isProfileCompleted()) } })
         }
 
         composable(Routes.PROFILE_FOUND) {

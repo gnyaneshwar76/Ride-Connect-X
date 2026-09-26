@@ -87,7 +87,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [x] N4 a previous person's local name (guest "rocky bhai") prefilled another Google account's setup — local profile must be cleared/scoped per account
 - [x] N5 guest signing into an account that already has a profile: no prompt — must ask "add your guest data to this account?" or let them pick another account
 - [x] N6 an account whose profile exists in Firestore was asked to create a profile again after sign-out/sign-in — restore must always run and mark setup done
-- [ ] AUDIT after the above: walk every sign-in / sign-out / guest / setup path end to end and fix basic-logic gaps (stale state, back-navigation, half-finished setup)
+- [x] AUDIT after the above: walk every sign-in / sign-out / guest / setup path end to end and fix basic-logic gaps (stale state, back-navigation, half-finished setup)
 - [ ] _new failures from 26–27 Sep testing go here_
 
 ### Waiting on an owner decision
