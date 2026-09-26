@@ -32,6 +32,7 @@ import javax.inject.Singleton
 class NavigationRelay @Inject constructor(
     private val bleRepository: BleRepository,
     private val rideLog: com.eshwar.rideconnectx.data.nav.RideLog,
+    private val appSettings: com.eshwar.rideconnectx.data.local.AppSettingsStore,
     @ApplicationScope private val appScope: CoroutineScope,
 ) {
     private val _state = MutableStateFlow<NavState>(NavState.Inactive)
@@ -62,6 +63,10 @@ class NavigationRelay @Inject constructor(
 
     /** Called for every maneuver update read from the Maps notification. */
     suspend fun onManeuver(maneuver: NavManeuver) {
+        // Settings → "Auto start navigation" off: a route started in Maps alone
+        // stays off the cluster until the rider starts it from the app
+        // ([awaitMaps]). The switch was saved but never read (AUD-3).
+        if (_state.value is NavState.Inactive && !appSettings.settings.first().autoStartNavigation) return
         _state.value = NavState.Active(maneuver)
         relay(maneuver)
         armWatchdog(arrived = maneuver.isArrival())

@@ -98,6 +98,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [ ] Full-app basic-logic audit (27 Sep overnight) — items below
   - [x] AUD-1 Profile name/city edit and photo removal saved on the phone only; the next sign-in brought the old ones back
   - [x] AUD-2 Settings → Connection alerts did nothing (saved, never read)
+  - [x] AUD-3 Settings → Auto start navigation did nothing (saved, never read)
 - [ ] _new failures from 26–27 Sep testing go here_
 
 ### Waiting on an owner decision
