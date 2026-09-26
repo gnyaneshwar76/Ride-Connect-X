@@ -280,8 +280,12 @@ fun ProfileScreen(
             body = "You'll be taken to sign in. Your rider name, nickname, city, " +
                 "vehicle, paint and photo stay on this phone and are saved to " +
                 "whichever account you sign in with next.\n\n" +
-                "Rides, service records and emergency contacts stay on this " +
-                "phone either way.",
+                // Guest rows move into the account since G4; an account's own
+                // stay with it (AUD-6: this used to say "stay either way").
+                if (account.isGuest)
+                    "Your rides, service records and emergency contacts go with you."
+                else
+                    "Rides, service records and emergency contacts stay with this account.",
             confirmLabel = "Continue to sign in",
             onDismiss = { confirmMigrate = false },
             onConfirm = {

@@ -101,6 +101,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
   - [x] AUD-3 Settings → Auto start navigation did nothing (saved, never read)
   - [x] AUD-4 Settings → Ride notifications could never fire (no ride is ever recorded) — switch hidden
   - [x] AUD-5 Editing a service task moved it to the top of the list; a task name could be just a number
+  - [x] AUD-6 "Save to an account" sheet said rides/records/contacts stay on the phone — wrong for a guest
 - [ ] _new failures from 26–27 Sep testing go here_
 
 ### Waiting on an owner decision
