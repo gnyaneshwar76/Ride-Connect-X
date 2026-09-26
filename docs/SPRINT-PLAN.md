@@ -27,6 +27,21 @@ as things finish; the newest state wins.
    pushes. The local session reads it, installs the build on the phone, and
    the owner re-tests.
 
+### Parallel fixing (from 26 Sep)
+
+Fixes no longer wait for testing to end. Each failure the owner reports gets
+its own cloud session, started at once, while testing continues:
+
+- Branch `fix/<test-id>` from `fixes-2026-09-24`; one problem per session.
+- Before building, create a **placeholder** `app/google-services.json`
+  (package `com.gnyaneshwar.rideconnectx`, dummy ids) so Gradle compiles.
+  Never commit it. Real sign-in is checked on the phone, not in the cloud.
+- Root-cause fix → `./gradlew testDebugUnitTest assembleDebug` → commit with
+  the test ID → push the branch → reply with: cause, change, files, test result,
+  and anything the owner must check on the phone.
+- The local session combines finished branches into `fixes-2026-09-24`,
+  installs on the phone, and the owner re-tests.
+
 ## Budget (snapshot 26 Sep, 15:50)
 
 | Pool | Used | Resets / expires |
