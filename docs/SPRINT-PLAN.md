@@ -103,6 +103,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
   - [x] AUD-5 Editing a service task moved it to the top of the list; a task name could be just a number
   - [x] AUD-6 "Save to an account" sheet said rides/records/contacts stay on the phone — wrong for a guest
   - [x] AUD-7 The nickname the dashboard greets you by could not be changed after setup
+  - [x] AUD-8 Safety → Helmet reminder did nothing (saved, never read)
 - [ ] _new failures from 26–27 Sep testing go here_
 
 ### Waiting on an owner decision
