@@ -94,6 +94,11 @@
     <string name="perm_title">App Permissions</string>
     <string name="perm_subtitle">Required to enable core features</string>
     <string name="perm_continue_anyway">Continue Anyway</string>
+    <string name="perm_step_notifications">Allow notifications</string>
+    <string name="perm_step_bluetooth">Allow Bluetooth</string>
+    <string name="perm_step_bluetooth_on">Turn on Bluetooth</string>
+    <string name="perm_step_location">Allow location</string>
+    <string name="perm_step_location_on">Turn on location</string>
 
 
     <!-- 13 Dashboard -->

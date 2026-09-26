@@ -56,6 +56,9 @@ import com.eshwar.rideconnectx.R
 import com.eshwar.rideconnectx.core.util.AppPermission
 import com.eshwar.rideconnectx.core.util.AppPermissions
 import com.eshwar.rideconnectx.core.util.PermState
+import com.eshwar.rideconnectx.core.util.SetupProgress
+import com.eshwar.rideconnectx.core.util.SetupStep
+import com.eshwar.rideconnectx.core.util.SetupSteps
 import com.eshwar.rideconnectx.core.util.rememberPermissionsController
 import com.eshwar.rideconnectx.core.util.rememberSystemServices
 import com.eshwar.rideconnectx.presentation.components.PrimaryButton
@@ -81,31 +84,40 @@ fun PermissionsScreen(
     val perms = rememberPermissionsController()
     val services = rememberSystemServices()
 
-    // The dialogs come up on their own, the moment the screen appears — the
-    // rider has just finished the introduction that explains why each one is
-    // needed, so making them hunt for a button to start is a wasted step. This
-    // is how the official app behaves. Runs once; anything already granted or
-    // already answered is skipped, so coming back never re-prompts.
+    // Radios are prompted at most once per visit, like the permissions.
+    var bluetoothPrompted by rememberSaveable { mutableStateOf(false) }
+    var locationPrompted by rememberSaveable { mutableStateOf(false) }
+
+    // One thing at a time (rider, 26 Sep): every dialog used to fire back to
+    // back, then both radio prompts together. Now the first step comes up on
+    // its own, as before, and each one after it waits for a tap on the button,
+    // which names what it will ask for.
+    val step = SetupSteps.next(
+        SetupProgress(
+            notificationsAnswered = perms.state(AppPermissions.notifications) == PermState.Granted ||
+                perms.answered(AppPermissions.notifications),
+            bluetoothGranted = perms.state(AppPermissions.bluetooth) == PermState.Granted,
+            bluetoothAnswered = perms.answered(AppPermissions.bluetooth),
+            bluetoothOn = services.bluetoothOn,
+            bluetoothPrompted = bluetoothPrompted,
+            locationGranted = perms.state(AppPermissions.location) == PermState.Granted,
+            locationAnswered = perms.answered(AppPermissions.location),
+            locationOn = services.locationOn,
+            locationPrompted = locationPrompted,
+        )
+    )
+    fun ask(step: SetupStep) = when (step) {
+        SetupStep.NOTIFICATIONS -> perms.request(AppPermissions.notifications)
+        SetupStep.BLUETOOTH -> perms.request(AppPermissions.bluetooth)
+        SetupStep.BLUETOOTH_ON -> { bluetoothPrompted = true; services.turnOnBluetooth() }
+        SetupStep.LOCATION -> perms.request(AppPermissions.location)
+        SetupStep.LOCATION_ON -> { locationPrompted = true; services.openLocationSettings() }
+        SetupStep.DONE -> Unit
+    }
     LaunchedEffect(Unit) {
         perms.refresh()
-        perms.requestEssentialsInSequence()
-    }
-
-    // Granting permission never turns a radio on, so the sequence above always
-    // ended with the rider having said yes to everything and the screen still
-    // showing two things off — which they then had to go and switch on by hand
-    // in the Settings app. Both of these are one-tap system dialogs that sit on
-    // top of this screen, so they run as part of the same sequence.
-    //
-    // Deliberately after the permission dialogs, not interleaved: Android shows
-    // one dialog at a time, and jumping the queue puts the radio prompt behind
-    // a permission prompt where the rider cannot see it.
-    var radiosPrompted by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(perms.allRequiredGranted, services.bluetoothOn, services.locationOn) {
-        if (!perms.allRequiredGranted || radiosPrompted) return@LaunchedEffect
-        radiosPrompted = true
-        if (!services.bluetoothOn) services.turnOnBluetooth()
-        if (!services.locationOn) services.openLocationSettings()
+        services.refresh()
+        ask(step)
     }
 
     // Re-check on resume: the user may have granted permissions, or flipped a
@@ -226,10 +238,20 @@ fun PermissionsScreen(
             // pairing.
             val ready = perms.allRequiredGranted && services.bluetoothOn && services.locationOn
             PrimaryButton(
-                label = if (ready) stringResource(R.string.common_continue)
-                else stringResource(R.string.perm_continue_anyway),
-                onClick = { vm.markPermissionsCompleted(); onContinue() },
-                secondary = !ready,
+                label = when (step) {
+                    SetupStep.NOTIFICATIONS -> stringResource(R.string.perm_step_notifications)
+                    SetupStep.BLUETOOTH -> stringResource(R.string.perm_step_bluetooth)
+                    SetupStep.BLUETOOTH_ON -> stringResource(R.string.perm_step_bluetooth_on)
+                    SetupStep.LOCATION -> stringResource(R.string.perm_step_location)
+                    SetupStep.LOCATION_ON -> stringResource(R.string.perm_step_location_on)
+                    SetupStep.DONE -> if (ready) stringResource(R.string.common_continue)
+                    else stringResource(R.string.perm_continue_anyway)
+                },
+                onClick = {
+                    if (step != SetupStep.DONE) ask(step)
+                    else { vm.markPermissionsCompleted(); onContinue() }
+                },
+                secondary = step == SetupStep.DONE && !ready,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 28.dp),
@@ -238,7 +260,7 @@ fun PermissionsScreen(
                         Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,
                         modifier = Modifier.size(17.dp),
-                        tint = if (ready) Color.White else c.blue,
+                        tint = if (step != SetupStep.DONE || ready) Color.White else c.blue,
                     )
                 },
             )

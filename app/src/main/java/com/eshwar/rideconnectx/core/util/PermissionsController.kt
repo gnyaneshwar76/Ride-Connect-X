@@ -115,12 +115,11 @@ object AppPermissions {
     )
 
     /**
-     * The three asked for immediately after onboarding, in this order.
+     * The three asked for during setup, one at a time, in this order — see
+     * [SetupSteps].
      *
      * Notifications first because its dialog is the least alarming, then the
-     * two the app genuinely cannot work without. Asking for everything at once
-     * is not possible on Android — each group is its own dialog — so the order
-     * is the only thing to get right.
+     * two the app genuinely cannot work without.
      */
     val essential = listOf(notifications, bluetooth, location)
 
@@ -188,9 +187,6 @@ class PermissionsController internal constructor(
 ) {
     internal var pending: AppPermission? = null
 
-    /** True while [requestEssentialsInSequence] is walking the essential list. */
-    private var autoRunning = false
-
     fun state(p: AppPermission): PermState = states[p.id] ?: PermState.Idle
 
     val allRequiredGranted: Boolean
@@ -218,34 +214,10 @@ class PermissionsController internal constructor(
     }
 
     /**
-     * Asks for the essential permissions one after another, without waiting for
-     * the rider to tap anything.
-     *
-     * This is how the official app behaves and what the rider asked for: finish
-     * the introduction, and the system dialogs simply appear. Android shows one
-     * dialog at a time, so this walks [AppPermissions.essential] in order,
-     * moving on as each result comes back — see [onResult].
-     *
-     * Anything already granted, or already answered in this run, is skipped, so
-     * returning to the screen never re-prompts.
+     * True once [p] has been asked for in this run, whatever the answer. Setup
+     * uses it to move to the next step rather than asking the same thing twice.
      */
-    fun requestEssentialsInSequence() {
-        autoRunning = true
-        requestNextEssential()
-    }
-
-    private fun requestNextEssential() {
-        val next = AppPermissions.essential.firstOrNull { p ->
-            p.manifest.isNotEmpty() &&
-                states[p.id] != PermState.Granted &&
-                p.id !in requested
-        }
-        if (next == null) {
-            autoRunning = false
-            return
-        }
-        request(next)
-    }
+    fun answered(p: AppPermission): Boolean = p.id in requested
 
     /** Opens this app's page in system Settings, for permanently denied permissions. */
     fun openAppSettings() {
@@ -266,9 +238,6 @@ class PermissionsController internal constructor(
             p.id in requested && !shouldShowRationale(p) -> PermState.PermanentlyDenied
             else -> PermState.Denied
         }
-        // Android allows one dialog at a time, so the sequence advances here
-        // rather than looping — whether the rider allowed or refused.
-        if (autoRunning) requestNextEssential()
     }
 
     private fun granted(perm: String) =
