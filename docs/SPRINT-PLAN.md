@@ -323,3 +323,71 @@ checked on the phone only.
   `google-services.json`: `./gradlew testDebugUnitTest assembleDebug` passes,
   **100/100** unit tests. No code changes; N1–N6 and AUDIT stand as reported
   above. Ready for the owner's phone re-test.
+
+### N7–N11 (26 Sep, 18:50 report) — third cloud session
+Built with a placeholder `google-services.json`: `./gradlew testDebugUnitTest
+assembleDebug` passes, **108/108** unit tests (100 before; +5 N9, +3 N10).
+
+**N7 app notifications off, no warning** — `cc09046`
+- **Cause:** only the notification *access* listener had a warning; nothing
+  checked the app's own POST_NOTIFICATIONS permission.
+- **Change:** `PostNotificationsWarning`, the same amber card, on the
+  Notifications page only, re-checked on resume. Tap asks for the permission;
+  once Android won't show the dialog any more, it opens the app's notification
+  settings.
+- **Files:** `components/NotificationAccessWarning.kt`, `screens/NotificationsScreen.kt`.
+- **Phone check:** Android 13+. Settings → Apps → RideConnectX → Notifications
+  off. Open Notifications: "Notifications are off" card. Tap → dialog, or the
+  app's notification settings if denied before. Turn on, come back: card gone.
+
+**N9 service reminder never fired** — `3ad92db`
+- **Cause:** reminders were never built. `NotificationRepository.notify` had no
+  callers and nothing was scheduled, so "Overdue — 300 days over" produced no
+  in-app entry and no phone notification.
+- **Change:** `ServiceReminder` checks each account's service status whenever it
+  changes while the app runs (record added/edited, past dates included;
+  odometer; sign-in/switch), plus a daily WorkManager job while it is closed.
+  `ServiceReminderRule` (pure) keys a reminder by level (due soon / overdue) and
+  the service it counts from: one in-app entry + one phone notification per
+  level per service cycle, never per check. A new or edited record starts a new
+  cycle. Status is paired with its owner, so a reminder never lands on the wrong
+  account. Without the permission only the in-app entry is made.
+- **Files:** `domain/model/ServiceReminderRule.kt`, `data/repository/ServiceReminder.kt`,
+  `ServiceRepository.kt`, `NotificationRepository.kt`, `ServicePreferencesStore.kt`,
+  `core/di/ServiceEntryPoints.kt`, `RideConnectXApp.kt`, `app/build.gradle.kts` +
+  `libs.versions.toml` (work-runtime-ktx 2.10.0), test `ServiceReminderRuleTest`.
+- **Phone check:** on the overdue account, open the app. Within seconds: one
+  phone notification "Service overdue — … 300 days over" and one entry in
+  Notifications. Close and reopen: no second one. Add a record dated today:
+  nothing. Edit it to a date 4+ months ago: one new reminder. Service reminders
+  off in Settings: nothing.
+
+**N10 odometer number accepted as a service centre** — `c7a432d`
+- **Cause:** the centre field took any text.
+- **Change:** a centre must contain a letter (blank still saves as "Not
+  recorded"); inline error under the field. The odometer field already keeps
+  digits only.
+- **Files:** `viewmodel/ServiceViewModel.kt`, `screens/ServiceScreen.kt`,
+  `res/values/strings.xml`, test `ServiceCentreTest`.
+- **Phone check:** Add Service Record, centre `2000` → Save shows the red error,
+  nothing saved. `Sai Suzuki` saves. Try typing letters in Odometer: ignored.
+
+**N11 "Find nearby on Maps" not visible** — `6a2467e`
+- **Cause:** the option was never built on this branch; with no past centres
+  the row under the field was empty.
+- **Change:** a "Find nearby on Maps" chip always leads that row and opens a
+  Suzuki service-centre search in Maps (browser if no Maps app). Past centres
+  follow it once one exists. No Places API (R2 still waits on billing).
+- **Files:** `screens/ServiceScreen.kt`, `res/values/strings.xml`.
+- **Phone check:** fresh account, Add Service Record: chip visible, opens Maps
+  near you. Save one record with a centre; the next Add shows that centre as a
+  chip after the Maps one.
+
+**N8 location share takes 3–4 s** — `f47e6dc`
+- **Cause:** the fix was requested only at the tap.
+- **Change:** opening the SOS sheet (sharing on, precise granted) starts the
+  fix; the tap uses it if under a minute old, otherwise fetches again. Used
+  once. Precise-only and one-share-at-a-time unchanged.
+- **Files:** `viewmodel/SafetyViewModel.kt`, `screens/SafetyScreen.kt`.
+- **Phone check:** open SOS, wait ~3 s, tap share: the message is ready almost
+  at once. With "Approximate" only: still refused as before.
