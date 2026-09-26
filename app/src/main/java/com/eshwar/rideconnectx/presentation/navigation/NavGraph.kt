@@ -6,6 +6,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import com.eshwar.rideconnectx.core.util.rememberPermissionsController
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import kotlinx.coroutines.flow.map
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -115,11 +117,15 @@ fun NavGraph(navController: NavHostController) {
         composable(Routes.SIGN_IN) {
             val authVm: AuthViewModel = hiltViewModel()
             val authState by authVm.authState.collectAsStateWithLifecycle()
+            val signingIn by remember { authVm.ui.map { it.isBusy } }.collectAsStateWithLifecycle(false)
 
             // Sign-in success is observed rather than pushed, so Google, email
-            // and guest all converge on one navigation path.
-            LaunchedEffect(authState) {
-                if (authState is AuthState.Authenticated) {
+            // and guest all converge on one navigation path. It waits for the
+            // sign-in to *finish*, not just for Firebase: the account's profile
+            // is restored after Firebase reports signed in, and routing before
+            // that sent a returning rider to Create Profile (rider, 26 Sep).
+            LaunchedEffect(authState, signingIn) {
+                if (authState is AuthState.Authenticated && !signingIn) {
                     navController.navigate(Routes.PERMISSIONS) {
                         // The whole intro, not just this screen. Popping only
                         // Sign In left Welcome and the three onboarding pages

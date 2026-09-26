@@ -247,14 +247,15 @@ class AuthRepositoryImpl @Inject constructor(
         prefs.acceptPrivacy()
 
         // Unknown is not "new": treating a failed read as a first sign-in
-        // overwrote a returning rider's cloud profile with defaults.
-        val isReturning = firestore.exists(user.uid)
-            ?: return AuthResult.Failure(
-                AuthError.CloudSyncFailure("Couldn't reach your account. Try again when you're online.")
-            )
+        // overwrote a returning rider's cloud profile with defaults. And the
+        // account's profile must come down before setup is decided, or a rider
+        // with a profile is asked to make one again — so a failed read undoes
+        // the sign-in rather than leaving it half done.
+        val isReturning = firestore.exists(user.uid) ?: return abandonSignIn()
         Log.d(TAG, "persist uid=${user.uid} method=${user.method} returning=$isReturning")
 
-        val cloudData = if (isReturning) firestore.fetchUser(user.uid).getOrNull() else null
+        val cloudData =
+            if (isReturning) firestore.fetchUser(user.uid).getOrElse { return abandonSignIn() } else null
         val synced =
             if (isReturning) firestore.touchLogin(user) else firestore.createUser(user)
 
@@ -304,6 +305,15 @@ class AuthRepositoryImpl @Inject constructor(
                     AuthError.CloudSyncFailure(it.message ?: "Try again when you're online.")
                 )
             },
+        )
+    }
+
+    private suspend fun abandonSignIn(): AuthResult {
+        Log.e(TAG, "Account unreachable - sign-in undone")
+        remote.signOut(context)
+        prefs.clearSession()
+        return AuthResult.Failure(
+            AuthError.CloudSyncFailure("Couldn't reach your account. Try again when you're online.")
         )
     }
 
