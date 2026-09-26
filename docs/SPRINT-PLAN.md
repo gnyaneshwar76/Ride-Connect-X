@@ -83,7 +83,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [ ] I6 database upgrade — columns not verified
 - [x] N1 permissions are all requested at once — must be one by one (guest and sign-in setup)
 - [x] N2 guest name typed on the guest screen does not prefill Create Profile's Name (nickname must stay empty)
-- [ ] N3 Back during Create Profile exits, and reopening skips setup into a half-made account — must resume setup, never skip it
+- [x] N3 Back during Create Profile exits, and reopening skips setup into a half-made account — must resume setup, never skip it
 - [ ] N4 a previous person's local name (guest "rocky bhai") prefilled another Google account's setup — local profile must be cleared/scoped per account
 - [ ] N5 guest signing into an account that already has a profile: no prompt — must ask "add your guest data to this account?" or let them pick another account
 - [ ] N6 an account whose profile exists in Firestore was asked to create a profile again after sign-out/sign-in — restore must always run and mark setup done

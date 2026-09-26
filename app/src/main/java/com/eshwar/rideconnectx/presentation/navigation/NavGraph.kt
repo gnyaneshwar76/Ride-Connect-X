@@ -84,17 +84,21 @@ fun NavGraph(navController: NavHostController) {
             val authVm: AuthViewModel = hiltViewModel()
             val authState by authVm.authState.collectAsStateWithLifecycle()
 
+            val scope = rememberCoroutineScope()
+
             SplashScreen(
                 onFinished = {
                     // Auto-login: an already-authenticated user never sees the
                     // sign-in flow. Loading resolves before the animation ends,
-                    // so there is no extra wait.
-                    val destination = when (authState) {
-                        is AuthState.Authenticated -> Routes.DASHBOARD
-                        else -> Routes.INTRO
-                    }
-                    navController.navigate(destination) {
-                        popUpTo(Routes.SPLASH) { inclusive = true }
+                    // so there is no extra wait. Unfinished setup resumes.
+                    scope.launch {
+                        val destination = SetupGate.launchRoute(
+                            signedIn = authState is AuthState.Authenticated,
+                            profileDone = authVm.isProfileCompleted(),
+                        )
+                        navController.navigate(destination) {
+                            popUpTo(Routes.SPLASH) { inclusive = true }
+                        }
                     }
                 }
             )
@@ -202,6 +206,7 @@ fun NavGraph(navController: NavHostController) {
         // ahead of the dashboard, because the dashboard renders the chosen
         // vehicle and greets the rider by name.
         composable(Routes.VEHICLE) {
+            // Back here asks before leaving; see CreateProfileScreen.
             CreateProfileScreen(
                 onContinue = {
                     navController.navigate(Routes.DASHBOARD) {
