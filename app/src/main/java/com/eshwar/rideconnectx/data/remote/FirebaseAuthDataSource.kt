@@ -278,7 +278,7 @@ class FirebaseAuthDataSource @Inject constructor(
     private fun Throwable.toAuthError(): AuthError = when (this) {
         is IOException -> AuthError.NoInternet
         is FirebaseAuthWeakPasswordException ->
-            AuthError.WeakPassword("Password must be at least 6 characters.")
+            AuthError.WeakPassword("Password needs at least 8 characters, with a letter and a number.")
         is FirebaseAuthUserCollisionException ->
             AuthError.AccountExists("An account already exists with that email.")
         is FirebaseAuthInvalidCredentialsException ->

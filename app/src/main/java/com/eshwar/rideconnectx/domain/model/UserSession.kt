@@ -60,3 +60,16 @@ object GuestNameRules {
 
     fun isValid(raw: String) = validate(raw) == null
 }
+
+/**
+ * Password rule for new email accounts: at least 8 characters, with a letter
+ * and a number. Firebase alone only asks for 6.
+ *
+ * Sign-in never applies it — accounts made before the rule keep working.
+ */
+object PasswordRules {
+    const val MIN = 8
+
+    fun isValid(password: String) =
+        password.length >= MIN && password.any { it.isLetter() } && password.any { it.isDigit() }
+}

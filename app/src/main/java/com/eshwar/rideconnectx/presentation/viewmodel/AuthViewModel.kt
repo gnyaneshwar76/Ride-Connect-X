@@ -7,6 +7,7 @@ import com.eshwar.rideconnectx.data.local.UserPreferencesStore
 import com.eshwar.rideconnectx.domain.model.AuthResult
 import com.eshwar.rideconnectx.domain.model.AuthState
 import com.eshwar.rideconnectx.domain.model.GuestNameRules
+import com.eshwar.rideconnectx.domain.model.PasswordRules
 import com.eshwar.rideconnectx.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,7 +39,7 @@ data class SignInUiState(
         get() = !isBusy &&
             email.contains('@') && email.substringAfterLast('@').contains('.') &&
             password.length >= 6 &&
-            (!isNewAccount || displayName.isNotBlank())
+            (!isNewAccount || (displayName.isNotBlank() && PasswordRules.isValid(password)))
 
     val canContinueGuest: Boolean get() = !isBusy && GuestNameRules.isValid(guestName)
 }

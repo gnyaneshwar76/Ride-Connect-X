@@ -92,7 +92,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 ### Security hardening still open
 - [ ] Firebase Console: turn on **email enumeration protection** (Authentication → Settings)
 - [ ] Release signing key → then App Check enforcement (I2, I4)
-- [ ] Password rules on sign-up (length/strength shown before submit) — **cloud, now**
+- [x] Password rules on sign-up (length/strength shown before submit) — **cloud, now**
 
 ## Cloud report
 

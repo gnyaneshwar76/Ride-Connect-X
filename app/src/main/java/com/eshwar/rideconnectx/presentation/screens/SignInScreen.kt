@@ -57,6 +57,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.foundation.text.KeyboardOptions
+import com.eshwar.rideconnectx.domain.model.PasswordRules
 import com.eshwar.rideconnectx.presentation.viewmodel.AuthMode
 import com.eshwar.rideconnectx.presentation.viewmodel.AuthViewModel
 import com.eshwar.rideconnectx.presentation.viewmodel.SignInUiState
@@ -318,6 +319,15 @@ private fun EmailForm(state: SignInUiState, vm: AuthViewModel) {
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             colors = fieldColors,
         )
+
+        // New accounts only — older accounts may have shorter passwords.
+        if (state.isNewAccount) {
+            Text(
+                stringResource(R.string.signin_password_rule),
+                style = RcxType.BodySmall.copy(fontSize = 12.sp),
+                color = if (PasswordRules.isValid(state.password)) c.green else c.muted,
+            )
+        }
 
         PrimaryButton(
             label = if (state.isNewAccount) stringResource(R.string.signin_create_account)
