@@ -121,6 +121,8 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    // Daily service-reminder check while the app is closed (N9).
+    implementation(libs.androidx.work.runtime.ktx)
 
     // Navigation & Hilt
     implementation(libs.navigation.compose)

@@ -31,11 +31,14 @@ class NotificationRepository @Inject constructor(
     val unreadCount: Flow<Int> =
         owner.current.flatMapLatest { dao.observeUnreadCount(it) }
 
-    /** Raises a notification. Call this from wherever the event happens. */
-    suspend fun notify(kind: NotificationKind, title: String, body: String) {
+    /**
+     * Raises a notification. Call this from wherever the event happens.
+     * [ownerId] pins it to the account the event was about, when known.
+     */
+    suspend fun notify(kind: NotificationKind, title: String, body: String, ownerId: String? = null) {
         dao.insert(
             NotificationEntity(
-                ownerId = owner.currentId(),
+                ownerId = ownerId ?: owner.currentId(),
                 createdAt = System.currentTimeMillis(),
                 title = title,
                 body = body,

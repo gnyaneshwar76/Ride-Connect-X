@@ -22,4 +22,5 @@ interface ServiceEntryPoint {
     fun navigationRelay(): NavigationRelay
     fun rideLog(): com.eshwar.rideconnectx.data.nav.RideLog
     fun phoneStatusProvider(): com.eshwar.rideconnectx.data.ble.PhoneStatusProvider
+    fun serviceReminder(): com.eshwar.rideconnectx.data.repository.ServiceReminder
 }

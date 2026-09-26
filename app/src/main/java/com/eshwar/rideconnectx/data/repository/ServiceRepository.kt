@@ -43,7 +43,18 @@ class ServiceRepository @Inject constructor(
 
     val remindersEnabled: Flow<Boolean> = prefs.remindersEnabled
 
-    val status: Flow<ServiceStatus> = combine(
+    val status: Flow<ServiceStatus> = statusFrom(latestRecord)
+
+    /**
+     * The status with the account it was worked out for. Pairing [OwnerScope]
+     * with [status] separately could match a new account with the previous
+     * one's service for a moment — enough to send a reminder to the wrong one.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val ownedStatus: Flow<Pair<String, ServiceStatus>> =
+        owner.current.flatMapLatest { id -> statusFrom(dao.observeLatest(id)).map { id to it } }
+
+    private fun statusFrom(latestRecord: Flow<ServiceRecordEntity?>): Flow<ServiceStatus> = combine(
         latestRecord,
         prefs.lastKnownOdometerKm,
         prefs.intervalKm,

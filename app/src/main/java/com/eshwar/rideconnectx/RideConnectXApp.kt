@@ -5,6 +5,8 @@ import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.appcheck.FirebaseAppCheck
 import com.eshwar.rideconnectx.appcheck.appCheckProviderFactory
+import com.eshwar.rideconnectx.core.di.ServiceEntryPoint
+import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
@@ -40,5 +42,8 @@ class RideConnectXApp : Application() {
             // dashboard and the BLE link do not depend on Firebase at all.
             Log.w("RCX-App", "App Check setup failed; continuing without it", it)
         }
+        // Service reminders (N9): watched while the app runs, checked daily when not.
+        EntryPointAccessors.fromApplication(this, ServiceEntryPoint::class.java)
+            .serviceReminder().start()
     }
 }

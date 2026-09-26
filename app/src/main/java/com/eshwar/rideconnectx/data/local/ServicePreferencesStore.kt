@@ -6,9 +6,11 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -83,6 +85,16 @@ class ServicePreferencesStore @Inject constructor(
             if (isPlausibleOdometer(known, km)) prefs[LAST_ODO_KM] = km
         }
     }
+
+    /** The last service reminder raised for [owner] — see `ServiceReminderRule`. */
+    suspend fun lastReminder(owner: String): String =
+        context.servicePrefs.data.first()[reminderKey(owner)].orEmpty()
+
+    suspend fun setLastReminder(owner: String, key: String) {
+        context.servicePrefs.edit { it[reminderKey(owner)] = key }
+    }
+
+    private fun reminderKey(owner: String) = stringPreferencesKey("service_reminded_$owner")
 
     /** Forgets the cached reading, so a bad one is not permanent. */
     suspend fun clearOdometer() {
