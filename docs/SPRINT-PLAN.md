@@ -29,18 +29,20 @@ as things finish; the newest state wins.
 
 ### Parallel fixing (from 26 Sep)
 
-Fixes no longer wait for testing to end. Each failure the owner reports gets
-its own cloud session, started at once, while testing continues:
+Fixes don't wait for testing to end. **One** cloud session does all of them,
+on **one** temporary branch, while the owner keeps testing:
 
-- Branch `fix/<test-id>` from `fixes-2026-09-24`; one problem per session.
+- Branch: `temp/sprint-fixes` (from `fixes-2026-09-24`). All fix commits go
+  here, one commit per test ID. Deleted after it is folded back in.
+- New failures are sent to the same cloud session as follow-up messages.
 - Before building, create a **placeholder** `app/google-services.json`
   (package `com.gnyaneshwar.rideconnectx`, dummy ids) so Gradle compiles.
   Never commit it. Real sign-in is checked on the phone, not in the cloud.
-- Root-cause fix → `./gradlew testDebugUnitTest assembleDebug` → commit with
-  the test ID → push the branch → reply with: cause, change, files, test result,
-  and anything the owner must check on the phone.
-- The local session combines finished branches into `fixes-2026-09-24`,
-  installs on the phone, and the owner re-tests.
+- Per item: root-cause fix → `./gradlew testDebugUnitTest assembleDebug` →
+  commit with the test ID → push → tick it in this file → report cause,
+  change, files, test result, and what the owner must check on the phone.
+- The local session pulls `temp/sprint-fixes`, installs on the phone, and the
+  owner re-tests.
 
 ## Budget (snapshot 26 Sep, 15:50)
 
@@ -90,7 +92,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 ### Security hardening still open
 - [ ] Firebase Console: turn on **email enumeration protection** (Authentication → Settings)
 - [ ] Release signing key → then App Check enforcement (I2, I4)
-- [ ] Password rules on sign-up (length/strength shown before submit)
+- [ ] Password rules on sign-up (length/strength shown before submit) — **cloud, now**
 
 ## Cloud report
 
