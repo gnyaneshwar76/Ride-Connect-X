@@ -82,6 +82,7 @@ import com.eshwar.rideconnectx.presentation.components.SettingsLinkRow
 import com.eshwar.rideconnectx.presentation.components.VehicleStage
 import com.eshwar.rideconnectx.presentation.theme.Rcx
 import com.eshwar.rideconnectx.presentation.theme.RcxType
+import com.eshwar.rideconnectx.presentation.viewmodel.NICKNAME_MAX
 import com.eshwar.rideconnectx.presentation.viewmodel.ProfileViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -104,6 +105,7 @@ fun ProfileScreen(
     val c = Rcx.colors
     val account by vm.account.collectAsStateWithLifecycle()
     val location by vm.riderLocation.collectAsStateWithLifecycle()
+    val nickname by vm.riderNickname.collectAsStateWithLifecycle()
     val selection by vm.vehicle.collectAsStateWithLifecycle()
     val connection by vm.connectionState.collectAsStateWithLifecycle()
 
@@ -265,10 +267,11 @@ fun ProfileScreen(
         EditProfileSheet(
             initialName = account.name,
             initialLocation = location,
+            initialNickname = nickname,
             validate = vm::validateName,
             onDismiss = { editing = false },
-            onSave = { name, city ->
-                vm.saveProfile(name, city)
+            onSave = { name, city, nick ->
+                vm.saveProfile(name, city, nick)
                 editing = false
             },
         )
@@ -641,15 +644,24 @@ private fun PhotoActionSheet(
 private fun EditProfileSheet(
     initialName: String,
     initialLocation: String,
+    initialNickname: String,
     validate: (String) -> String?,
     onDismiss: () -> Unit,
-    onSave: (name: String, location: String) -> Unit,
+    onSave: (name: String, location: String, nickname: String) -> Unit,
 ) {
     val c = Rcx.colors
     var name by remember { mutableStateOf(initialName) }
     var location by remember { mutableStateOf(initialLocation) }
+    // The dashboard greets the rider by this; it could only be set once, in
+    // Create Profile (AUD-7). Same rule as there.
+    var nickname by remember { mutableStateOf(initialNickname) }
     var showError by remember { mutableStateOf(false) }
     val error = validate(name)
+    val nicknameError = when {
+        nickname.isBlank() -> "Add a nickname"
+        nickname.trim().length > NICKNAME_MAX -> "Keep it to $NICKNAME_MAX characters"
+        else -> null
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -683,6 +695,22 @@ private fun EditProfileSheet(
             Spacer(Modifier.height(14.dp))
 
             ProfileField(
+                value = nickname,
+                onValueChange = { nickname = it },
+                placeholder = "Nickname (the dashboard greets you by it)",
+            )
+            if (showError && nicknameError != null) {
+                Text(
+                    nicknameError,
+                    style = RcxType.BodySmall.copy(fontSize = 12.sp),
+                    color = c.red,
+                    modifier = Modifier.padding(start = 4.dp, top = 5.dp),
+                )
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            ProfileField(
                 value = location,
                 onValueChange = { location = it },
                 placeholder = "City",
@@ -693,7 +721,8 @@ private fun EditProfileSheet(
             PrimaryButton(
                 label = "Save",
                 onClick = {
-                    if (error != null) showError = true else onSave(name.trim(), location.trim())
+                    if (error != null || nicknameError != null) showError = true
+                    else onSave(name.trim(), location.trim(), nickname.trim())
                 },
                 modifier = Modifier.fillMaxWidth(),
             )

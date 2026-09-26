@@ -55,6 +55,9 @@ class ProfileViewModel @Inject constructor(
         account.copy(name = riderName.ifBlank { account.name })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UserSession())
 
+    val riderNickname: StateFlow<String> =
+        prefs.riderNickname.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+
     val riderLocation: StateFlow<String> =
         prefs.riderLocation.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
 
@@ -118,10 +121,11 @@ class ProfileViewModel @Inject constructor(
      * that must outlive a screen cannot run on that screen's scope — the defect
      * that has already caused three separate bugs in this project.
      */
-    fun saveProfile(name: String, location: String) {
+    fun saveProfile(name: String, location: String, nickname: String) {
         appScope.launch {
             prefs.saveRiderName(name)
             prefs.saveRiderLocation(location)
+            prefs.saveRiderNickname(nickname)
             // Saved on the phone only, the next sign-in restored the old name
             // and city from the account (AUD-4).
             vehicleRepository.syncSelectionToCloud(riderName = name.trim(), location = location.trim())
