@@ -354,7 +354,7 @@
     <string name="service_task_name">What is it</string>
     <string name="service_task_name_placeholder">Engine oil, chain lube, air filter…</string>
     <string name="service_task_interval">How often (km)</string>
-    <string name="service_task_error">Give it a name and a distance greater than zero.</string>
+    <string name="service_task_error">Give it a name (with letters) and a distance greater than zero.</string>
     <string name="service_save">Save</string>
     <string name="service_remove_task">Remove this task</string>
     <string name="service_delete_record_q">Delete this record?</string>

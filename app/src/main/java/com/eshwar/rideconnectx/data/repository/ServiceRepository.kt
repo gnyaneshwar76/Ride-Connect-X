@@ -8,6 +8,7 @@ import com.eshwar.rideconnectx.data.local.db.ServiceTaskDao
 import com.eshwar.rideconnectx.data.local.db.ServiceTaskEntity
 import com.eshwar.rideconnectx.domain.model.ServiceStatus
 import com.eshwar.rideconnectx.domain.model.UpcomingTask
+import com.eshwar.rideconnectx.domain.model.isValidTaskName
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -125,7 +126,7 @@ class ServiceRepository @Inject constructor(
     suspend fun saveTask(id: Long, label: String, everyKm: Int) {
         val ownerId = owner.currentId()
         val clean = label.trim()
-        if (clean.isEmpty() || everyKm <= 0) return
+        if (!isValidTaskName(clean) || everyKm <= 0) return
         if (id == 0L) {
             taskDao.insert(
                 ServiceTaskEntity(
@@ -136,7 +137,9 @@ class ServiceRepository @Inject constructor(
                 )
             )
         } else {
-            taskDao.update(ServiceTaskEntity(id = id, ownerId = ownerId, label = clean, everyKm = everyKm))
+            // A whole-row update reset the position to 0, so an edited task
+            // jumped to the top of the list (AUD-5).
+            taskDao.rename(ownerId, id, clean, everyKm)
         }
     }
 

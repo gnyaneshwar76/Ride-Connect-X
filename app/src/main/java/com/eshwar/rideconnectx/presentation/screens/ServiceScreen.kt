@@ -88,6 +88,7 @@ import com.eshwar.rideconnectx.presentation.components.RcxHeroBanner
 import com.eshwar.rideconnectx.presentation.theme.LocalDistanceUnit
 import com.eshwar.rideconnectx.presentation.theme.Rcx
 import com.eshwar.rideconnectx.presentation.viewmodel.RecordError
+import com.eshwar.rideconnectx.domain.model.isValidTaskName
 import com.eshwar.rideconnectx.presentation.theme.RcxType
 import com.eshwar.rideconnectx.presentation.viewmodel.ServiceViewModel
 import java.text.SimpleDateFormat
@@ -979,7 +980,7 @@ private fun TaskSheet(
         mutableStateOf(if (task.everyKm > 0) task.everyKm.toString() else "")
     }
     var showError by remember { mutableStateOf(false) }
-    val valid = label.isNotBlank() && (everyKm.toIntOrNull() ?: 0) > 0
+    val valid = isValidTaskName(label) && (everyKm.toIntOrNull() ?: 0) > 0
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1000,7 +1001,7 @@ private fun TaskSheet(
             FieldLabel(stringResource(R.string.service_task_name))
             SheetField(
                 value = label,
-                onValueChange = { label = it; showError = false },
+                onValueChange = { label = it.take(40); showError = false },
                 placeholder = stringResource(R.string.service_task_name_placeholder),
                 capitalization = KeyboardCapitalization.Sentences,
             )

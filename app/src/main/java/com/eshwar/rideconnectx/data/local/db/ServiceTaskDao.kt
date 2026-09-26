@@ -28,6 +28,10 @@ interface ServiceTaskDao {
     @Update
     suspend fun update(task: ServiceTaskEntity)
 
+    /** Name and distance only, so an edited task keeps its place in the list. */
+    @Query("UPDATE service_tasks SET label = :label, everyKm = :everyKm WHERE ownerId = :owner AND id = :id")
+    suspend fun rename(owner: String, id: Long, label: String, everyKm: Int)
+
     @Delete
     suspend fun delete(task: ServiceTaskEntity)
 }

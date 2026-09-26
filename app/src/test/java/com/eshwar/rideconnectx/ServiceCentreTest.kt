@@ -1,6 +1,7 @@
 package com.eshwar.rideconnectx
 
 import com.eshwar.rideconnectx.presentation.viewmodel.isValidCentre
+import com.eshwar.rideconnectx.domain.model.isValidTaskName
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -23,5 +24,12 @@ class ServiceCentreTest {
     @Test
     fun `blank is allowed and saved as not recorded`() {
         assertTrue(isValidCentre(""))
+    }
+
+    @Test
+    fun `a task needs a name, not a number`() {
+        assertFalse(isValidTaskName("3000"))
+        assertFalse(isValidTaskName("  "))
+        assertTrue(isValidTaskName("Engine Oil"))
     }
 }
