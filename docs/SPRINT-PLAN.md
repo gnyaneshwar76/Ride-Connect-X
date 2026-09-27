@@ -106,7 +106,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
   - [x] AUD-8 Safety → Helmet reminder did nothing (saved, never read)
 - [x] N13 service reminders reached the in-app list but not the phone's notification shade
 - [x] N14 service-centre field as a picker: past centres, nearby centres from OpenStreetMap (free), area names as fallback
-- [ ] N15 Edit profile: full-screen photo viewer (change/remove); City as a searchable picker
+- [x] N15 Edit profile: full-screen photo viewer (change/remove); City as a searchable picker
 - [ ] N16 length/character limits on every text field, enforced on input and on save
 - [ ] _new failures from 26–27 Sep testing go here_
 

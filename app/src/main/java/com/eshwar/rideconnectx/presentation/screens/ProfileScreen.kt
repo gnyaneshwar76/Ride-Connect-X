@@ -75,6 +75,7 @@ import com.eshwar.rideconnectx.core.util.AppPermissions
 import com.eshwar.rideconnectx.presentation.components.BackHeader
 import com.eshwar.rideconnectx.presentation.components.PrimaryButton
 import com.eshwar.rideconnectx.presentation.components.RiderAvatar
+import com.eshwar.rideconnectx.domain.model.IndianCities
 import com.eshwar.rideconnectx.presentation.components.RcxPhotoFill
 import com.eshwar.rideconnectx.presentation.components.SettingsDivider
 import com.eshwar.rideconnectx.presentation.components.SettingsGroup
@@ -111,6 +112,7 @@ fun ProfileScreen(
 
     var editing by remember { mutableStateOf(false) }
     var showPhotoSheet by remember { mutableStateOf(false) }
+    var showPhotoViewer by remember { mutableStateOf(false) }
     val photoVersion by vm.photoVersion.collectAsStateWithLifecycle()
     val pendingPhoto by vm.pendingPhoto.collectAsStateWithLifecycle()
 
@@ -159,6 +161,8 @@ fun ProfileScreen(
                         method = account.method,
                         photoVersion = photoVersion,
                         onEditPhoto = { showPhotoSheet = true },
+                        // The picture itself opens full screen when there is one (N15).
+                        onViewPhoto = { if (vm.hasPhoto) showPhotoViewer = true else showPhotoSheet = true },
                     )
                 }
 
@@ -236,6 +240,22 @@ fun ProfileScreen(
                 }
             }
         }
+    }
+
+    if (showPhotoViewer) {
+        PhotoViewer(
+            name = account.name,
+            version = photoVersion,
+            onChange = {
+                showPhotoViewer = false
+                requestPhotos.launch(AppPermissions.photos.manifest.toTypedArray())
+            },
+            onRemove = {
+                showPhotoViewer = false
+                vm.removePhoto()
+            },
+            onDismiss = { showPhotoViewer = false },
+        )
     }
 
     if (showPhotoSheet) {
@@ -387,6 +407,7 @@ private fun ProfileCard(
     isGuest: Boolean,
     method: LoginMethod,
     photoVersion: Int,
+    onViewPhoto: () -> Unit,
     onEditPhoto: () -> Unit,
 ) {
     val c = Rcx.colors
@@ -437,7 +458,7 @@ private fun ProfileCard(
                     name = name,
                     size = 92.dp,
                     version = photoVersion,
-                    modifier = Modifier.clickable(onClick = onEditPhoto),
+                    modifier = Modifier.clickable(onClick = onViewPhoto),
                 )
                 Box(
                     Modifier
@@ -596,6 +617,54 @@ private fun VehicleCard(
 
 /* ── Edit profile ─────────────────────────────────────────────────── */
 
+/** The rider's picture full screen, with the two things they can do to it (N15). */
+@Composable
+private fun PhotoViewer(
+    name: String,
+    version: Int,
+    onChange: () -> Unit,
+    onRemove: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                Text(
+                    "Close",
+                    style = RcxType.Body.copy(fontSize = 15.sp),
+                    color = Color.White,
+                    modifier = Modifier.clickable(onClick = onDismiss).padding(8.dp),
+                )
+            }
+            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                RiderAvatar(name = name, size = 300.dp, ring = false, version = version)
+            }
+            PrimaryButton(
+                label = stringResource(R.string.profile_change_photo),
+                onClick = onChange,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(10.dp))
+            PrimaryButton(
+                label = stringResource(R.string.profile_remove_photo),
+                onClick = onRemove,
+                secondary = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PhotoActionSheet(
@@ -657,6 +726,11 @@ private fun EditProfileSheet(
     var nickname by remember { mutableStateOf(initialNickname) }
     var showError by remember { mutableStateOf(false) }
     val error = validate(name)
+    var cityOpen by remember { mutableStateOf(false) }
+    // From the list, or exactly what was saved before; blank is allowed.
+    val cityError = if (
+        location.isBlank() || location.trim() == initialLocation.trim() || IndianCities.find(location) != null
+    ) null else "Pick your city from the list"
     val nicknameError = when {
         nickname.isBlank() -> "Add a nickname"
         nickname.trim().length > NICKNAME_MAX -> "Keep it to $NICKNAME_MAX characters"
@@ -710,19 +784,53 @@ private fun EditProfileSheet(
 
             Spacer(Modifier.height(14.dp))
 
+            // A searchable list rather than free text (N15). A city saved
+            // before this, even one not on the list, is kept as it is.
             ProfileField(
                 value = location,
-                onValueChange = { location = it },
-                placeholder = "City",
+                onValueChange = { location = it.take(40); cityOpen = true },
+                placeholder = "City — type to search",
             )
+            val cities = IndianCities.search(location, limit = 6)
+                .filterNot { it.equals(location.trim(), ignoreCase = true) }
+            if (cityOpen && location.isNotBlank() && cities.isNotEmpty()) {
+                Column(
+                    Modifier
+                        .padding(top = 6.dp)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(c.card2)
+                        .border(1.dp, c.border, RoundedCornerShape(14.dp)),
+                ) {
+                    cities.forEach { city ->
+                        Text(
+                            city,
+                            style = RcxType.Body.copy(fontSize = 14.sp),
+                            color = c.text,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { location = city; cityOpen = false }
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                        )
+                    }
+                }
+            }
+            if (showError && cityError != null) {
+                Text(
+                    cityError,
+                    style = RcxType.BodySmall.copy(fontSize = 12.sp),
+                    color = c.red,
+                    modifier = Modifier.padding(start = 4.dp, top = 5.dp),
+                )
+            }
 
             Spacer(Modifier.height(22.dp))
 
             PrimaryButton(
                 label = "Save",
                 onClick = {
-                    if (error != null || nicknameError != null) showError = true
-                    else onSave(name.trim(), location.trim(), nickname.trim())
+                    if (error != null || nicknameError != null || cityError != null) showError = true
+                    else onSave(name.trim(), IndianCities.find(location) ?: location.trim(), nickname.trim())
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
