@@ -70,6 +70,8 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.platform.LocalContext
+import com.eshwar.rideconnectx.domain.model.ServiceCentrePicker
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
@@ -115,6 +117,7 @@ fun ServiceScreen(
     val c = Rcx.colors
     val status by vm.status.collectAsStateWithLifecycle()
     val records by vm.records.collectAsStateWithLifecycle()
+    val nearbyCentres by vm.nearbyCentres.collectAsStateWithLifecycle()
     val tasks by vm.upcomingTasks.collectAsStateWithLifecycle()
     val minimumKm by vm.minimumOdometerKm.collectAsStateWithLifecycle()
     val unit by vm.distanceUnit.collectAsStateWithLifecycle()
@@ -238,6 +241,8 @@ fun ServiceScreen(
                 .map { it.centre.trim() }
                 .filter { it.isNotBlank() && it != "Not recorded" }
                 .distinctBy { it.lowercase() },
+            nearbyCentres = nearbyCentres,
+            onCentreOpen = vm::loadNearbyCentres,
             onDismiss = { editing = null },
             onSave = { servicedAt, centre, odo, notes ->
                 val error = vm.save(record.id, servicedAt, centre, odo, notes)
@@ -718,6 +723,9 @@ private fun ServiceRecordSheet(
     bounds: (Long) -> Pair<Int, Int?>,
     /** Centres from the rider's earlier records, newest first. */
     pastCentres: List<String>,
+    /** Nearby centres (OpenStreetMap) or area names, loaded when the field opens. */
+    nearbyCentres: List<String>,
+    onCentreOpen: () -> Unit,
     onDismiss: () -> Unit,
     onSave: (servicedAt: Long, centre: String, odometerKm: Int?, notes: String) -> RecordError?,
 ) {
@@ -776,24 +784,53 @@ private fun ServiceRecordSheet(
             Spacer(Modifier.height(14.dp))
 
             FieldLabel(stringResource(R.string.service_centre))
+            // A picker inside the box (N14): opening the field lists past
+            // centres, then nearby ones; typing filters; picking fills it.
+            // Free text still works.
+            var centreOpen by remember { mutableStateOf(false) }
+            val focus = LocalFocusManager.current
             SheetField(
                 value = centre,
                 onValueChange = { centre = it },
                 placeholder = stringResource(R.string.service_centre_placeholder),
                 capitalization = KeyboardCapitalization.Words,
+                modifier = Modifier.onFocusChanged {
+                    if (it.isFocused && !centreOpen) onCentreOpen()
+                    centreOpen = it.isFocused
+                },
             )
+            val options = ServiceCentrePicker.options(pastCentres, nearbyCentres, centre).take(6)
+            if (centreOpen && options.isNotEmpty()) {
+                Column(
+                    Modifier
+                        .padding(top = 6.dp)
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(c.card2)
+                        .border(1.dp, c.border, RoundedCornerShape(14.dp)),
+                ) {
+                    options.forEach { option ->
+                        Text(
+                            option,
+                            style = RcxType.Body.copy(fontSize = 14.sp),
+                            color = c.text,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    centre = option
+                                    focus.clearFocus()
+                                }
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                        )
+                    }
+                }
+            }
             if (error is RecordError.CentreInvalid) {
                 FieldError(stringResource(R.string.service_centre_error))
             }
-            // Centres the rider has used before, filtered as they type, after a
-            // Maps search that is always there — even with no past centres,
+            // A Maps search that is always there — even with no past centres,
             // where the row used to be empty and looked missing (rider, 26 Sep).
-            // ponytail: live Google Maps suggestions need the Places API (billing
-            // account); plug an autocomplete in here once that exists.
             val context = LocalContext.current
-            val matches = pastCentres
-                .filter { it.contains(centre.trim(), ignoreCase = true) && !it.equals(centre.trim(), ignoreCase = true) }
-                .take(4)
             androidx.compose.foundation.layout.FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -809,19 +846,6 @@ private fun ServiceRecordSheet(
                         .clickable { openNearbyServiceCentres(context) }
                         .padding(horizontal = 12.dp, vertical = 7.dp),
                 )
-                matches.forEach { m ->
-                    Text(
-                        m,
-                        style = RcxType.BodySmall.copy(fontSize = 13.sp),
-                        color = c.text,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(c.card2)
-                            .border(1.dp, c.border, RoundedCornerShape(50))
-                            .clickable { centre = m }
-                            .padding(horizontal = 12.dp, vertical = 7.dp),
-                    )
-                }
             }
 
             Spacer(Modifier.height(14.dp))
@@ -1198,6 +1222,7 @@ private fun SheetField(
     numeric: Boolean = false,
     singleLine: Boolean = true,
     capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
+    modifier: Modifier = Modifier,
 ) {
     val c = Rcx.colors
     OutlinedTextField(
@@ -1219,7 +1244,7 @@ private fun SheetField(
             unfocusedBorderColor = c.border,
             cursorColor = c.blue,
         ),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().then(modifier),
     )
 }
 

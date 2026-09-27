@@ -173,28 +173,52 @@ class CityLocator @Inject constructor(
         }
     }
 
-    private suspend fun geocode(location: Location): String? = withContext(Dispatchers.IO) {
-        if (!Geocoder.isPresent()) return@withContext null
+    private suspend fun geocode(location: Location): String? =
+        addresses(location, 1).firstOrNull()
+            ?.let { it.locality ?: it.subAdminArea ?: it.adminArea }
+            ?.also { Log.d(TAG, "Resolved city: $it") }
 
-        val geocoder = Geocoder(context, Locale.getDefault())
-        val address = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // The blocking overload is deprecated on 33+; this is the sanctioned
-            // callback form, bridged back to a suspend result.
-            withTimeoutOrNull(8_000L) {
-                suspendCancellableCoroutine { cont ->
-                    geocoder.getFromLocation(location.latitude, location.longitude, 1) {
-                        if (cont.isActive) cont.resume(it.firstOrNull())
+    private suspend fun addresses(location: Location, max: Int): List<android.location.Address> =
+        withContext(Dispatchers.IO) {
+            if (!Geocoder.isPresent()) return@withContext emptyList()
+            val geocoder = Geocoder(context, Locale.getDefault())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // The blocking overload is deprecated on 33+; this is the sanctioned
+                // callback form, bridged back to a suspend result.
+                withTimeoutOrNull(8_000L) {
+                    suspendCancellableCoroutine { cont ->
+                        geocoder.getFromLocation(location.latitude, location.longitude, max) {
+                            if (cont.isActive) cont.resume(it)
+                        }
                     }
-                }
+                }.orEmpty()
+            } else {
+                @Suppress("DEPRECATION")
+                runCatching {
+                    geocoder.getFromLocation(location.latitude, location.longitude, max)
+                }.getOrNull().orEmpty()
             }
-        } else {
-            @Suppress("DEPRECATION")
-            runCatching {
-                geocoder.getFromLocation(location.latitude, location.longitude, 1)?.firstOrNull()
-            }.getOrNull()
         }
 
-        address?.let { it.locality ?: it.subAdminArea ?: it.adminArea }
-            ?.also { Log.d(TAG, "Resolved city: $it") }
+    /** Any recent fix, for "what is near me" rather than for sending help (N14). */
+    @SuppressLint("MissingPermission")
+    suspend fun roughLocation(): Location? {
+        if (!hasPermission) return null
+        return lastKnown() ?: withTimeoutOrNull(5_000L) { freshFix() }
     }
+
+    /** "Hyderabad – Dammaiguda" for the areas around [location]; empty when unknown. */
+    suspend fun areaNames(location: Location): List<String> =
+        addresses(location, 5).mapNotNull { a ->
+            val city = a.locality ?: a.subAdminArea
+            val area = a.subLocality ?: a.thoroughfare
+            when {
+                city != null && area != null -> "$city – $area"
+                else -> city ?: area
+            }
+        }.distinct()
+
+    /** The rider's own area, for labelling a centre OpenStreetMap gave no area for. */
+    suspend fun areaOf(location: Location): String =
+        addresses(location, 1).firstOrNull()?.let { it.subLocality ?: it.locality }.orEmpty()
 }

@@ -79,6 +79,7 @@ private fun sameDay(a: Long, b: Long): Boolean {
 @HiltViewModel
 class ServiceViewModel @Inject constructor(
     private val repository: ServiceRepository,
+    private val nearby: com.eshwar.rideconnectx.data.repository.NearbyServiceCentres,
     bleRepository: BleRepository,
     settings: AppSettingsStore,
     @ApplicationScope private val appScope: CoroutineScope,
@@ -176,6 +177,21 @@ class ServiceViewModel @Inject constructor(
 
     fun deleteTask(id: Long) {
         appScope.launch { repository.deleteTask(id) }
+    }
+
+    private val _nearbyCentres = kotlinx.coroutines.flow.MutableStateFlow<List<String>>(emptyList())
+    /** For the centre picker (N14); empty until the field is first opened. */
+    val nearbyCentres: StateFlow<List<String>> = _nearbyCentres
+    private var loadingNearby = false
+
+    /** One lookup per open of the field; [nearby] caches the answer. */
+    fun loadNearbyCentres() {
+        if (loadingNearby) return
+        loadingNearby = true
+        viewModelScope.launch {
+            _nearbyCentres.value = nearby.find()
+            loadingNearby = false
+        }
     }
 
     fun setRemindersEnabled(enabled: Boolean) {
