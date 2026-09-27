@@ -70,6 +70,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.platform.LocalContext
+import com.eshwar.rideconnectx.domain.model.FieldRules
 import com.eshwar.rideconnectx.domain.model.ServiceCentrePicker
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.KeyboardType
@@ -791,7 +792,7 @@ private fun ServiceRecordSheet(
             val focus = LocalFocusManager.current
             SheetField(
                 value = centre,
-                onValueChange = { centre = it },
+                onValueChange = { centre = it.take(FieldRules.CENTRE_MAX) },
                 placeholder = stringResource(R.string.service_centre_placeholder),
                 capitalization = KeyboardCapitalization.Words,
                 modifier = Modifier.onFocusChanged {
@@ -906,7 +907,7 @@ private fun ServiceRecordSheet(
             FieldLabel(stringResource(R.string.service_notes))
             SheetField(
                 value = notes,
-                onValueChange = { notes = it },
+                onValueChange = { notes = it.take(FieldRules.NOTES_MAX) },
                 placeholder = stringResource(R.string.service_notes_placeholder),
                 capitalization = KeyboardCapitalization.Sentences,
                 singleLine = false,
@@ -1025,7 +1026,7 @@ private fun TaskSheet(
             FieldLabel(stringResource(R.string.service_task_name))
             SheetField(
                 value = label,
-                onValueChange = { label = it.take(40); showError = false },
+                onValueChange = { label = it.take(FieldRules.TASK_MAX); showError = false },
                 placeholder = stringResource(R.string.service_task_name_placeholder),
                 capitalization = KeyboardCapitalization.Sentences,
             )

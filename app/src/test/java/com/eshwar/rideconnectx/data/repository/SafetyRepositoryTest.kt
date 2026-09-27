@@ -38,7 +38,7 @@ class SafetyRepositoryTest {
     fun `plausible numbers are accepted`() {
         assertTrue(SafetyRepository.isValidPhone("9876543210"))      // India, 10 digits
         assertTrue(SafetyRepository.isValidPhone("+919876543210"))   // with country code
-        assertTrue(SafetyRepository.isValidPhone("1234567"))         // 7, the short end
+        assertTrue(SafetyRepository.isValidPhone("0401234567"))      // 10, the short end (N16)
         assertTrue(SafetyRepository.isValidPhone("123456789012345")) // 15, E.164's ceiling
     }
 
@@ -46,13 +46,13 @@ class SafetyRepositoryTest {
     fun `too short or too long is refused`() {
         assertFalse(SafetyRepository.isValidPhone(""))
         assertFalse(SafetyRepository.isValidPhone("123"))
+        assertFalse(SafetyRepository.isValidPhone("123456789"))       // 9: below N16's 10
         assertFalse(SafetyRepository.isValidPhone("1234567890123456"))
     }
 
     @Test
     fun `validation counts digits, not the plus`() {
-        // Deliberately lenient: rejecting a rider's real number on an
-        // emergency-contact form is the worst failure this screen has.
-        assertTrue(SafetyRepository.isValidPhone("+1234567"))
+        // 10 digits with a plus is still 10 digits.
+        assertTrue(SafetyRepository.isValidPhone("+1234567890"))
     }
 }

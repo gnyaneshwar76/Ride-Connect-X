@@ -54,6 +54,8 @@ object GuestNameRules {
             name.length < MIN -> "At least $MIN characters"
             name.length > MAX -> "At most $MAX characters"
             name.any { it.isSurrogate() } -> "Emoji aren't supported"
+            // Letters, spaces and . ' - only (N16).
+            name.any { !it.isLetter() && it != ' ' && it !in ".'-" } -> "Use letters, spaces and . ' - only"
             else -> null
         }
     }
@@ -69,7 +71,8 @@ object GuestNameRules {
  */
 object PasswordRules {
     const val MIN = 8
+    const val MAX = 64
 
     fun isValid(password: String) =
-        password.length >= MIN && password.any { it.isLetter() } && password.any { it.isDigit() }
+        password.length in MIN..MAX && password.any { it.isLetter() } && password.any { it.isDigit() }
 }

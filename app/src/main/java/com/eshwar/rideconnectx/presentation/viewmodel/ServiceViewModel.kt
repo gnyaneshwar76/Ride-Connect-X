@@ -37,7 +37,7 @@ sealed interface RecordError {
  * stored as "Not recorded". Digits-only used to be saved as the centre when an
  * odometer reading went into the wrong field (rider, 26 Sep).
  */
-fun isValidCentre(centre: String): Boolean = centre.isBlank() || centre.any(Char::isLetter)
+fun isValidCentre(centre: String): Boolean = com.eshwar.rideconnectx.domain.model.FieldRules.isValidCentre(centre)
 
 /**
  * The readings a service on [servicedAt] may carry. The odometer only goes up,

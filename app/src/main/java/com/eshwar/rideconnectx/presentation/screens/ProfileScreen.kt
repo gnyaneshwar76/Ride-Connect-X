@@ -75,6 +75,8 @@ import com.eshwar.rideconnectx.core.util.AppPermissions
 import com.eshwar.rideconnectx.presentation.components.BackHeader
 import com.eshwar.rideconnectx.presentation.components.PrimaryButton
 import com.eshwar.rideconnectx.presentation.components.RiderAvatar
+import com.eshwar.rideconnectx.domain.model.FieldRules
+import com.eshwar.rideconnectx.domain.model.GuestNameRules
 import com.eshwar.rideconnectx.domain.model.IndianCities
 import com.eshwar.rideconnectx.presentation.components.RcxPhotoFill
 import com.eshwar.rideconnectx.presentation.components.SettingsDivider
@@ -83,7 +85,6 @@ import com.eshwar.rideconnectx.presentation.components.SettingsLinkRow
 import com.eshwar.rideconnectx.presentation.components.VehicleStage
 import com.eshwar.rideconnectx.presentation.theme.Rcx
 import com.eshwar.rideconnectx.presentation.theme.RcxType
-import com.eshwar.rideconnectx.presentation.viewmodel.NICKNAME_MAX
 import com.eshwar.rideconnectx.presentation.viewmodel.ProfileViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -731,11 +732,7 @@ private fun EditProfileSheet(
     val cityError = if (
         location.isBlank() || location.trim() == initialLocation.trim() || IndianCities.find(location) != null
     ) null else "Pick your city from the list"
-    val nicknameError = when {
-        nickname.isBlank() -> "Add a nickname"
-        nickname.trim().length > NICKNAME_MAX -> "Keep it to $NICKNAME_MAX characters"
-        else -> null
-    }
+    val nicknameError = FieldRules.nicknameError(nickname)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -754,7 +751,7 @@ private fun EditProfileSheet(
 
             ProfileField(
                 value = name,
-                onValueChange = { name = it },
+                onValueChange = { name = it.take(GuestNameRules.MAX) },
                 placeholder = "Your name",
             )
             if (showError && error != null) {
@@ -770,7 +767,7 @@ private fun EditProfileSheet(
 
             ProfileField(
                 value = nickname,
-                onValueChange = { nickname = it },
+                onValueChange = { nickname = it.take(FieldRules.NICKNAME_MAX) },
                 placeholder = "Nickname (the dashboard greets you by it)",
             )
             if (showError && nicknameError != null) {
@@ -788,7 +785,7 @@ private fun EditProfileSheet(
             // before this, even one not on the list, is kept as it is.
             ProfileField(
                 value = location,
-                onValueChange = { location = it.take(40); cityOpen = true },
+                onValueChange = { location = it.take(FieldRules.CITY_MAX); cityOpen = true },
                 placeholder = "City — type to search",
             )
             val cities = IndianCities.search(location, limit = 6)

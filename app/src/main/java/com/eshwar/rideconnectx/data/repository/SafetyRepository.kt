@@ -1,6 +1,7 @@
 package com.eshwar.rideconnectx.data.repository
 
 import com.eshwar.rideconnectx.data.local.OwnerScope
+import com.eshwar.rideconnectx.domain.model.FieldRules
 import com.eshwar.rideconnectx.data.local.SafetyPreferencesStore
 import com.eshwar.rideconnectx.data.local.db.EmergencyContactDao
 import com.eshwar.rideconnectx.data.local.db.EmergencyContactEntity
@@ -60,7 +61,7 @@ class SafetyRepository @Inject constructor(
     ): ContactError? {
         val ownerId = owner.currentId()
         val cleanName = name.trim()
-        if (cleanName.isEmpty()) return ContactError.NameMissing
+        if (!FieldRules.isValidContactName(cleanName)) return ContactError.NameMissing
 
         val normalized = normalize(phone)
         if (!isValidPhone(normalized)) return ContactError.PhoneInvalid
@@ -141,10 +142,7 @@ class SafetyRepository @Inject constructor(
          * caps at 15) and anything stricter would reject somebody's real number
          * — the worst possible failure on an emergency-contact form.
          */
-        fun isValidPhone(normalized: String): Boolean {
-            val digits = normalized.filter(Char::isDigit)
-            return digits.length in 7..15
-        }
+        fun isValidPhone(normalized: String): Boolean = FieldRules.isValidPhone(normalized)
 
         /**
          * Strips anything that is not part of a dialable number.
@@ -158,7 +156,6 @@ class SafetyRepository @Inject constructor(
          *
          * Applied here rather than in the screen, so every caller gets it.
          */
-        fun sanitizePhone(raw: String): String =
-            raw.filter { it.isDigit() || it in "+ -()" }.trim().take(20)
+        fun sanitizePhone(raw: String): String = FieldRules.phoneInput(raw)
     }
 }

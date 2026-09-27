@@ -42,7 +42,7 @@ enum class VehiclePicker { None, Type, Model, Color }
 enum class ProfileFormMode { CREATE, CHANGE_VEHICLE }
 
 /** Longest nickname the dashboard header can show without truncating. */
-const val NICKNAME_MAX = 14
+const val NICKNAME_MAX = com.eshwar.rideconnectx.domain.model.FieldRules.NICKNAME_MAX
 
 data class VehicleUiState(
     val query: String = "",
@@ -79,14 +79,11 @@ data class VehicleUiState(
      * Nicknames are capped well below the full name: this is the string the
      * dashboard header has to fit beside the avatar and the connection pill.
      */
-    val nicknameError: String? get() = when {
-        nickname.isBlank() -> null
-        nickname.trim().length > NICKNAME_MAX -> "Keep it to $NICKNAME_MAX characters"
-        else -> null
-    }
+    val nicknameError: String? get() =
+        if (nickname.isBlank()) null else com.eshwar.rideconnectx.domain.model.FieldRules.nicknameError(nickname)
 
     val nicknameValid: Boolean
-        get() = nickname.isNotBlank() && nickname.trim().length <= NICKNAME_MAX
+        get() = com.eshwar.rideconnectx.domain.model.FieldRules.nicknameError(nickname) == null
 }
 
 /**
@@ -199,7 +196,7 @@ class VehicleViewModel @Inject constructor(
 
     fun onCategoryChange(c: VehicleCategory) = _ui.update { it.copy(category = c, query = "") }
 
-    fun onRiderNameChange(v: String) = _ui.update { it.copy(riderName = v) }
+    fun onRiderNameChange(v: String) = _ui.update { it.copy(riderName = v.take(GuestNameRules.MAX)) }
 
     /**
      * Deliberately not derived from the full name.
@@ -208,14 +205,15 @@ class VehicleViewModel @Inject constructor(
      * thing that does not fit, so guessing a short form from it lands back
      * where it started. They choose.
      */
-    fun onNicknameChange(v: String) = _ui.update { it.copy(nickname = v, nicknameNudge = false) }
+    fun onNicknameChange(v: String) = _ui.update { it.copy(nickname = v.take(NICKNAME_MAX), nicknameNudge = false) }
 
     /** Fires the highlight on the nickname field when Continue is blocked. */
     fun nudgeNickname() = _ui.update { it.copy(nicknameNudge = true) }
 
     fun clearNicknameNudge() = _ui.update { it.copy(nicknameNudge = false) }
 
-    fun onLocationChange(v: String) = _ui.update { it.copy(location = v) }
+    fun onLocationChange(v: String) =
+        _ui.update { it.copy(location = v.take(com.eshwar.rideconnectx.domain.model.FieldRules.CITY_MAX)) }
 
     fun onTermsChange(v: Boolean) = _ui.update { it.copy(termsAccepted = v) }
 

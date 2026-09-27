@@ -39,7 +39,7 @@ data class SignInUiState(
         get() = !isBusy &&
             email.contains('@') && email.substringAfterLast('@').contains('.') &&
             password.length >= 6 &&
-            (!isNewAccount || (displayName.isNotBlank() && PasswordRules.isValid(password)))
+            (!isNewAccount || (GuestNameRules.isValid(displayName) && PasswordRules.isValid(password)))
 
     val canContinueGuest: Boolean get() = !isBusy && GuestNameRules.isValid(guestName)
 }
@@ -75,12 +75,13 @@ class AuthViewModel @Inject constructor(
 
     fun setMode(mode: AuthMode) = _ui.update { it.copy(mode = mode, errorMessage = null) }
     fun onEmailChange(v: String) = _ui.update { it.copy(email = v, errorMessage = null) }
-    fun onPasswordChange(v: String) = _ui.update { it.copy(password = v, errorMessage = null) }
-    fun onDisplayNameChange(v: String) = _ui.update { it.copy(displayName = v) }
+    fun onPasswordChange(v: String) = _ui.update { it.copy(password = v.take(PasswordRules.MAX), errorMessage = null) }
+    fun onDisplayNameChange(v: String) = _ui.update { it.copy(displayName = v.take(GuestNameRules.MAX)) }
     fun toggleNewAccount() = _ui.update { it.copy(isNewAccount = !it.isNewAccount, errorMessage = null) }
     fun dismissMessages() = _ui.update { it.copy(errorMessage = null, infoMessage = null) }
 
-    fun onGuestNameChange(v: String) = _ui.update {
+    fun onGuestNameChange(raw: String) = _ui.update {
+        val v = raw.take(GuestNameRules.MAX)
         it.copy(guestName = v, guestNameError = it.guestNameError?.takeIf { _ -> !GuestNameRules.isValid(v) })
     }
 

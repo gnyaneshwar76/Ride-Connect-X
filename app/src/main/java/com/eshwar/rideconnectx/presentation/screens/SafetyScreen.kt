@@ -92,6 +92,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eshwar.rideconnectx.data.local.db.EmergencyContactEntity
 import com.eshwar.rideconnectx.core.util.rememberContactPicker
 import com.eshwar.rideconnectx.data.repository.ContactError
+import com.eshwar.rideconnectx.domain.model.FieldRules
 import androidx.compose.ui.res.stringResource
 import com.eshwar.rideconnectx.R
 import com.eshwar.rideconnectx.presentation.components.BackHeader
@@ -1071,7 +1072,7 @@ private fun ContactSheet(
             SafetyFieldLabel(stringResource(R.string.safety_name))
             SafetyField(
                 value = name,
-                onValueChange = { name = it; onErrorCleared() },
+                onValueChange = { name = it.take(FieldRules.CONTACT_NAME_MAX); onErrorCleared() },
                 placeholder = stringResource(R.string.safety_name_placeholder),
                 capitalization = KeyboardCapitalization.Words,
             )
@@ -1085,8 +1086,8 @@ private fun ContactSheet(
             SafetyField(
                 value = phone,
                 onValueChange = { input ->
-                    // Everything a real number can contain, nothing else.
-                    phone = input.filter { it.isDigit() || it in "+ -()" }.take(20)
+                    // Digits, with '+' only at the start (N16).
+                    phone = FieldRules.phoneInput(input)
                     onErrorCleared()
                 },
                 placeholder = stringResource(R.string.safety_phone_placeholder),

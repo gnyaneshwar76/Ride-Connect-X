@@ -281,10 +281,10 @@
     <string name="safety_edit_contact">Edit Contact</string>
     <string name="safety_name">Name</string>
     <string name="safety_name_placeholder">Who to contact</string>
-    <string name="safety_name_error">Enter a name.</string>
+    <string name="safety_name_error">Enter a name of 2–30 characters.</string>
     <string name="safety_phone">Phone number</string>
     <string name="safety_phone_placeholder">Including country code</string>
-    <string name="safety_phone_error">That does not look like a phone number.</string>
+    <string name="safety_phone_error">Enter 10–15 digits, with + only at the start.</string>
     <string name="safety_duplicate_error">%1$s already has this number.</string>
     <string name="safety_limit_error">You already have %1$d emergency contacts. Remove one first.</string>
     <string name="safety_save_contact">Save Contact</string>
@@ -328,7 +328,7 @@
     <string name="service_centre">Service centre</string>
     <string name="service_centre_placeholder">Where it was serviced</string>
     <string name="service_find_nearby">Find nearby on Maps</string>
-    <string name="service_centre_error">Enter the centre\'s name — a number isn\'t a centre. The reading goes in Odometer below.</string>
+    <string name="service_centre_error">Enter the centre\'s name (3–60 characters, with letters). The reading goes in Odometer below.</string>
     <string name="service_odometer">Odometer (km)</string>
     <string name="service_odometer_error">Enter the odometer reading.</string>
     <string name="service_odometer_min_error">Must be at least %1$s — the odometer cannot go backwards.</string>
@@ -354,7 +354,7 @@
     <string name="service_task_name">What is it</string>
     <string name="service_task_name_placeholder">Engine oil, chain lube, air filter…</string>
     <string name="service_task_interval">How often (km)</string>
-    <string name="service_task_error">Give it a name (with letters) and a distance greater than zero.</string>
+    <string name="service_task_error">Give it a name of 2–30 characters (with letters) and a distance greater than zero.</string>
     <string name="service_save">Save</string>
     <string name="service_remove_task">Remove this task</string>
     <string name="service_delete_record_q">Delete this record?</string>

@@ -94,4 +94,4 @@ data class UpcomingTask(
 }
 
 /** A task is named, not numbered: "3000" in the name field was a distance typed in the wrong place. */
-fun isValidTaskName(label: String): Boolean = label.any(Char::isLetter)
+fun isValidTaskName(label: String): Boolean = FieldRules.isValidTaskName(label)
