@@ -7,9 +7,9 @@ Source code: [`main`](../../tree/main)
 
 ## Summary
 
-| Verified | Partly verified | Failing | Not yet tested | Not in this release | Total |
-|---|---|---|---|---|---|
-| 49 | 5 | 2 | 29 | 5 | 90 |
+| Verified | Partly verified | Fixed, awaiting re-test | Failing | Not yet tested | Not in this release | Total |
+|---|---|---|---|---|---|---|
+| 51 | 4 | 0 | 1 | 29 | 5 | 90 |
 
 ## A. Vehicle link and cluster
 
@@ -55,8 +55,8 @@ Source code: [`main`](../../tree/main)
 | C4 | Message lamp — SMS | ⏳ Not yet tested | — |
 | C5 | Unknown apps rejected (security) | ⏳ Not yet tested | — |
 | C6 | Music etc. ignored | ⏳ Not yet tested | — |
-| C7 | In-app notification list | ❌ Failing — fix in progress | 26 Sep 2026 |
-| C8 | Notification access revoked | 🟡 Partly verified | 26 Sep 2026 |
+| C7 | In-app notification list | ✅ Verified | 28 Sep 2026 |
+| C8 | Notification access revoked | ✅ Verified | 28 Sep 2026 |
 
 ## D. Safety and SOS
 
@@ -84,7 +84,7 @@ Source code: [`main`](../../tree/main)
 | E5 | 6 default tasks | ✅ Verified | 20 Sep 2026 |
 | E6 | Edit task interval | ✅ Verified | 20 Sep 2026 |
 | E7 | Refuel entry | ⛔ Not in this release | — |
-| E8 | Reminder fires | ❌ Failing — fix in progress | 26 Sep 2026 |
+| E8 | Reminder fires | ❌ Failing — fix in progress | 28 Sep 2026 |
 | E9 | Odometer card | ✅ Verified | 20 Sep 2026 |
 
 ## F. Rides
@@ -155,4 +155,4 @@ Source code: [`main`](../../tree/main)
 
 Files are named `<ID>-<short-description>`, for example `B3-roundabout-exit-2.jpg`, and kept in a folder per section (`A-vehicle-link/`, `B-navigation/`, …). Long recordings are published as [release](../../releases) attachments and linked from the table.
 
-_Last updated: 26 Sep 2026_
+_Last updated: 28 Sep 2026_
