@@ -26,7 +26,10 @@ import com.eshwar.rideconnectx.presentation.theme.RcxTheme
 import com.eshwar.rideconnectx.presentation.viewmodel.AppearanceViewModel
 import com.eshwar.rideconnectx.core.di.ServiceEntryPoint
 import com.eshwar.rideconnectx.domain.repository.BleRepository
+import androidx.lifecycle.lifecycleScope
+import com.eshwar.rideconnectx.data.repository.NotificationRepository
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import dagger.hilt.android.EntryPointAccessors
 
 @AndroidEntryPoint
@@ -37,6 +40,24 @@ class MainActivity : ComponentActivity() {
         get() = EntryPointAccessors
             .fromApplication(applicationContext, ServiceEntryPoint::class.java)
             .bleRepository()
+
+    /** The screen a tapped phone notification asked for (N13); taken once. */
+    private val openKind = androidx.compose.runtime.mutableStateOf<String?>(null)
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        openKind.value = intent.getStringExtra(NotificationRepository.EXTRA_KIND)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // A reminder that could not reach the shade (permission off) is
+        // retried as soon as the rider is back (N13).
+        lifecycleScope.launch {
+            EntryPointAccessors.fromApplication(applicationContext, ServiceEntryPoint::class.java)
+                .serviceReminder().checkOnce()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Must run before super.onCreate() — swaps the stock system launch icon
@@ -50,6 +71,7 @@ class MainActivity : ComponentActivity() {
         // the rider should not have to walk back into Pair Vehicle every time.
         // No-ops when nothing was paired, or when the permission is missing.
         if (savedInstanceState == null) bleRepository.reconnectLastDevice()
+        if (savedInstanceState == null) openKind.value = intent.getStringExtra(NotificationRepository.EXTRA_KIND)
 
         setContent {
             // Appearance is applied here so a theme change takes effect
@@ -98,7 +120,11 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    NavGraph(navController = navController)
+                    NavGraph(
+                        navController = navController,
+                        openKind = openKind.value,
+                        onKindOpened = { openKind.value = null },
+                    )
                 }
                 }
             }

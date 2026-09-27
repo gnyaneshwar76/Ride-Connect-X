@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import kotlinx.coroutines.flow.map
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.composable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -79,8 +80,43 @@ object Routes {
     const val PERMISSION_DETAILS = "permission_details"
 }
 
+/** Where a notification of [kind] leads — the in-app list and a tapped phone notification alike. */
+private fun routeFor(kind: NotificationKind): String? = when (kind) {
+    NotificationKind.RIDE -> Routes.STATS
+    NotificationKind.VEHICLE -> Routes.BLE
+    NotificationKind.SERVICE -> Routes.SERVICE
+    NotificationKind.SAFETY -> Routes.SAFETY
+    // System notices refer to the app itself, so there is nowhere to push;
+    // they stay on the list.
+    NotificationKind.SYSTEM -> null
+}
+
+/** Screens a rider is still getting into the app on; a notification waits past them. */
+private val ENTRY_ROUTES = setOf(
+    Routes.SPLASH, Routes.INTRO, Routes.SIGN_IN, Routes.GUEST_PROFILE, Routes.TERMS, Routes.PRIVACY,
+    Routes.LEGAL, Routes.PROFILE_FOUND, Routes.PERMISSIONS, Routes.VEHICLE,
+)
+
 @Composable
-fun NavGraph(navController: NavHostController) {
+fun NavGraph(
+    navController: NavHostController,
+    /** A tapped phone notification's [NotificationKind] name (N13). */
+    openKind: String? = null,
+    onKindOpened: () -> Unit = {},
+) {
+    // Opened once the rider is past splash and setup, so a tap from the shade
+    // lands on e.g. Service with the Dashboard behind it.
+    val current by navController.currentBackStackEntryAsState()
+    val currentRoute = current?.destination?.route
+    LaunchedEffect(openKind, currentRoute) {
+        if (openKind == null || currentRoute == null || currentRoute in ENTRY_ROUTES) return@LaunchedEffect
+        onKindOpened()
+        runCatching { NotificationKind.valueOf(openKind) }.getOrNull()
+            ?.let(::routeFor)
+            ?.takeIf { it != currentRoute }
+            ?.let { navController.navigate(it) }
+    }
+
     NavHost(navController = navController, startDestination = Routes.SPLASH) {
 
         composable(Routes.SPLASH) {
@@ -285,18 +321,7 @@ fun NavGraph(navController: NavHostController) {
             NotificationsScreen(
                 onBack = { navController.popBackStack() },
                 // The screen stays destination-agnostic; routing lives here.
-                onOpen = { kind ->
-                    val route = when (kind) {
-                        NotificationKind.RIDE -> Routes.STATS
-                        NotificationKind.VEHICLE -> Routes.BLE
-                        NotificationKind.SERVICE -> Routes.SERVICE
-                        NotificationKind.SAFETY -> Routes.SAFETY
-                        // System notices refer to the app itself, so there is
-                        // nowhere to push; they stay on the list.
-                        NotificationKind.SYSTEM -> null
-                    }
-                    route?.let { navController.navigate(it) }
-                },
+                onOpen = { kind -> routeFor(kind)?.let { navController.navigate(it) } },
             )
         }
 

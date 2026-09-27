@@ -87,14 +87,16 @@ class ServicePreferencesStore @Inject constructor(
     }
 
     /** The last service reminder raised for [owner] — see `ServiceReminderRule`. */
-    suspend fun lastReminder(owner: String): String =
-        context.servicePrefs.data.first()[reminderKey(owner)].orEmpty()
+    suspend fun lastReminder(owner: String, channel: String = ""): String =
+        context.servicePrefs.data.first()[reminderKey(owner, channel)].orEmpty()
 
-    suspend fun setLastReminder(owner: String, key: String) {
-        context.servicePrefs.edit { it[reminderKey(owner)] = key }
+    suspend fun setLastReminder(owner: String, key: String, channel: String = "") {
+        context.servicePrefs.edit { it[reminderKey(owner, channel)] = key }
     }
 
-    private fun reminderKey(owner: String) = stringPreferencesKey("service_reminded_$owner")
+    /** One record per channel (in-app, phone), so each is sent exactly once. */
+    private fun reminderKey(owner: String, channel: String) =
+        stringPreferencesKey("service_reminded_$owner" + if (channel.isEmpty()) "" else "_$channel")
 
     /** Forgets the cached reading, so a bad one is not permanent. */
     suspend fun clearOdometer() {

@@ -66,18 +66,28 @@ class ServiceReminder @Inject constructor(
     }
 
     private suspend fun check(owner: String, status: ServiceStatus, enabled: Boolean) = lock.withLock {
-        val key = ServiceReminderRule.reminderKey(status, enabled)
-        if (!ServiceReminderRule.shouldNotify(key, prefs.lastReminder(owner))) return@withLock
-        // Recorded first: a second check racing this one must not post it again.
-        prefs.setLastReminder(owner, key!!)
+        val key = ServiceReminderRule.reminderKey(status, enabled) ?: return@withLock
+        val inApp = ServiceReminderRule.shouldNotify(key, prefs.lastReminder(owner))
+        // The phone copy has its own record, written only once it is really
+        // posted. Sharing the in-app one meant a reminder raised while the
+        // permission was off never reached the shade, even after it was
+        // allowed (N13).
+        val phone = ServiceReminderRule.shouldNotify(key, prefs.lastReminder(owner, PHONE))
+        if (!inApp && !phone) return@withLock
         val title = if (status.isOverdue) "Service overdue" else "Service due soon"
         val body = listOf(
             if (status.isOverdue) "Your scooter is due for a service." else "Your next service is coming up.",
             ServiceReminderRule.detail(status),
         ).filter { it.isNotBlank() }.joinToString(" ")
-        Log.d(TAG, "Reminder $key for $owner")
-        notifications.notify(NotificationKind.SERVICE, title, body, ownerId = owner)
-        notifications.postToPhone(CHANNEL, "Service reminders", NOTIFICATION_ID, title, body)
+        Log.d(TAG, "Reminder $key for $owner (inApp=$inApp phone=$phone)")
+        if (inApp) {
+            prefs.setLastReminder(owner, key)
+            notifications.notify(NotificationKind.SERVICE, title, body, ownerId = owner)
+        }
+        if (phone && notifications.postToPhone(
+                CHANNEL, "Service reminders", NOTIFICATION_ID, title, body, NotificationKind.SERVICE,
+            )
+        ) prefs.setLastReminder(owner, key, PHONE)
     }
 
     private companion object {
@@ -85,6 +95,7 @@ class ServiceReminder @Inject constructor(
         const val CHANNEL = "service_reminders"
         const val NOTIFICATION_ID = 2
         const val WORK_NAME = "service-reminder"
+        const val PHONE = "phone"
     }
 }
 

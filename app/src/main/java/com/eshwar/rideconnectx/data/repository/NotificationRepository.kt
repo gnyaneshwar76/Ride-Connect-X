@@ -62,21 +62,33 @@ class NotificationRepository @Inject constructor(
     }
 
     /**
-     * The same event as a phone notification. Skipped quietly without the
-     * permission; the Notifications page warns about that (N7).
+     * The same event as a phone notification. Returns false when it could not
+     * be posted — no permission (the Notifications page warns, N7) — so the
+     * caller can try again later rather than lose it (N13). Tapping it opens
+     * the screen for [kind], as tapping the in-app entry does.
      */
-    fun postToPhone(channel: String, channelName: String, id: Int, title: String, body: String) {
+    fun postToPhone(
+        channel: String,
+        channelName: String,
+        id: Int,
+        title: String,
+        body: String,
+        kind: NotificationKind? = null,
+    ): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
-        ) return
+        ) return false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             context.getSystemService(NotificationManager::class.java).createNotificationChannel(
                 NotificationChannel(channel, channelName, NotificationManager.IMPORTANCE_DEFAULT)
             )
         }
+        val intent = Intent(context, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .apply { kind?.let { putExtra(EXTRA_KIND, it.name) } }
         val open = PendingIntent.getActivity(
-            context, 0, Intent(context, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE,
+            context, id, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val notification = NotificationCompat.Builder(context, channel)
             .setSmallIcon(android.R.drawable.stat_sys_warning)
@@ -85,7 +97,12 @@ class NotificationRepository @Inject constructor(
             .setContentIntent(open)
             .setAutoCancel(true)
             .build()
-        runCatching { NotificationManagerCompat.from(context).notify(id, notification) }
+        return runCatching { NotificationManagerCompat.from(context).notify(id, notification) }.isSuccess
+    }
+
+    companion object {
+        /** The [NotificationKind] a tapped phone notification should open. */
+        const val EXTRA_KIND = "rcx_notification_kind"
     }
 
     suspend fun markRead(id: Long) = dao.markRead(owner.currentId(), id)

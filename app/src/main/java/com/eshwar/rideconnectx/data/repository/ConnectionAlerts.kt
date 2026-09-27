@@ -44,6 +44,7 @@ class ConnectionAlerts @Inject constructor(
                     notifications.postToPhone(
                         HELMET_CHANNEL, "Helmet reminder", HELMET_ID,
                         "Helmet on?", "Your scooter is on. Strap your helmet before you ride.",
+                        NotificationKind.SAFETY,
                     )
                 }
                 if (alert == null || !settings.settings.first().connectionAlerts) return@collect
@@ -54,7 +55,7 @@ class ConnectionAlerts @Inject constructor(
                         "Vehicle disconnected" to "The link to your scooter dropped. RideConnectX will keep trying to reconnect."
                 }
                 notifications.notify(NotificationKind.VEHICLE, title, body)
-                notifications.postToPhone(CHANNEL, "Connection alerts", NOTIFICATION_ID, title, body)
+                notifications.postToPhone(CHANNEL, "Connection alerts", NOTIFICATION_ID, title, body, NotificationKind.VEHICLE)
             }
         }
     }
