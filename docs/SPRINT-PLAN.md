@@ -548,3 +548,76 @@ Install the latest `temp/sprint-fixes` build. Run in order; note pass/fail.
 18. **AUD-6** As a guest: Profile → Save to an account: the sheet says your
     rides, service records and contacts go with you.
 
+
+### N13–N16 (28 Sep night) — third cloud session
+Built with a placeholder `google-services.json`: `./gradlew testDebugUnitTest
+assembleDebug` passes, **124/124** unit tests (114 before; +3 N14, +2 N15, +5 N16).
+
+**N13 reminders not in the notification shade** — `5063215`
+- **Cause:** the phone notification shared the in-app entry's "sent" record,
+  written before posting. A reminder raised while notifications were off (the
+  N7 test) was marked sent and never reached the shade, even after allowing.
+- **Change:** the phone copy has its own record, written only once it is
+  really posted; the check re-runs every time the app comes to the front. Tap
+  on any app notification (service → Service, connection → Pair Vehicle,
+  helmet → Safety) opens that screen once past setup.
+- **Files:** `NotificationRepository.kt`, `ServiceReminder.kt`,
+  `ServicePreferencesStore.kt`, `ConnectionAlerts.kt`, `MainActivity.kt`, `NavGraph.kt`.
+
+**N14 service-centre picker** — `d1b01e2`
+- **Change:** tapping the centre field opens a list inside the form: past
+  centres, then nearby two-wheeler / Suzuki centres from OpenStreetMap
+  (Overpass, free) as "Area – Centre name"; typing filters; free text still
+  works. Nothing from OpenStreetMap → area names near you ("Hyderabad –
+  Dammaiguda"). One request per open, cached 30 min, User-Agent sent, 5 s
+  limit, silent on failure. "Find nearby on Maps" kept. OpenStreetMap coverage
+  in India is patchy, so some areas will only show area names.
+- **Files:** `ServiceCentrePicker.kt` (+test), `NearbyServiceCentres.kt`,
+  `CityLocator.kt`, `ServiceViewModel.kt`, `ServiceScreen.kt`.
+
+**N15 photo viewer and City picker** — `9d63544`
+- **Change:** tapping the profile picture opens it full screen with Change /
+  Remove (no picture yet → the chooser, as before). City in Edit profile is a
+  searchable bundled list of Indian cities; a previously saved city not on the
+  list is kept.
+- **Files:** `IndianCities.kt` (+test), `ProfileScreen.kt`.
+
+**N16 field limits** — `76a88b8`
+- **Change:** input capped and re-checked on save with an inline error. Name
+  2–30 letters/space/.'-; nickname one word 2–12 letters; city ≤40; centre
+  optional or 3–60 with a letter; notes ≤200; task name 2–30 with a letter;
+  contact name 2–30; phone digits with leading + only, 10–15 digits; password
+  8–64.
+- **Note:** existing contacts with fewer than 10 digits stay saved but must be
+  corrected the next time they are edited. A saved name with digits must be
+  changed the next time it is edited.
+- **Files:** `FieldRules.kt` (+test), `UserSession.kt`, `ServicePlan.kt`,
+  `ServiceViewModel.kt`, `VehicleViewModel.kt`, `AuthViewModel.kt`,
+  `ProfileScreen.kt`, `ServiceScreen.kt`, `SafetyScreen.kt`,
+  `SafetyRepository.kt` (+ updated test), `strings.xml`.
+
+## Morning phone re-test checklist (29 Sep)
+
+1. **N13a** Notifications allowed. Open the overdue account: a "Service
+   overdue" notification appears in the shade (once). Reopen the app: no second.
+2. **N13b** Tap it: the app opens on Service.
+3. **N13c** Turn the scooter on (connection alerts on): "Vehicle connected" and
+   "Helmet on?" in the shade; tapping them opens Pair Vehicle / Safety.
+4. **N14a** Add Service Record, tap Service centre: a list opens with past
+   centres, then "Area – Centre name" entries near you (or "City – Area" names).
+5. **N14b** Type part of a name: the list narrows. Pick one: it fills the box.
+   Type a centre that is not listed: it saves as typed.
+6. **N14c** Airplane mode, open the field: past centres still show, no error.
+7. **N15a** Profile → tap the picture: full screen with Change photo / Remove
+   photo. Both work.
+8. **N15b** Profile → Edit → City: type "hyd" → pick Hyderabad → Save. Type
+   "Atlantis" → Save refused with "Pick your city from the list".
+9. **N16a** Name: `R` refused, `Rocky123` refused, `D'Souza-Rao` accepted; the
+   field stops at 30 characters.
+10. **N16b** Nickname: `E` refused, `Rocky Bhai` refused, `Eshwar` accepted;
+    stops at 12.
+11. **N16c** Emergency contact: phone `98765 43210` becomes `9876543210` as
+    typed; `98765432` refused; `+919876543210` accepted. Name `A` refused.
+12. **N16d** Service record: centre `AB` refused; notes stop at 200
+    characters. Task name `O` refused.
+13. **N16e** Sign up with a 65-character password: the field stops at 64.
