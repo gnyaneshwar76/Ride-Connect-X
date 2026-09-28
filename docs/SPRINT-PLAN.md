@@ -107,6 +107,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [x] N13 service reminders reached the in-app list but not the phone's notification shade
   - [x] N13 rework (28 Sep): posted then removed at once (only in history); app icon; duplicate in-app entry
   - [x] N14 fixes (28 Sep): ask for location from the picker; two-wheelers only; area from coordinates
+  - [x] N14 redesign (owner-approved): State → City → centre picker, remembered place, "Near me" + past centres
 - [x] N14 service-centre field as a picker: past centres, nearby centres from OpenStreetMap (free), area names as fallback
 - [x] N15 Edit profile: full-screen photo viewer (change/remove); City as a searchable picker
 - [x] N16 length/character limits on every text field, enforced on input and on save
@@ -664,3 +665,35 @@ Built with a placeholder `google-services.json`: **124/124** unit tests pass.
    list refreshes with nearby centres (or area names).
 5. Nearby list has no Maruti / NEXA / car showrooms; entries read
    "Area – Centre name".
+
+### N14 redesign — State → City → centre (28 Sep, owner-approved)
+Built with a placeholder `google-services.json`: **125/125** unit tests pass.
+- **Change:** tapping the Service centre box opens a picker. Step 1 lists the
+  Indian states (bundled). Step 2 lists that state's cities (the N15 list,
+  now grouped by state). Step 3 shows centres: **Near me** (OpenStreetMap
+  around your location, cars / Maruti / NEXA / Arena dropped, labelled
+  "Centre – Area" from the Geocoder) and **Your past centres**. With location
+  off, Near me offers "Turn on location to see nearby centres"; declining
+  hides that section. The last state and city are remembered, so the next
+  open starts at step 3; the title row ("State › City · change") goes back.
+  Typing is always allowed and saves as typed (3–60 characters, N16).
+  Google Places is not built — a `TODO(R2)` marks where it plugs in.
+- **N13 / duplicate reminder:** already fixed in `c7cb82b` (see above).
+- **Files:** `IndianCities.kt` (+test: every city in one state),
+  `ServiceCentrePicker.kt` (+test: Arena dropped, name-first labels),
+  `ServicePreferencesStore.kt`, `ServiceRepository.kt`, `ServiceViewModel.kt`,
+  `ServiceScreen.kt`.
+
+**Phone re-test**
+1. Add Service Record → tap Service centre → a list of states. Pick
+   Telangana → its cities → pick Hyderabad → centres step.
+2. Location on: "Near me" lists two-wheeler centres as "Centre – Area"; no
+   Maruti / NEXA / Arena / car showrooms.
+3. Location off: "Turn on location to see nearby centres" → allow → turn on →
+   the list fills. Repeat and decline: the Near me section disappears.
+4. "Your past centres" shows earlier centres.
+5. Type a centre not in any list (e.g. `Ravi Bike Works`) → Save: saved as
+   typed. `AB` is refused.
+6. Close and open Add Service Record again: the picker opens straight on
+   Hyderabad's centres. Tap "Telangana › Hyderabad · change" to pick another.
+

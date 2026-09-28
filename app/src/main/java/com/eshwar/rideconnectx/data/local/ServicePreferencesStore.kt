@@ -86,6 +86,18 @@ class ServicePreferencesStore @Inject constructor(
         }
     }
 
+    /** Last (state, city) chosen in the service-centre picker (N14). */
+    val centrePlace: Flow<Pair<String, String>> = context.servicePrefs.data.map {
+        it[CENTRE_STATE].orEmpty() to it[CENTRE_CITY].orEmpty()
+    }
+
+    suspend fun setCentrePlace(state: String, city: String) {
+        context.servicePrefs.edit {
+            it[CENTRE_STATE] = state
+            it[CENTRE_CITY] = city
+        }
+    }
+
     /** The last service reminder raised for [owner] — see `ServiceReminderRule`. */
     suspend fun lastReminder(owner: String, channel: String = ""): String =
         context.servicePrefs.data.first()[reminderKey(owner, channel)].orEmpty()
@@ -108,6 +120,8 @@ class ServicePreferencesStore @Inject constructor(
         private val INTERVAL_KM = intPreferencesKey("service_interval_km")
         private val INTERVAL_DAYS = intPreferencesKey("service_interval_days")
         private val LAST_ODO_KM = intPreferencesKey("last_known_odometer_km")
+        private val CENTRE_STATE = stringPreferencesKey("centre_picker_state")
+        private val CENTRE_CITY = stringPreferencesKey("centre_picker_city")
 
         /** No Access 125 reaches this; the wire format allows up to 999,999,999. */
         const val MAX_PLAUSIBLE_ODO_KM = 200_000

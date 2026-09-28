@@ -69,6 +69,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.eshwar.rideconnectx.domain.model.IndianCities
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
@@ -123,6 +127,7 @@ fun ServiceScreen(
     val status by vm.status.collectAsStateWithLifecycle()
     val records by vm.records.collectAsStateWithLifecycle()
     val nearbyCentres by vm.nearbyCentres.collectAsStateWithLifecycle()
+    val centrePlace by vm.centrePlace.collectAsStateWithLifecycle()
     val tasks by vm.upcomingTasks.collectAsStateWithLifecycle()
     val minimumKm by vm.minimumOdometerKm.collectAsStateWithLifecycle()
     val unit by vm.distanceUnit.collectAsStateWithLifecycle()
@@ -248,6 +253,9 @@ fun ServiceScreen(
                 .distinctBy { it.lowercase() },
             nearbyCentres = nearbyCentres,
             onCentreOpen = vm::loadNearbyCentres,
+            rememberedState = centrePlace.first,
+            rememberedCity = centrePlace.second,
+            onPlacePicked = vm::rememberCentrePlace,
             onDismiss = { editing = null },
             onSave = { servicedAt, centre, odo, notes ->
                 val error = vm.save(record.id, servicedAt, centre, odo, notes)
@@ -731,6 +739,10 @@ private fun ServiceRecordSheet(
     /** Nearby centres (OpenStreetMap) or area names, loaded when the field opens. */
     nearbyCentres: List<String>,
     onCentreOpen: () -> Unit,
+    /** Last state and city picked; blank the first time. */
+    rememberedState: String,
+    rememberedCity: String,
+    onPlacePicked: (state: String, city: String) -> Unit,
     onDismiss: () -> Unit,
     onSave: (servicedAt: Long, centre: String, odometerKm: Int?, notes: String) -> RecordError?,
 ) {
@@ -789,10 +801,14 @@ private fun ServiceRecordSheet(
             Spacer(Modifier.height(14.dp))
 
             FieldLabel(stringResource(R.string.service_centre))
-            // A picker inside the box (N14): opening the field lists past
-            // centres, then nearby ones; typing filters; picking fills it.
-            // Free text still works.
+            // State → City → centre (N14 redesign, owner-approved 28 Sep).
+            // Opening the box steps through a state, that state's cities, then
+            // centres for the city: "Near me" and past centres. The last state
+            // and city are remembered, so the next open starts at centres.
+            // Typing is always allowed and saves as typed.
             var centreOpen by remember { mutableStateOf(false) }
+            var pickState by remember { mutableStateOf(rememberedState) }
+            var pickCity by remember { mutableStateOf(rememberedCity) }
             val focus = LocalFocusManager.current
             SheetField(
                 value = centre,
@@ -804,13 +820,15 @@ private fun ServiceRecordSheet(
                     centreOpen = it.isFocused
                 },
             )
-            val options = ServiceCentrePicker.options(pastCentres, nearbyCentres, centre).take(6)
+            val nearOptions = ServiceCentrePicker.options(emptyList(), nearbyCentres, centre).take(6)
+            val pastOptions = ServiceCentrePicker.options(pastCentres, emptyList(), centre).take(6)
 
-            // Location off or not allowed: the list could only ever show past
-            // centres, and nothing said why (rider, 28 Sep). The top row asks,
-            // using the same permission dialog and location switch as setup.
+            // Location off or not allowed: "Near me" offers to turn it on, with
+            // the same permission dialog and location switch as setup. Declined
+            // hides the section rather than nagging.
             val ctx = LocalContext.current
-            val services = rememberSystemServices()
+            var locationDeclined by remember { mutableStateOf(false) }
+            val services = rememberSystemServices(onLocationDeclined = { locationDeclined = true })
             fun locationAllowed() = listOf(
                 android.Manifest.permission.ACCESS_FINE_LOCATION,
                 android.Manifest.permission.ACCESS_COARSE_LOCATION,
@@ -820,7 +838,8 @@ private fun ServiceRecordSheet(
                 ActivityResultContracts.RequestMultiplePermissions()
             ) {
                 locationAllowed = locationAllowed()
-                if (locationAllowed && !services.locationOn) services.openLocationSettings()
+                if (!locationAllowed) locationDeclined = true
+                else if (!services.locationOn) services.openLocationSettings()
             }
             val needsLocation = !locationAllowed || !services.locationOn
             // Refresh the list the moment location becomes usable.
@@ -828,50 +847,61 @@ private fun ServiceRecordSheet(
                 if (centreOpen && !needsLocation) onCentreOpen()
             }
 
-            if (centreOpen && (options.isNotEmpty() || needsLocation)) {
+            if (centreOpen) {
                 Column(
                     Modifier
                         .padding(top = 6.dp)
                         .fillMaxWidth()
+                        .heightIn(max = 300.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(c.card2)
-                        .border(1.dp, c.border, RoundedCornerShape(14.dp)),
+                        .border(1.dp, c.border, RoundedCornerShape(14.dp))
+                        .verticalScroll(rememberScrollState()),
                 ) {
-                    if (needsLocation) {
-                        Text(
-                            "Turn on location to see centres near you",
-                            style = RcxType.Body.copy(fontSize = 14.sp),
-                            color = c.blue,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    if (!locationAllowed) {
-                                        askLocation.launch(
-                                            arrayOf(
-                                                android.Manifest.permission.ACCESS_FINE_LOCATION,
-                                                android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                    when {
+                        // Step 1: the state.
+                        pickState.isBlank() -> {
+                            PickerTitle("Choose your state")
+                            IndianCities.states.forEach { s -> PickerRow(s) { pickState = s } }
+                        }
+                        // Step 2: that state's cities (the N15 list, by state).
+                        pickCity.isBlank() -> {
+                            PickerTitle("$pickState  ·  change") { pickState = "" }
+                            IndianCities.citiesIn(pickState).forEach { city ->
+                                PickerRow(city) {
+                                    pickCity = city
+                                    onPlacePicked(pickState, city)
+                                }
+                            }
+                        }
+                        // Step 3: centres for the city.
+                        else -> {
+                            PickerTitle("$pickState › $pickCity  ·  change") { pickCity = "" }
+                            if (!locationDeclined) {
+                                PickerTitle("Near me")
+                                if (needsLocation) {
+                                    PickerRow("Turn on location to see nearby centres", c.blue) {
+                                        if (!locationAllowed) {
+                                            askLocation.launch(
+                                                arrayOf(
+                                                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                                                    android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                                                )
                                             )
-                                        )
-                                    } else {
-                                        services.openLocationSettings()
+                                        } else {
+                                            services.openLocationSettings()
+                                        }
                                     }
                                 }
-                                .padding(horizontal = 14.dp, vertical = 11.dp),
-                        )
-                    }
-                    options.forEach { option ->
-                        Text(
-                            option,
-                            style = RcxType.Body.copy(fontSize = 14.sp),
-                            color = c.text,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    centre = option
-                                    focus.clearFocus()
-                                }
-                                .padding(horizontal = 14.dp, vertical = 11.dp),
-                        )
+                                nearOptions.forEach { o -> PickerRow(o) { centre = o; focus.clearFocus() } }
+                            }
+                            if (pastOptions.isNotEmpty()) {
+                                PickerTitle("Your past centres")
+                                pastOptions.forEach { o -> PickerRow(o) { centre = o; focus.clearFocus() } }
+                            }
+                            // TODO(R2): Google Places autocomplete for [pickCity] plugs in
+                            // here once billing is enabled; until then, typed text saves.
+                        }
                     }
                 }
             }
@@ -1201,6 +1231,33 @@ private fun openNearbyServiceCentres(context: android.content.Context) {
     )
     runCatching { context.startActivity(maps) }
         .recoverCatching { context.startActivity(web) }
+}
+
+/** A section title in the centre picker; tappable when it goes back a step. */
+@Composable
+private fun PickerTitle(text: String, onClick: (() -> Unit)? = null) {
+    Text(
+        text,
+        style = RcxType.BodySmall.copy(fontSize = 12.sp),
+        color = if (onClick != null) Rcx.colors.blue else Rcx.colors.muted,
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
+private fun PickerRow(text: String, color: Color = Rcx.colors.text, onClick: () -> Unit) {
+    Text(
+        text,
+        style = RcxType.Body.copy(fontSize = 14.sp),
+        color = color,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+    )
 }
 
 @Composable

@@ -187,6 +187,9 @@ class ServiceRepository @Inject constructor(
 
     suspend fun setRemindersEnabled(enabled: Boolean) = prefs.setRemindersEnabled(enabled)
 
+    val centrePlace: Flow<Pair<String, String>> = prefs.centrePlace
+    suspend fun setCentrePlace(state: String, city: String) = prefs.setCentrePlace(state, city)
+
     /** Called whenever a valid telemetry frame arrives. */
     suspend fun recordOdometer(km: Int) = prefs.recordOdometer(km)
 }

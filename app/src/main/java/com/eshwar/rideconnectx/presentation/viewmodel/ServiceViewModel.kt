@@ -194,6 +194,14 @@ class ServiceViewModel @Inject constructor(
         }
     }
 
+    /** Last (state, city) picked for a service centre, so the picker starts there. */
+    val centrePlace: StateFlow<Pair<String, String>> = repository.centrePlace
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "" to "")
+
+    fun rememberCentrePlace(state: String, city: String) {
+        appScope.launch { repository.setCentrePlace(state, city) }
+    }
+
     fun setRemindersEnabled(enabled: Boolean) {
         appScope.launch { repository.setRemindersEnabled(enabled) }
     }

@@ -15,6 +15,15 @@ class IndianCitiesTest {
     }
 
     @Test
+    fun `every city belongs to exactly one state`() {
+        val cities = IndianCities.byState.values.flatten()
+        assertEquals(cities.size, cities.toSet().size)
+        assertEquals("Telangana", IndianCities.stateOf("hyderabad"))
+        assertEquals(listOf("Hyderabad", "Karimnagar", "Nizamabad", "Secunderabad", "Warangal"), IndianCities.citiesIn("Telangana"))
+        assertNull(IndianCities.stateOf("Atlantis"))
+    }
+
+    @Test
     fun `a typed city resolves to the list's spelling`() {
         assertEquals("Hyderabad", IndianCities.find(" hyderabad "))
         assertNull(IndianCities.find("Atlantis"))

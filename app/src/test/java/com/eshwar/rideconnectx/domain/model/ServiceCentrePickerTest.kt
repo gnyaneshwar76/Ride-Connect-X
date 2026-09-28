@@ -8,7 +8,7 @@ import org.junit.Test
 class ServiceCentrePickerTest {
 
     @Test
-    fun `nearby centres read as Area - Name, falling back to the rider's area`() {
+    fun `nearby centres read as Name - Area, two-wheelers only`() {
         val labels = ServiceCentrePicker.nearbyLabels(
             listOf(
                 OsmPlace("Suzuki Service", suburb = "Dammaiguda", shop = "motorcycle"),
@@ -21,13 +21,14 @@ class ServiceCentrePickerTest {
                 OsmPlace("Maruti Suzuki Arena", brand = "Maruti Suzuki", shop = "car"),
                 OsmPlace("NEXA Kapra", brand = "Suzuki"),
                 OsmPlace("Suzuki Workshop", shop = "car_repair"),
+                OsmPlace("Suzuki Arena ECIL", brand = "Suzuki"),
             ),
             riderArea = "Kapra",
         )
         assertEquals(
             listOf(
-                "Dammaiguda – Suzuki Service", "Hyderabad – Sai Motors",
-                "Kapra – Bike Point", "Nagaram – Speed Suzuki",
+                "Suzuki Service – Dammaiguda", "Sai Motors – Hyderabad",
+                "Bike Point – Kapra", "Speed Suzuki – Nagaram",
             ),
             labels,
         )

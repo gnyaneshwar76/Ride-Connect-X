@@ -45,13 +45,14 @@ object ServiceCentrePicker {
     fun isTwoWheeler(p: OsmPlace): Boolean {
         val text = "${p.name} ${p.brand}".lowercase()
         if (p.shop == "car" || p.shop == "car_repair") return false
-        if ("maruti" in text || "nexa" in text) return false
+        // Arena is Maruti Suzuki's other car-showroom brand.
+        if ("maruti" in text || "nexa" in text || "arena" in text) return false
         return p.shop == "motorcycle" || p.shop == "motorcycle_repair" || "suzuki" in text
     }
 
-    /** "Dammaiguda – Suzuki Service"; just the name when no area is known. */
+    /** "Suzuki Service – Dammaiguda" (owner's "Suzuki – <area>"); just the name when no area is known. */
     fun label(area: String, name: String): String =
-        if (area.isBlank()) name.trim() else "${area.trim()} – ${name.trim()}"
+        if (area.isBlank()) name.trim() else "${name.trim()} – ${area.trim()}"
 
     /**
      * Named places only, labelled with their own suburb or city, else the
