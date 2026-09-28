@@ -111,6 +111,8 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [x] N14 service-centre field as a picker: past centres, nearby centres from OpenStreetMap (free), area names as fallback
 - [x] N15 Edit profile: full-screen photo viewer (change/remove); City as a searchable picker
 - [x] N16 length/character limits on every text field, enforced on input and on save
+- [x] N17 photo viewer: edit (re-frame / rotate) the existing photo without picking a new one
+- [ ] N18 name and nickname: letters, space, - and _ only (others ignored as typed, with a message), helper text, name 2–24
 - [ ] _new failures from 26–27 Sep testing go here_
 
 ### Waiting on an owner decision

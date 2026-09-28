@@ -90,6 +90,24 @@ class ProfileViewModel @Inject constructor(
 
     fun cancelCrop() { _pendingPhoto.value = null }
 
+    /**
+     * Re-frame the picture already set, without picking a new one (N17): the
+     * same cropper, opened on the stored file. Saving decodes it fully before
+     * writing, so cropping it in place is safe.
+     */
+    fun editPhoto() {
+        photoStore.existingPhotoUri?.let { _pendingPhoto.value = it }
+    }
+
+    /** A quarter turn clockwise, saved and synced like any other change (N17). */
+    fun rotatePhoto() {
+        appScope.launch {
+            photoStore.rotateClockwise() ?: return@launch
+            _photoVersion.value += 1
+            vehicleRepository.syncPhotoToCloud()
+        }
+    }
+
     suspend fun decodeForCrop(uri: android.net.Uri) = photoStore.decodeFull(uri)
 
     fun confirmCrop(scale: Float, offsetX: Float, offsetY: Float, viewportPx: Int) {

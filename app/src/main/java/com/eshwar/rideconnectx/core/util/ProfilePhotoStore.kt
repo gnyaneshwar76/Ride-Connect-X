@@ -211,6 +211,20 @@ class ProfilePhotoStore @Inject constructor(
      * @param offsetX/[offsetY] user pan in *preview* pixels
      * @param viewportPx the preview circle's diameter in pixels
      */
+    /** Turns the stored picture a quarter turn clockwise, in place (N17). */
+    suspend fun rotateClockwise(): Uri? = withContext(Dispatchers.IO) {
+        runCatching {
+            val full = BitmapFactory.decodeFile(photoFile.absolutePath) ?: return@runCatching null
+            val turned = Bitmap.createBitmap(
+                full, 0, 0, full.width, full.height, Matrix().apply { postRotate(90f) }, true,
+            )
+            FileOutputStream(photoFile).use { turned.compress(Bitmap.CompressFormat.JPEG, QUALITY, it) }
+            if (turned !== full) turned.recycle()
+            full.recycle()
+            Uri.fromFile(photoFile)
+        }.onFailure { Log.e(TAG, "Could not rotate profile photo", it) }.getOrNull()
+    }
+
     suspend fun saveCropped(
         source: Uri,
         scale: Float,

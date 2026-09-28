@@ -255,6 +255,11 @@ fun ProfileScreen(
                 showPhotoViewer = false
                 vm.removePhoto()
             },
+            onEdit = {
+                showPhotoViewer = false
+                vm.editPhoto()
+            },
+            onRotate = vm::rotatePhoto,
             onDismiss = { showPhotoViewer = false },
         )
     }
@@ -625,6 +630,8 @@ private fun PhotoViewer(
     version: Int,
     onChange: () -> Unit,
     onRemove: () -> Unit,
+    onEdit: () -> Unit,
+    onRotate: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     androidx.compose.ui.window.Dialog(
@@ -650,6 +657,12 @@ private fun PhotoViewer(
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 RiderAvatar(name = name, size = 300.dp, ring = false, version = version)
             }
+            // Edit the picture already set (N17): re-frame it, or turn it.
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                PrimaryButton(label = "Edit", onClick = onEdit, secondary = true, modifier = Modifier.weight(1f))
+                PrimaryButton(label = "Rotate", onClick = onRotate, secondary = true, modifier = Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(10.dp))
             PrimaryButton(
                 label = stringResource(R.string.profile_change_photo),
                 onClick = onChange,
