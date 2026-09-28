@@ -167,6 +167,12 @@ fun GuestProfileScreen(
                             style = RcxType.Mono.copy(fontSize = 11.sp),
                             color = c.muted,
                         )
+                        // The rule, always in view (N18).
+                        else -> Text(
+                            com.eshwar.rideconnectx.domain.model.FieldRules.nameHint(GuestNameRules.MIN, GuestNameRules.MAX),
+                            style = RcxType.BodySmall.copy(fontSize = 12.sp),
+                            color = c.muted,
+                        )
                     }
                 }
 

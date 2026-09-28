@@ -10,6 +10,23 @@ package com.eshwar.rideconnectx.domain.model
  * The rider's name uses [GuestNameRules], the password [PasswordRules].
  */
 object FieldRules {
+    /** Shown when a character is ignored as typed in a name-like field (N18). */
+    const val NAME_CHARS_MESSAGE = "Only letters, space, - and _ allowed"
+
+    /** Name, nickname and contact name: letters, space, hyphen and underscore (N18). */
+    fun isNameChar(c: Char): Boolean = c.isLetter() || c == ' ' || c == '-' || c == '_'
+
+    /** What a name-like field keeps of [raw], and whether anything was ignored. */
+    data class Filtered(val text: String, val ignored: Boolean)
+
+    fun filterName(raw: String, max: Int): Filtered {
+        val kept = raw.filter(::isNameChar)
+        return Filtered(kept.take(max), kept.length != raw.length)
+    }
+
+    /** The helper under a name-like field, e.g. "Letters, space, - and _ · 2–24". */
+    fun nameHint(min: Int, max: Int): String = "Letters, space, - and _ · $min–$max"
+
     const val NICKNAME_MIN = 2
     const val NICKNAME_MAX = 12
     const val CITY_MAX = 40
@@ -25,14 +42,14 @@ object FieldRules {
     /** Digits plus a leading '+'. */
     const val PHONE_MAX_CHARS = PHONE_MAX_DIGITS + 1
 
-    /** One word the dashboard can fit: letters only, 2–12. */
+    /** What the dashboard fits: letters, space, - and _, 2–12 (N18). */
     fun nicknameError(raw: String): String? {
         val v = raw.trim()
         return when {
             v.isEmpty() -> "Add a nickname"
-            !v.all(Char::isLetter) -> "Letters only, one word"
-            v.length < NICKNAME_MIN -> "At least $NICKNAME_MIN letters"
-            v.length > NICKNAME_MAX -> "Keep it to $NICKNAME_MAX letters"
+            !v.all(::isNameChar) -> NAME_CHARS_MESSAGE
+            v.length < NICKNAME_MIN -> "At least $NICKNAME_MIN characters"
+            v.length > NICKNAME_MAX -> "Keep it to $NICKNAME_MAX characters"
             else -> null
         }
     }
@@ -50,7 +67,7 @@ object FieldRules {
 
     fun isValidContactName(raw: String): Boolean {
         val v = raw.trim()
-        return v.length in CONTACT_NAME_MIN..CONTACT_NAME_MAX && v.any(Char::isLetter)
+        return v.length in CONTACT_NAME_MIN..CONTACT_NAME_MAX && v.all(::isNameChar) && v.any(Char::isLetter)
     }
 
     /** What a phone field accepts as typed: digits, and '+' only at the start. */

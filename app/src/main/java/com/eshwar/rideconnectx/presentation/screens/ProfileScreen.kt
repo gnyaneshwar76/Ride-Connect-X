@@ -623,6 +623,17 @@ private fun VehicleCard(
 
 /* ── Edit profile ─────────────────────────────────────────────────── */
 
+/** Under a name-like field: the error when there is one, else the rule (N18). */
+@Composable
+internal fun NameFieldNote(error: String?, hint: String) {
+    Text(
+        error ?: hint,
+        style = RcxType.BodySmall.copy(fontSize = 12.sp),
+        color = if (error != null) Rcx.colors.red else Rcx.colors.muted,
+        modifier = Modifier.padding(start = 4.dp, top = 5.dp),
+    )
+}
+
 /** The rider's picture full screen, with the two things they can do to it (N15). */
 @Composable
 private fun PhotoViewer(
@@ -739,6 +750,9 @@ private fun EditProfileSheet(
     // Create Profile (AUD-7). Same rule as there.
     var nickname by remember { mutableStateOf(initialNickname) }
     var showError by remember { mutableStateOf(false) }
+    // The last keystroke had a character the name rule ignores (N18).
+    var nameIgnored by remember { mutableStateOf(false) }
+    var nicknameIgnored by remember { mutableStateOf(false) }
     val error = validate(name)
     var cityOpen by remember { mutableStateOf(false) }
     // From the list, or exactly what was saved before; blank is allowed.
@@ -764,33 +778,33 @@ private fun EditProfileSheet(
 
             ProfileField(
                 value = name,
-                onValueChange = { name = it.take(GuestNameRules.MAX) },
+                onValueChange = {
+                    val f = FieldRules.filterName(it, GuestNameRules.MAX)
+                    name = f.text
+                    nameIgnored = f.ignored
+                },
                 placeholder = "Your name",
             )
-            if (showError && error != null) {
-                Text(
-                    error,
-                    style = RcxType.BodySmall.copy(fontSize = 12.sp),
-                    color = c.red,
-                    modifier = Modifier.padding(start = 4.dp, top = 5.dp),
-                )
-            }
+            NameFieldNote(
+                error = if (nameIgnored) FieldRules.NAME_CHARS_MESSAGE else error.takeIf { showError },
+                hint = FieldRules.nameHint(GuestNameRules.MIN, GuestNameRules.MAX),
+            )
 
             Spacer(Modifier.height(14.dp))
 
             ProfileField(
                 value = nickname,
-                onValueChange = { nickname = it.take(FieldRules.NICKNAME_MAX) },
+                onValueChange = {
+                    val f = FieldRules.filterName(it, FieldRules.NICKNAME_MAX)
+                    nickname = f.text
+                    nicknameIgnored = f.ignored
+                },
                 placeholder = "Nickname (the dashboard greets you by it)",
             )
-            if (showError && nicknameError != null) {
-                Text(
-                    nicknameError,
-                    style = RcxType.BodySmall.copy(fontSize = 12.sp),
-                    color = c.red,
-                    modifier = Modifier.padding(start = 4.dp, top = 5.dp),
-                )
-            }
+            NameFieldNote(
+                error = if (nicknameIgnored) FieldRules.NAME_CHARS_MESSAGE else nicknameError.takeIf { showError },
+                hint = FieldRules.nameHint(FieldRules.NICKNAME_MIN, FieldRules.NICKNAME_MAX),
+            )
 
             Spacer(Modifier.height(14.dp))
 

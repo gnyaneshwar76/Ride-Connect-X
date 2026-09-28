@@ -112,7 +112,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
 - [x] N15 Edit profile: full-screen photo viewer (change/remove); City as a searchable picker
 - [x] N16 length/character limits on every text field, enforced on input and on save
 - [x] N17 photo viewer: edit (re-frame / rotate) the existing photo without picking a new one
-- [ ] N18 name and nickname: letters, space, - and _ only (others ignored as typed, with a message), helper text, name 2–24
+- [x] N18 name and nickname: letters, space, - and _ only (others ignored as typed, with a message), helper text, name 2–24
 - [ ] _new failures from 26–27 Sep testing go here_
 
 ### Waiting on an owner decision
@@ -699,3 +699,39 @@ Built with a placeholder `google-services.json`: **125/125** unit tests pass.
 6. Close and open Add Service Record again: the picker opens straight on
    Hyderabad's centres. Tap "Telangana › Hyderabad · change" to pick another.
 
+
+### N17 / N18 (28 Sep retest) — third cloud session
+Built with a placeholder `google-services.json`: **126/126** unit tests pass.
+
+**N17 edit the existing photo** — `6e93e4a`
+- Profile → tap the picture → full-screen viewer now has **Edit** (the app's
+  own cropper opened on the current picture: drag / pinch to re-frame) and
+  **Rotate** (a quarter turn clockwise), plus Change and Remove. Saved and
+  synced like any photo change.
+- Note: the stored picture is already cropped, so Edit can re-position and
+  zoom within it, not recover parts cropped away earlier.
+- **Files:** `ProfilePhotoStore.kt`, `ProfileViewModel.kt`, `ProfileScreen.kt`.
+
+**N18 name / nickname / contact name rules** — see commit below
+- Allowed: letters, space, `-`, `_`. Anything else is **ignored as typed**
+  and the field says "Only letters, space, - and _ allowed". A helper under
+  the field always shows the rule and limit, e.g. "Letters, space, - and _ ·
+  2–24". Rider name (guest screen, Create Profile, Edit profile) 2–24;
+  nickname 2–12; emergency contact name 2–30. Sign-up display name uses the
+  same filter. Other fields unchanged.
+- Saved names that break the new rule (e.g. with `.` or `'`) stay until the
+  next edit, where they must be corrected.
+- **Files:** `FieldRules.kt` (+ N16 tests updated), `UserSession.kt`,
+  `AuthViewModel.kt`, `VehicleViewModel.kt`, `GuestProfileScreen.kt`,
+  `CreateProfileScreen.kt`, `ProfileScreen.kt`, `SafetyScreen.kt`, `strings.xml`.
+
+**Phone re-test**
+1. Profile → tap photo → **Edit**: the cropper opens on the current picture;
+   move/zoom → Save: the new framing shows. **Rotate**: turns 90°.
+2. Guest screen name: type `Rocky.123` → only `Rocky` appears, with "Only
+   letters, space, - and _ allowed" in red. Helper "Letters, space, - and _ ·
+   2–24" shows otherwise; stops at 24.
+3. Create Profile / Edit profile: same for Name (2–24) and Nickname (2–12).
+   `Rocky_Bhai` and `Rocky Bhai` accepted; `R` refused.
+4. Safety → add contact: name `Amma@2` → `Amma` with the message; helper
+   "… · 2–30".

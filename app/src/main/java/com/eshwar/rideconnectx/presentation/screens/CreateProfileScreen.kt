@@ -93,6 +93,8 @@ import com.eshwar.rideconnectx.domain.model.Vehicle
 import com.eshwar.rideconnectx.domain.model.VehicleCategory
 import com.eshwar.rideconnectx.domain.model.VehicleColor
 import com.eshwar.rideconnectx.core.util.AppPermissions
+import com.eshwar.rideconnectx.domain.model.GuestNameRules
+import com.eshwar.rideconnectx.domain.model.FieldRules
 import com.eshwar.rideconnectx.presentation.components.BackHeader
 import com.eshwar.rideconnectx.presentation.components.PrimaryButton
 import com.eshwar.rideconnectx.presentation.components.VehicleArtwork
@@ -221,7 +223,8 @@ fun CreateProfileScreen(
                         onValueChange = vm::onRiderNameChange,
                         placeholder = "e.g. Alex Johnson",
                         error = ui.nameError,
-                        hint = "Your full name — this is what the cluster greets you with.",
+                        hint = "Your full name, as the cluster greets you · " +
+                            FieldRules.nameHint(GuestNameRules.MIN, GuestNameRules.MAX),
                     )
 
                     Spacer(Modifier.height(18.dp))
@@ -237,7 +240,8 @@ fun CreateProfileScreen(
                         onValueChange = vm::onNicknameChange,
                         placeholder = "e.g. Alex",
                         error = ui.nicknameError,
-                        hint = "Required · shown on your dashboard · up to $NICKNAME_MAX characters",
+                        hint = "Required · shown on your dashboard · " +
+                            FieldRules.nameHint(FieldRules.NICKNAME_MIN, FieldRules.NICKNAME_MAX),
                         highlight = ui.nicknameNudge,
                     )
 

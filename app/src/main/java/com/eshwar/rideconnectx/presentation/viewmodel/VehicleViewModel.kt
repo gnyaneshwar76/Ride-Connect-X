@@ -65,6 +65,9 @@ data class VehicleUiState(
     val hasTouchedVehicle: Boolean = false,
     /** Set for one beat to flash the nickname field when it is blocking. */
     val nicknameNudge: Boolean = false,
+    /** The last keystroke had a character the name rule ignores (N18). */
+    val nameIgnored: Boolean = false,
+    val nicknameIgnored: Boolean = false,
 ) {
     /** Search spans both sections; browsing is scoped to the active tab. */
     val results: List<Vehicle>
@@ -73,14 +76,21 @@ data class VehicleUiState(
 
     val isSearching: Boolean get() = query.isNotBlank()
 
-    val nameError: String? get() = if (riderName.isBlank()) null else GuestNameRules.validate(riderName)
+    val nameError: String? get() = when {
+        nameIgnored -> com.eshwar.rideconnectx.domain.model.FieldRules.NAME_CHARS_MESSAGE
+        riderName.isBlank() -> null
+        else -> GuestNameRules.validate(riderName)
+    }
 
     /**
      * Nicknames are capped well below the full name: this is the string the
      * dashboard header has to fit beside the avatar and the connection pill.
      */
-    val nicknameError: String? get() =
-        if (nickname.isBlank()) null else com.eshwar.rideconnectx.domain.model.FieldRules.nicknameError(nickname)
+    val nicknameError: String? get() = when {
+        nicknameIgnored -> com.eshwar.rideconnectx.domain.model.FieldRules.NAME_CHARS_MESSAGE
+        nickname.isBlank() -> null
+        else -> com.eshwar.rideconnectx.domain.model.FieldRules.nicknameError(nickname)
+    }
 
     val nicknameValid: Boolean
         get() = com.eshwar.rideconnectx.domain.model.FieldRules.nicknameError(nickname) == null
@@ -196,7 +206,10 @@ class VehicleViewModel @Inject constructor(
 
     fun onCategoryChange(c: VehicleCategory) = _ui.update { it.copy(category = c, query = "") }
 
-    fun onRiderNameChange(v: String) = _ui.update { it.copy(riderName = v.take(GuestNameRules.MAX)) }
+    fun onRiderNameChange(v: String) = _ui.update {
+        val f = com.eshwar.rideconnectx.domain.model.FieldRules.filterName(v, GuestNameRules.MAX)
+        it.copy(riderName = f.text, nameIgnored = f.ignored)
+    }
 
     /**
      * Deliberately not derived from the full name.
@@ -205,7 +218,10 @@ class VehicleViewModel @Inject constructor(
      * thing that does not fit, so guessing a short form from it lands back
      * where it started. They choose.
      */
-    fun onNicknameChange(v: String) = _ui.update { it.copy(nickname = v.take(NICKNAME_MAX), nicknameNudge = false) }
+    fun onNicknameChange(v: String) = _ui.update {
+        val f = com.eshwar.rideconnectx.domain.model.FieldRules.filterName(v, NICKNAME_MAX)
+        it.copy(nickname = f.text, nicknameIgnored = f.ignored, nicknameNudge = false)
+    }
 
     /** Fires the highlight on the nickname field when Continue is blocked. */
     fun nudgeNickname() = _ui.update { it.copy(nicknameNudge = true) }

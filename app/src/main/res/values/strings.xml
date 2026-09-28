@@ -281,7 +281,7 @@
     <string name="safety_edit_contact">Edit Contact</string>
     <string name="safety_name">Name</string>
     <string name="safety_name_placeholder">Who to contact</string>
-    <string name="safety_name_error">Enter a name of 2–30 characters.</string>
+    <string name="safety_name_error">Enter a name of 2–30 letters (space, - and _ allowed).</string>
     <string name="safety_phone">Phone number</string>
     <string name="safety_phone_placeholder">Including country code</string>
     <string name="safety_phone_error">Enter 10–15 digits, with + only at the start.</string>

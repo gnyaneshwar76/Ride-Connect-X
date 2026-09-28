@@ -11,19 +11,29 @@ import org.junit.Test
 class FieldRulesTest {
 
     @Test
-    fun `names take letters, spaces and dot apostrophe hyphen, 2 to 30`() {
-        assertNull(GuestNameRules.validate("Gnyaneshwar .P"))
-        assertNull(GuestNameRules.validate("D'Souza-Rao"))
+    fun `names take letters, space, hyphen and underscore, 2 to 24`() {
+        assertNull(GuestNameRules.validate("Gnyaneshwar P"))
+        assertNull(GuestNameRules.validate("Souza-Rao_Jr"))
         assertNotNull(GuestNameRules.validate("R"))
         assertNotNull(GuestNameRules.validate("Rocky123"))
-        assertNotNull(GuestNameRules.validate("a".repeat(31)))
+        assertNotNull(GuestNameRules.validate("D'Souza"))
+        assertNotNull(GuestNameRules.validate("a".repeat(25)))
     }
 
     @Test
-    fun `a nickname is one word of 2 to 12 letters`() {
+    fun `other characters are ignored as typed, and say so`() {
+        assertEquals(FieldRules.Filtered("Gnyaneshwar P", ignored = true), FieldRules.filterName("Gnyaneshwar .P", 24))
+        assertEquals(FieldRules.Filtered("Rocky_Bhai", ignored = false), FieldRules.filterName("Rocky_Bhai", 24))
+        assertEquals("Rocky", FieldRules.filterName("Rocky@123!", 24).text)
+        assertEquals(12, FieldRules.filterName("a".repeat(20), 12).text.length)
+    }
+
+    @Test
+    fun `a nickname is 2 to 12 of the same characters`() {
         assertNull(FieldRules.nicknameError("Eshwar"))
+        assertNull(FieldRules.nicknameError("Rocky Bhai"))
         assertNotNull(FieldRules.nicknameError("E"))
-        assertNotNull(FieldRules.nicknameError("Rocky Bhai"))
+        assertNotNull(FieldRules.nicknameError("Rocky1"))
         assertNotNull(FieldRules.nicknameError("Abcdefghijklm"))
     }
 
@@ -37,6 +47,7 @@ class FieldRulesTest {
         assertFalse(FieldRules.isValidTaskName("O"))
         assertTrue(FieldRules.isValidContactName("Amma"))
         assertFalse(FieldRules.isValidContactName("A"))
+        assertFalse(FieldRules.isValidContactName("Amma 2"))
     }
 
     @Test

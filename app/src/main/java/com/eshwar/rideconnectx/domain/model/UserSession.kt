@@ -44,7 +44,8 @@ sealed interface SignInResult {
  */
 object GuestNameRules {
     const val MIN = 2
-    const val MAX = 30
+    /** 24, not 30: the owner found 30 long for a name (N18). */
+    const val MAX = 24
 
     /** Returns an error message, or null when [raw] is acceptable. */
     fun validate(raw: String): String? {
@@ -53,9 +54,8 @@ object GuestNameRules {
             name.isEmpty() -> "Please enter your name"
             name.length < MIN -> "At least $MIN characters"
             name.length > MAX -> "At most $MAX characters"
-            name.any { it.isSurrogate() } -> "Emoji aren't supported"
-            // Letters, spaces and . ' - only (N16).
-            name.any { !it.isLetter() && it != ' ' && it !in ".'-" } -> "Use letters, spaces and . ' - only"
+            // Letters, space, - and _ only (N18); emoji fail this too.
+            !name.all(FieldRules::isNameChar) -> FieldRules.NAME_CHARS_MESSAGE
             else -> null
         }
     }

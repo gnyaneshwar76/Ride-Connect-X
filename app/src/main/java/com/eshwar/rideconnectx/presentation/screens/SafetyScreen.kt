@@ -1051,6 +1051,7 @@ private fun ContactSheet(
 ) {
     val c = Rcx.colors
     var name by remember { mutableStateOf(contact.name) }
+    var nameIgnored by remember { mutableStateOf(false) }
     var phone by remember { mutableStateOf(contact.phone) }
 
     ModalBottomSheet(
@@ -1072,13 +1073,24 @@ private fun ContactSheet(
             SafetyFieldLabel(stringResource(R.string.safety_name))
             SafetyField(
                 value = name,
-                onValueChange = { name = it.take(FieldRules.CONTACT_NAME_MAX); onErrorCleared() },
+                onValueChange = {
+                    val f = FieldRules.filterName(it, FieldRules.CONTACT_NAME_MAX)
+                    name = f.text
+                    nameIgnored = f.ignored
+                    onErrorCleared()
+                },
                 placeholder = stringResource(R.string.safety_name_placeholder),
                 capitalization = KeyboardCapitalization.Words,
             )
-            if (error is ContactError.NameMissing) {
-                SafetyFieldError(stringResource(R.string.safety_name_error))
-            }
+            // Characters outside the rule are ignored as typed, and it says so (N18).
+            NameFieldNote(
+                error = when {
+                    nameIgnored -> FieldRules.NAME_CHARS_MESSAGE
+                    error is ContactError.NameMissing -> stringResource(R.string.safety_name_error)
+                    else -> null
+                },
+                hint = FieldRules.nameHint(FieldRules.CONTACT_NAME_MIN, FieldRules.CONTACT_NAME_MAX),
+            )
 
             Spacer(Modifier.height(14.dp))
 

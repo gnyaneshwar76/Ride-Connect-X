@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.eshwar.rideconnectx.data.local.UserPreferencesStore
 import com.eshwar.rideconnectx.domain.model.AuthResult
 import com.eshwar.rideconnectx.domain.model.AuthState
+import com.eshwar.rideconnectx.domain.model.FieldRules
 import com.eshwar.rideconnectx.domain.model.GuestNameRules
 import com.eshwar.rideconnectx.domain.model.PasswordRules
 import com.eshwar.rideconnectx.domain.repository.AuthRepository
@@ -76,13 +77,19 @@ class AuthViewModel @Inject constructor(
     fun setMode(mode: AuthMode) = _ui.update { it.copy(mode = mode, errorMessage = null) }
     fun onEmailChange(v: String) = _ui.update { it.copy(email = v, errorMessage = null) }
     fun onPasswordChange(v: String) = _ui.update { it.copy(password = v.take(PasswordRules.MAX), errorMessage = null) }
-    fun onDisplayNameChange(v: String) = _ui.update { it.copy(displayName = v.take(GuestNameRules.MAX)) }
+    fun onDisplayNameChange(v: String) =
+        _ui.update { it.copy(displayName = FieldRules.filterName(v, GuestNameRules.MAX).text) }
     fun toggleNewAccount() = _ui.update { it.copy(isNewAccount = !it.isNewAccount, errorMessage = null) }
     fun dismissMessages() = _ui.update { it.copy(errorMessage = null, infoMessage = null) }
 
+    /** Characters outside the name rule are ignored as typed, with a message (N18). */
     fun onGuestNameChange(raw: String) = _ui.update {
-        val v = raw.take(GuestNameRules.MAX)
-        it.copy(guestName = v, guestNameError = it.guestNameError?.takeIf { _ -> !GuestNameRules.isValid(v) })
+        val f = FieldRules.filterName(raw, GuestNameRules.MAX)
+        it.copy(
+            guestName = f.text,
+            guestNameError = if (f.ignored) FieldRules.NAME_CHARS_MESSAGE
+            else it.guestNameError?.takeIf { _ -> !GuestNameRules.isValid(f.text) },
+        )
     }
 
     fun signInWithGoogle(activity: Activity) = run { auth.signInWithGoogle(activity) }
