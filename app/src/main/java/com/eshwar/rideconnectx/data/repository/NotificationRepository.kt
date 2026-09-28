@@ -46,6 +46,14 @@ class NotificationRepository @Inject constructor(
         owner.current.flatMapLatest { dao.observeUnreadCount(it) }
 
     /**
+     * True while an unread entry of [kind] titled [title] exists, so the same
+     * reminder is never listed twice — whatever the "already sent" record
+     * says after an update (N13: two "Service overdue" entries).
+     */
+    suspend fun hasUnread(kind: NotificationKind, title: String, ownerId: String? = null): Boolean =
+        dao.countUnread(ownerId ?: owner.currentId(), kind, title) > 0
+
+    /**
      * Raises a notification. Call this from wherever the event happens.
      * [ownerId] pins it to the account the event was about, when known.
      */
@@ -91,7 +99,12 @@ class NotificationRepository @Inject constructor(
             context, id, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val notification = NotificationCompat.Builder(context, channel)
-            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            // The app's own monochrome mark. A framework drawable here was the
+            // likely reason reminders were posted and at once removed on the
+            // phone (N13): SystemUI drops a notification whose icon it cannot
+            // inflate, and it lands in history instead of the shade.
+            .setSmallIcon(com.eshwar.rideconnectx.R.drawable.ic_launcher_monochrome)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setContentTitle(title)
             .setContentText(body)
             .setContentIntent(open)

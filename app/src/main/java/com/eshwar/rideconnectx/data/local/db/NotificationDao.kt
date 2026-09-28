@@ -17,6 +17,9 @@ interface NotificationDao {
     @Query("SELECT COUNT(*) FROM notifications WHERE ownerId = :owner AND unread = 1")
     fun observeUnreadCount(owner: String): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM notifications WHERE ownerId = :owner AND unread = 1 AND kind = :kind AND title = :title")
+    suspend fun countUnread(owner: String, kind: NotificationKind, title: String): Int
+
     @Query("UPDATE notifications SET unread = 0 WHERE ownerId = :owner AND id = :id")
     suspend fun markRead(owner: String, id: Long)
 

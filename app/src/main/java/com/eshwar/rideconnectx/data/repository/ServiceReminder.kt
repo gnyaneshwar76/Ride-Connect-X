@@ -82,7 +82,9 @@ class ServiceReminder @Inject constructor(
         Log.d(TAG, "Reminder $key for $owner (inApp=$inApp phone=$phone)")
         if (inApp) {
             prefs.setLastReminder(owner, key)
-            notifications.notify(NotificationKind.SERVICE, title, body, ownerId = owner)
+            if (!notifications.hasUnread(NotificationKind.SERVICE, title, owner)) {
+                notifications.notify(NotificationKind.SERVICE, title, body, ownerId = owner)
+            }
         }
         if (phone && notifications.postToPhone(
                 CHANNEL, "Service reminders", NOTIFICATION_ID, title, body, NotificationKind.SERVICE,

@@ -547,6 +547,16 @@ class MapsNotificationListener : NotificationListenerService() {
         val flags = packageManager.getApplicationInfo(pkg, 0).flags
         (flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
     }.getOrDefault(false)
+    /**
+     * Logs why one of the app's own notifications was removed (N13: reminders
+     * vanished into history). REASON_ERROR (4) means SystemUI could not draw
+     * it; REASON_APP_CANCEL (8) means this app cancelled it.
+     */
+    override fun onNotificationRemoved(sbn: StatusBarNotification, rankingMap: RankingMap, reason: Int) {
+        if (sbn.packageName == packageName) Log.d(TAG, "Own notification id=${sbn.id} removed, reason=$reason")
+        super.onNotificationRemoved(sbn, rankingMap, reason)
+    }
+
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         if (sbn.packageName !in MAPS_PACKAGES) return
         // Maps clearing its notification means the route ended or was cancelled.
