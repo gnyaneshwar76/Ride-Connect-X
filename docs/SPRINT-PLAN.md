@@ -623,3 +623,44 @@ assembleDebug` passes, **124/124** unit tests (114 before; +3 N14, +2 N15, +5 N1
 12. **N16d** Service record: centre `AB` refused; notes stop at 200
     characters. Task name `O` refused.
 13. **N16e** Sign up with a 65-character password: the field stops at 64.
+
+### N13 / N14 rework (28 Sep, 17:10 report) — third cloud session
+Built with a placeholder `google-services.json`: **124/124** unit tests pass.
+
+**N13 posted then removed; N13-dup** — `c7cb82b`
+- **Cause (most likely):** nothing in the app cancels notifications. The one
+  unusual thing about the reminder was its small icon, a framework drawable
+  (`android.R.drawable.stat_sys_warning`); SystemUI removes a notification whose
+  icon it cannot inflate (REASON_ERROR), which puts it in history only.
+- **Change:** the app's own monochrome mark (`ic_launcher_monochrome`) for every
+  app notification, category "reminder". The app's notification listener now
+  logs the removal reason for its own notifications. Duplicate: an in-app entry
+  is skipped while an unread one of the same kind and title exists.
+- **If it still vanishes:** `adb logcat -s RCX-Nav` shows
+  `Own notification id=2 removed, reason=N` — send that line.
+- **Existing duplicate:** the second entry already in the list stays until read.
+- **Files:** `NotificationRepository.kt`, `NotificationDao.kt`,
+  `ServiceReminder.kt`, `MapsNotificationListener.kt`.
+
+**N14 fixes** — `36f1e61`
+- (a) Location off/not allowed → top row "Turn on location to see centres near
+  you" → permission dialog → location switch dialog → list refreshes.
+- (b) Two-wheelers only: `shop=motorcycle`/`motorcycle_repair` or Suzuki in
+  name/brand; never `shop=car`/`car_repair`, never Maruti/NEXA (tested).
+- (c) No suburb tag → area from the Geocoder at the centre's coordinates.
+- **Files:** `ServiceCentrePicker.kt` (+test), `NearbyServiceCentres.kt`,
+  `CityLocator.kt`, `ServiceScreen.kt`.
+
+**Phone re-test**
+1. Clear the app's notifications. Open the overdue account's app: "Service
+   overdue" appears in the shade with the RideConnectX mark and **stays** until
+   tapped or swiped. (If not: `adb logcat -s RCX-Nav` and send the "removed,
+   reason" line.)
+2. Tap it: opens Service.
+3. Notifications list: no new duplicate "Service overdue" entry after reopening
+   the app several times.
+4. Location off → Add Service Record → tap Service centre: the first row says
+   "Turn on location to see centres near you". Tap it → allow → turn on → the
+   list refreshes with nearby centres (or area names).
+5. Nearby list has no Maruti / NEXA / car showrooms; entries read
+   "Area – Centre name".
