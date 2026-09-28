@@ -106,7 +106,7 @@ Status: `[ ]` open · `[x]` fixed, awaiting re-test · `[v]` re-tested OK on the
   - [x] AUD-8 Safety → Helmet reminder did nothing (saved, never read)
 - [x] N13 service reminders reached the in-app list but not the phone's notification shade
   - [x] N13 rework (28 Sep): posted then removed at once (only in history); app icon; duplicate in-app entry
-  - [ ] N14 fixes (28 Sep): ask for location from the picker; two-wheelers only; area from coordinates
+  - [x] N14 fixes (28 Sep): ask for location from the picker; two-wheelers only; area from coordinates
 - [x] N14 service-centre field as a picker: past centres, nearby centres from OpenStreetMap (free), area names as fallback
 - [x] N15 Edit profile: full-screen photo viewer (change/remove); City as a searchable picker
 - [x] N16 length/character limits on every text field, enforced on input and on save

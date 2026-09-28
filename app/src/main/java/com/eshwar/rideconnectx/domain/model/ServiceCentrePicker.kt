@@ -2,8 +2,18 @@ package com.eshwar.rideconnectx.domain.model
 
 import java.util.Locale
 
-/** One place OpenStreetMap returned: its name and whatever address parts it carries. */
-data class OsmPlace(val name: String, val suburb: String = "", val city: String = "")
+/** One place OpenStreetMap returned: its name, tags and whatever address parts it carries. */
+data class OsmPlace(
+    val name: String,
+    val suburb: String = "",
+    val city: String = "",
+    val shop: String = "",
+    val brand: String = "",
+    val lat: Double? = null,
+    val lon: Double? = null,
+    /** Worked out from [lat]/[lon] by the phone's Geocoder when [suburb] is missing. */
+    val derivedArea: String = "",
+)
 
 /**
  * The service-centre picker's rules (N14). Pure, so they are testable without
@@ -24,7 +34,19 @@ object ServiceCentrePicker {
             "nwr[\"shop\"=\"motorcycle_repair\"]$around;" +
             "nwr[\"craft\"=\"motorcycle_repair\"]$around;" +
             "nwr[\"brand\"~\"Suzuki\",i]$around;" +
-            ");out tags $MAX_NEARBY;"
+            ");out center tags $MAX_NEARBY;"
+    }
+
+    /**
+     * Two-wheelers only. "Suzuki" also matches Maruti Suzuki car showrooms,
+     * which OpenStreetMap tags shop=car / car_repair and names Maruti or NEXA
+     * (rider, 28 Sep).
+     */
+    fun isTwoWheeler(p: OsmPlace): Boolean {
+        val text = "${p.name} ${p.brand}".lowercase()
+        if (p.shop == "car" || p.shop == "car_repair") return false
+        if ("maruti" in text || "nexa" in text) return false
+        return p.shop == "motorcycle" || p.shop == "motorcycle_repair" || "suzuki" in text
     }
 
     /** "Dammaiguda – Suzuki Service"; just the name when no area is known. */
@@ -36,8 +58,8 @@ object ServiceCentrePicker {
      * rider's area. Duplicates (the same shop as a node and a building) once.
      */
     fun nearbyLabels(places: List<OsmPlace>, riderArea: String): List<String> =
-        places.filter { it.name.isNotBlank() }
-            .map { label(it.suburb.ifBlank { it.city }.ifBlank { riderArea }, it.name) }
+        places.filter { it.name.isNotBlank() && isTwoWheeler(it) }
+            .map { label(it.suburb.ifBlank { it.derivedArea }.ifBlank { it.city }.ifBlank { riderArea }, it.name) }
             .distinctBy { it.lowercase() }
             .take(MAX_NEARBY)
 

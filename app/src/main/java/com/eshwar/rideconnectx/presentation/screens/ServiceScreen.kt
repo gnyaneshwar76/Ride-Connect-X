@@ -1,5 +1,9 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import androidx.compose.runtime.LaunchedEffect
+import com.eshwar.rideconnectx.core.util.rememberSystemServices
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
 import com.eshwar.rideconnectx.data.local.OwnerScope
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -801,7 +805,30 @@ private fun ServiceRecordSheet(
                 },
             )
             val options = ServiceCentrePicker.options(pastCentres, nearbyCentres, centre).take(6)
-            if (centreOpen && options.isNotEmpty()) {
+
+            // Location off or not allowed: the list could only ever show past
+            // centres, and nothing said why (rider, 28 Sep). The top row asks,
+            // using the same permission dialog and location switch as setup.
+            val ctx = LocalContext.current
+            val services = rememberSystemServices()
+            fun locationAllowed() = listOf(
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION,
+            ).any { androidx.core.content.ContextCompat.checkSelfPermission(ctx, it) == android.content.pm.PackageManager.PERMISSION_GRANTED }
+            var locationAllowed by remember { mutableStateOf(locationAllowed()) }
+            val askLocation = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestMultiplePermissions()
+            ) {
+                locationAllowed = locationAllowed()
+                if (locationAllowed && !services.locationOn) services.openLocationSettings()
+            }
+            val needsLocation = !locationAllowed || !services.locationOn
+            // Refresh the list the moment location becomes usable.
+            LaunchedEffect(locationAllowed, services.locationOn) {
+                if (centreOpen && !needsLocation) onCentreOpen()
+            }
+
+            if (centreOpen && (options.isNotEmpty() || needsLocation)) {
                 Column(
                     Modifier
                         .padding(top = 6.dp)
@@ -810,6 +837,28 @@ private fun ServiceRecordSheet(
                         .background(c.card2)
                         .border(1.dp, c.border, RoundedCornerShape(14.dp)),
                 ) {
+                    if (needsLocation) {
+                        Text(
+                            "Turn on location to see centres near you",
+                            style = RcxType.Body.copy(fontSize = 14.sp),
+                            color = c.blue,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    if (!locationAllowed) {
+                                        askLocation.launch(
+                                            arrayOf(
+                                                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                                                android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                                            )
+                                        )
+                                    } else {
+                                        services.openLocationSettings()
+                                    }
+                                }
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                        )
+                    }
                     options.forEach { option ->
                         Text(
                             option,

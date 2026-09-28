@@ -218,6 +218,10 @@ class CityLocator @Inject constructor(
             }
         }.distinct()
 
+    /** The area at a point — a centre OpenStreetMap gave no suburb for (N14). */
+    suspend fun areaAt(lat: Double, lon: Double): String =
+        areaOf(Location("osm").apply { latitude = lat; longitude = lon })
+
     /** The rider's own area, for labelling a centre OpenStreetMap gave no area for. */
     suspend fun areaOf(location: Location): String =
         addresses(location, 1).firstOrNull()?.let { it.subLocality ?: it.locality }.orEmpty()

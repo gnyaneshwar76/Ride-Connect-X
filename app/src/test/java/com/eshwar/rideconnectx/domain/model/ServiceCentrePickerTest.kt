@@ -11,16 +11,24 @@ class ServiceCentrePickerTest {
     fun `nearby centres read as Area - Name, falling back to the rider's area`() {
         val labels = ServiceCentrePicker.nearbyLabels(
             listOf(
-                OsmPlace("Suzuki Service", suburb = "Dammaiguda"),
-                OsmPlace("Sai Motors", city = "Hyderabad"),
-                OsmPlace("Bike Point"),
-                OsmPlace(""), // unnamed - useless in a picker
-                OsmPlace("Suzuki Service", suburb = "Dammaiguda"), // node + building
+                OsmPlace("Suzuki Service", suburb = "Dammaiguda", shop = "motorcycle"),
+                OsmPlace("Sai Motors", city = "Hyderabad", shop = "motorcycle_repair"),
+                OsmPlace("Bike Point", shop = "motorcycle"),
+                OsmPlace("Speed Suzuki", shop = "motorcycle", derivedArea = "Nagaram"),
+                OsmPlace("", shop = "motorcycle"), // unnamed - useless in a picker
+                OsmPlace("Suzuki Service", suburb = "Dammaiguda", shop = "motorcycle"), // node + building
+                // Cars, not scooters (rider, 28 Sep).
+                OsmPlace("Maruti Suzuki Arena", brand = "Maruti Suzuki", shop = "car"),
+                OsmPlace("NEXA Kapra", brand = "Suzuki"),
+                OsmPlace("Suzuki Workshop", shop = "car_repair"),
             ),
             riderArea = "Kapra",
         )
         assertEquals(
-            listOf("Dammaiguda – Suzuki Service", "Hyderabad – Sai Motors", "Kapra – Bike Point"),
+            listOf(
+                "Dammaiguda – Suzuki Service", "Hyderabad – Sai Motors",
+                "Kapra – Bike Point", "Nagaram – Speed Suzuki",
+            ),
             labels,
         )
     }
