@@ -54,7 +54,7 @@ interface RideDao {
      */
     @Query(
         """
-        SELECT strftime(:format, startedAt / 1000, 'unixepoch', 'localtime') AS label,
+        SELECT COALESCE(strftime(:format, startedAt / 1000, 'unixepoch', 'localtime'), '') AS label,
                SUM(distanceMeters)                                           AS meters
         FROM rides
         WHERE ownerId = :owner AND startedAt >= :since

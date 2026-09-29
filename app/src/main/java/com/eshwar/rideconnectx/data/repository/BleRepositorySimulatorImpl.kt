@@ -54,6 +54,13 @@ class BleRepositorySimulatorImpl @Inject constructor() : BleRepository {
         _telemetry.value = ScooterTelemetry(
             odometerKm = 12846, tripAKm = 42.6f, tripBKm = 318.2f, fuelSegments = 4, isValid = true,
         )
+        // A short simulated ride: Trip A climbs 1.5 km over ~15 s, so ride
+        // recording (Statistics) can be checked on the emulator.
+        repeat(15) {
+            delay(1000)
+            val t = _telemetry.value
+            _telemetry.value = t.copy(tripAKm = t.tripAKm + 0.1f, tripBKm = t.tripBKm + 0.1f)
+        }
     }.onEach { _connectionState.value = it }
 
     override fun disconnect() {

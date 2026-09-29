@@ -11,6 +11,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -42,10 +43,24 @@ enum class StatsPeriod(val label: String) {
     val bucketFormat: String
         get() = when (this) {
             TODAY -> "%H"       // hour of day
-            WEEK -> "%a"        // Mon, Tue…
+            // SQLite has no %a (weekday name): it returned NULL and Statistics
+            // crashed on the first recorded ride. %w is 0 (Sun)..6, named in
+            // [label].
+            WEEK -> "%w"
             MONTH -> "%d/%m"    // day/month
             YEAR -> "%m"        // month number
         }
+
+    /** The chart label for a bucket key from [bucketFormat]. */
+    fun label(key: String): String {
+        val n = key.toIntOrNull() ?: return key
+        return when (this) {
+            WEEK -> listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat").getOrElse(n) { key }
+            YEAR -> listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+                .getOrElse(n - 1) { key }
+            else -> key
+        }
+    }
 }
 
 /**
@@ -74,6 +89,7 @@ class RideRepository @Inject constructor(
     fun observeBuckets(period: StatsPeriod): Flow<List<RideBucket>> =
         owner.current.flatMapLatest {
             dao.observeBuckets(it, period.since(), period.bucketFormat)
+                .map { list -> list.map { b -> b.copy(label = period.label(b.label)) } }
         }
 
     /** Saves a finished ride locally, then tries to push it to the cloud. */
