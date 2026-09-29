@@ -1,6 +1,14 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import com.eshwar.rideconnectx.domain.repository.ConnectionState
+import com.eshwar.rideconnectx.presentation.theme.RcxMotion
+import com.eshwar.rideconnectx.presentation.theme.animatedCount
+import com.eshwar.rideconnectx.presentation.theme.enterRise
+import com.eshwar.rideconnectx.presentation.theme.rememberBreath
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -121,7 +129,7 @@ fun DashboardScreen(
 
             // ── Greeting + connection pill ──────────────────────────
             Row(
-                Modifier.fillMaxWidth(),
+                Modifier.fillMaxWidth().enterRise(0),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -165,11 +173,12 @@ fun DashboardScreen(
             // ── Vehicle hero ────────────────────────────────────────
             val vehicle = state.vehicle
             if (vehicle == null) {
-                NoVehicleCard(onPairVehicle)
+                Box(Modifier.enterRise(1)) { NoVehicleCard(onPairVehicle) }
             } else {
                 val accent = vehicle.accent
                 Column(
                     Modifier
+                        .enterRise(1)
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(22.dp))
                         .background(
@@ -191,6 +200,10 @@ fun DashboardScreen(
                         accent = accent,
                         modifier = Modifier.clip(RoundedCornerShape(18.dp)),
                         height = 200.dp,
+                        live = state.isConnected,
+                        scanning = state.connectionState is ConnectionState.Scanning ||
+                            state.connectionState is ConnectionState.Connecting,
+                        rollIn = true,
                     )
 
                     Spacer(Modifier.height(12.dp))
@@ -220,10 +233,10 @@ fun DashboardScreen(
             // reading on this dashboard would be meaningless for the rest.
             // Speed is not in the scooter's telemetry frame, so it is not shown
             // at all rather than sitting at a permanent "—".
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.enterRise(2), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Telemetry(
                     stringResource(R.string.dash_odo),
-                    state.odometer?.toString() ?: "—",
+                    state.odometer?.toFloat(), 0,
                     "km",
                     c.blue,
                     Modifier.weight(1f),
@@ -233,17 +246,17 @@ fun DashboardScreen(
 
             Spacer(Modifier.height(10.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.enterRise(3), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Telemetry(
                     stringResource(R.string.dash_trip_a),
-                    state.tripAKm?.let { "%.1f".format(it) } ?: "—",
+                    state.tripAKm, 1,
                     "km",
                     c.cyan,
                     Modifier.weight(1f),
                 )
                 Telemetry(
                     stringResource(R.string.dash_trip_b),
-                    state.tripBKm?.let { "%.1f".format(it) } ?: "—",
+                    state.tripBKm, 1,
                     "km",
                     c.green,
                     Modifier.weight(1f),
@@ -253,14 +266,14 @@ fun DashboardScreen(
             Spacer(Modifier.height(16.dp))
 
             // ── Quick actions ───────────────────────────────────────
-            Text(stringResource(R.string.dash_quick_actions), style = RcxType.MonoTiny.copy(fontSize = 10.sp), color = c.muted)
+            Text(stringResource(R.string.dash_quick_actions), style = RcxType.MonoTiny.copy(fontSize = 10.sp), color = c.muted, modifier = Modifier.enterRise(4))
             Spacer(Modifier.height(10.dp))
 
             // The two things a rider actually opens this app to do get the
             // space. Four equal rows made the list compete with the vehicle for
             // attention and told the eye nothing about what mattered.
             Row(
-                Modifier.fillMaxWidth(),
+                Modifier.fillMaxWidth().enterRise(5),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 PrimaryAction(
@@ -288,7 +301,7 @@ fun DashboardScreen(
 
             // Everything else, small — reachable without shouting.
             Row(
-                Modifier.fillMaxWidth(),
+                Modifier.fillMaxWidth().enterRise(6),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 SecondaryAction(Icons.Default.BarChart, stringResource(R.string.dash_stats), c.amber, onStatistics, Modifier.weight(1f))
@@ -302,7 +315,7 @@ fun DashboardScreen(
 
             // ── Service reminder ────────────────────────────────────
             CompositionLocalProvider(LocalDistanceUnit provides distanceUnit) {
-                ServiceReminderCard(status = serviceStatus, onClick = onService)
+                Box(Modifier.enterRise(7)) { ServiceReminderCard(status = serviceStatus, onClick = onService) }
             }
 
             Spacer(Modifier.height(28.dp))
@@ -328,6 +341,9 @@ private fun PrimaryAction(
     showLiveDot: Boolean = false,
 ) {
     val c = Rcx.colors
+    // Pair -> Connected changes colour smoothly instead of snapping.
+    val accent by animateColorAsState(accent, tween(600), label = "primaryAccent")
+    val dot by animateFloatAsState(if (showLiveDot) 1f else 0f, RcxMotion.pop(), label = "liveDot")
     val shape = RoundedCornerShape(22.dp)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -361,9 +377,9 @@ private fun PrimaryAction(
                 Icon(icon, null, Modifier.size(20.dp), tint = accent)
             }
             Spacer(Modifier.weight(1f))
-            if (showLiveDot) {
+            if (dot > 0f) {
                 // A live link is worth one dot, not a paragraph.
-                Box(Modifier.size(8.dp).clip(CircleShape).background(accent))
+                Box(Modifier.size(8.dp).graphicsLayer { scaleX = dot; scaleY = dot }.clip(CircleShape).background(accent))
             }
         }
 
@@ -467,13 +483,16 @@ private fun ServiceReminderCard(status: ServiceStatus, onClick: () -> Unit) {
         else -> c.green
     }
     val needsAttention = status.isOverdue || status.isDueSoon
+    // Overdue breathes its border so it is noticed without shouting.
+    val breath by rememberBreath(2400, "serviceAttention")
+    val edge = if (status.isOverdue) 0.27f + 0.35f * breath else 0.27f
 
     Row(
         Modifier
             .fillMaxWidth()
             .clip(shape)
             .background(c.card)
-            .border(1.dp, if (needsAttention) accent.copy(alpha = 0.27f) else c.border, shape)
+            .border(1.dp, if (needsAttention) accent.copy(alpha = edge) else c.border, shape)
             .clickable(onClick = onClick)
             .padding(14.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -545,7 +564,8 @@ private fun greeting(): String =
 @Composable
 private fun ConnectionPill(connected: Boolean) {
     val c = Rcx.colors
-    val tint = if (connected) c.green else c.muted
+    val tint by animateColorAsState(if (connected) c.green else c.muted, tween(500), label = "pillTint")
+    val ping by rememberBreath(1600, "pillPing")
     Row(
         Modifier
             .clip(CircleShape)
@@ -555,7 +575,15 @@ private fun ConnectionPill(connected: Boolean) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(6.dp).clip(CircleShape).background(tint))
+        Box(contentAlignment = Alignment.Center) {
+            // A soft ring pulses out of the dot while the link is live.
+            if (connected) Box(
+                Modifier.size(12.dp)
+                    .graphicsLayer { scaleX = 0.5f + ping; scaleY = 0.5f + ping; alpha = 1f - ping }
+                    .border(1.dp, tint, CircleShape)
+            )
+            Box(Modifier.size(6.dp).clip(CircleShape).background(tint))
+        }
         Text(
             if (connected) stringResource(R.string.dash_connected)
             else stringResource(R.string.dash_offline),
@@ -592,12 +620,16 @@ private fun NoVehicleCard(onPair: () -> Unit) {
 @Composable
 private fun Telemetry(
     label: String,
-    value: String,
+    target: Float?,
+    decimals: Int,
     unit: String,
     accent: Color,
     modifier: Modifier = Modifier,
 ) {
     val c = Rcx.colors
+    // Readings count up to their value, so a fresh reading is noticed.
+    val shown = animatedCount(target)
+    val value = shown?.let { if (decimals == 0) "%d".format(it.toInt()) else "%.${decimals}f".format(it) } ?: "—"
     RcxSurface(modifier) {
     Column(Modifier.padding(14.dp)) {
         Text(label, style = RcxType.MonoTiny.copy(fontSize = 9.sp), color = c.muted)
@@ -658,18 +690,29 @@ private fun FuelGauge(segments: Int?, modifier: Modifier = Modifier) {
         ) {
             repeat(total) { index ->
                 val on = filled != null && index < filled
+                // Bars fill left to right, one after another, like the tank
+                // gauge sweeping on ignition.
+                val color by animateColorAsState(
+                    when {
+                        !on -> c.muted.copy(alpha = 0.13f)
+                        low -> c.red
+                        else -> c.amber
+                    },
+                    tween(300, delayMillis = index * 90),
+                    label = "fuelBar",
+                )
+                val grow by animateFloatAsState(
+                    if (on) 1f else 0.6f,
+                    spring(dampingRatio = 0.5f, stiffness = 400f),
+                    label = "fuelGrow",
+                )
                 Box(
                     Modifier
                         .weight(1f)
                         .height(18.dp)
+                        .graphicsLayer { scaleY = grow }
                         .clip(RoundedCornerShape(4.dp))
-                        .background(
-                            when {
-                                !on -> c.muted.copy(alpha = 0.13f)
-                                low -> c.red
-                                else -> c.amber
-                            }
-                        )
+                        .background(color)
                 )
             }
         }

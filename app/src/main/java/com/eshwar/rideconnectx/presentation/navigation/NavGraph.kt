@@ -11,6 +11,13 @@ import androidx.compose.runtime.remember
 import kotlinx.coroutines.flow.map
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import com.eshwar.rideconnectx.presentation.theme.RcxMotion
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.composable
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -117,7 +124,25 @@ fun NavGraph(
             ?.let { navController.navigate(it) }
     }
 
-    NavHost(navController = navController, startDestination = Routes.SPLASH) {
+    // Push: the new screen slides in from the right while the old one drifts
+    // back and dims; Back reverses it, so the rider always sees where they came
+    // from. Leaving the splash only fades — nothing is "behind" it.
+    val spec = tween<androidx.compose.ui.unit.IntOffset>(RcxMotion.SCREEN_MS, easing = FastOutSlowInEasing)
+    val fade = tween<Float>(RcxMotion.SCREEN_MS)
+    NavHost(
+        navController = navController,
+        startDestination = Routes.SPLASH,
+        enterTransition = {
+            if (initialState.destination.route == Routes.SPLASH) fadeIn(tween(500))
+            else slideInHorizontally(spec) { it } + fadeIn(fade, initialAlpha = 0.6f)
+        },
+        exitTransition = {
+            if (initialState.destination.route == Routes.SPLASH) fadeOut(tween(300))
+            else slideOutHorizontally(spec) { -it / 4 } + fadeOut(fade, targetAlpha = 0.35f)
+        },
+        popEnterTransition = { slideInHorizontally(spec) { -it / 4 } + fadeIn(fade, initialAlpha = 0.35f) },
+        popExitTransition = { slideOutHorizontally(spec) { it } + fadeOut(fade, targetAlpha = 0.6f) },
+    ) {
 
         composable(Routes.SPLASH) {
             val authVm: AuthViewModel = hiltViewModel()
