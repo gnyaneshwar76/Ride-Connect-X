@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.enterRise
 import com.eshwar.rideconnectx.presentation.theme.shake
 import com.eshwar.rideconnectx.presentation.theme.rememberShakeKey
 import androidx.compose.animation.core.Animatable
@@ -159,6 +160,7 @@ fun ProfileScreen(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 item {
+                    Box(Modifier.enterRise(0)) {
                     ProfileCard(
                         name = account.name,
                         email = account.email,
@@ -170,15 +172,18 @@ fun ProfileScreen(
                         // The picture itself opens full screen when there is one (N15).
                         onViewPhoto = { if (vm.hasPhoto) showPhotoViewer = true else showPhotoSheet = true },
                     )
+                    }
                 }
 
                 item {
+                    Box(Modifier.enterRise(1)) {
                     VehicleCard(
                         vehicle = selection.vehicle,
                         color = selection.color,
                         connected = connected,
                         onChange = onChangeVehicle,
                     )
+                    }
                 }
 
                 item {
@@ -570,6 +575,7 @@ private fun VehicleCard(
                 modifier = Modifier.clip(RoundedCornerShape(16.dp)),
                 height = 180.dp,
                 float = true,
+                live = connected,
             )
         }
 

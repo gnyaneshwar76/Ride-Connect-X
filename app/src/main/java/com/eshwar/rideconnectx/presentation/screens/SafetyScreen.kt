@@ -1,5 +1,8 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.enterRise
+import com.eshwar.rideconnectx.presentation.theme.shake
+import com.eshwar.rideconnectx.presentation.theme.rememberShakeKey
 import com.eshwar.rideconnectx.core.util.isLocationOn
 import com.eshwar.rideconnectx.core.util.rememberSystemServices
 import com.eshwar.rideconnectx.data.local.OwnerScope
@@ -301,33 +304,39 @@ fun SafetyScreen(
                 // object against a plain background, and at 132 dp the 16:9
                 // crop takes the top and bottom off the helmet until it reads
                 // as an abstract dark shape rather than as a helmet.
-                item { RcxHeroBanner(R.drawable.img_safety_hero, height = 170.dp) }
+                item { Box(Modifier.enterRise(0)) { RcxHeroBanner(R.drawable.img_safety_hero, height = 170.dp) } }
 
                 item {
+                    Box(Modifier.enterRise(1)) {
                     EmergencyCard(
                         enabled = sosEnabled,
                         primary = primary,
                         onSos = { showSos = true },
                         onToggle = vm::setSosEnabled,
                     )
+                    }
                 }
 
                 item {
+                    Column(Modifier.enterRise(2)) {
                     SafetySectionHeader(stringResource(R.string.safety_sec_ride), Icons.Filled.Shield)
                     Spacer(Modifier.height(10.dp))
                     RideSafetyCard(
                         helmetReminder = helmetReminder,
                         onHelmetToggle = vm::setHelmetReminder,
                     )
+                    }
                 }
 
                 item {
+                    Column(Modifier.enterRise(3)) {
                     SafetySectionHeader(
                         stringResource(R.string.safety_sec_accident),
                         Icons.Filled.Warning,
                     )
                     Spacer(Modifier.height(10.dp))
                     AccidentInformationCard(onRead = vm::acknowledgeSafetyInfo)
+                    }
                 }
 
                 item {
@@ -341,6 +350,7 @@ fun SafetyScreen(
                     item { NoContactsCard() }
                 } else {
                     items(contacts, key = { it.id }) { contact ->
+                        Box(Modifier.animateItem().enterRise(4)) {
                         ContactRow(
                             contact = contact,
                             onCall = { dial(contact.phone) },
@@ -348,6 +358,7 @@ fun SafetyScreen(
                             onDelete = { pendingDelete = contact },
                             onMakePrimary = { vm.setPrimary(contact.id) },
                         )
+                        }
                     }
                 }
 
@@ -1287,7 +1298,7 @@ private fun SafetyFieldError(text: String) {
         text,
         style = RcxType.BodySmall.copy(fontSize = 12.sp),
         color = Rcx.colors.red,
-        modifier = Modifier.padding(start = 4.dp, top = 5.dp),
+        modifier = Modifier.padding(start = 4.dp, top = 5.dp).shake(rememberShakeKey(text)),
     )
 }
 

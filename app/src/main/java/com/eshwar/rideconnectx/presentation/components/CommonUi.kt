@@ -251,6 +251,3 @@ fun BackHeader(
     }
 }
 
-/** Small helper so buttons can be disabled without duplicating modifier chains. */
-private fun Modifier.clickableIfEnabled(enabled: Boolean, onClick: () -> Unit): Modifier =
-    if (enabled) this.clickable(onClick = onClick) else this
