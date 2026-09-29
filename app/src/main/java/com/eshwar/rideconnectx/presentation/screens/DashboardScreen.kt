@@ -251,8 +251,8 @@ fun DashboardScreen(
             Row(Modifier.enterRise(2), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Telemetry(
                     stringResource(R.string.dash_odo),
-                    state.odometer?.toFloat(), 0,
-                    "km",
+                    state.odometer?.let { distanceUnit.fromKm(it.toFloat()) }, 0,
+                    distanceUnit.short,
                     c.blue,
                     Modifier.weight(1f),
                 )
@@ -264,15 +264,15 @@ fun DashboardScreen(
             Row(Modifier.enterRise(3), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Telemetry(
                     stringResource(R.string.dash_trip_a),
-                    state.tripAKm, 1,
-                    "km",
+                    state.tripAKm?.let { distanceUnit.fromKm(it) }, 1,
+                    distanceUnit.short,
                     c.cyan,
                     Modifier.weight(1f),
                 )
                 Telemetry(
                     stringResource(R.string.dash_trip_b),
-                    state.tripBKm, 1,
-                    "km",
+                    state.tripBKm?.let { distanceUnit.fromKm(it) }, 1,
+                    distanceUnit.short,
                     c.green,
                     Modifier.weight(1f),
                 )

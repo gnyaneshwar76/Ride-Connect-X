@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.LocalDistanceUnit
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -108,6 +109,7 @@ fun StatisticsScreen(
         LocalHaze provides hazeState,
     ) {
     val c = Rcx.colors
+    val unit = LocalDistanceUnit.current
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
         // Full-bleed, behind everything — the photograph *is* the screen rather
@@ -143,7 +145,7 @@ fun StatisticsScreen(
 
                 item {
                     Row(Modifier.enterRise(1), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Summary("DISTANCE", "%.1f".format(totals.totalMeters / 1000f), "km", c.blue, Modifier.weight(1f))
+                        Summary("DISTANCE", "%.1f".format(unit.fromKm(totals.totalMeters / 1000f)), unit.short, c.blue, Modifier.weight(1f))
                         Summary("TIME", formatDuration(totals.totalMillis), "", c.cyan, Modifier.weight(1f))
                         Summary("TRIPS", totals.trips.toString(), "", c.green, Modifier.weight(1f))
                     }
@@ -152,13 +154,13 @@ fun StatisticsScreen(
                 item {
                     Row(Modifier.enterRise(2), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Summary(
-                            "AVG SPEED", totals.avgSpeed.roundToInt().toString(), "km/h",
+                            "AVG SPEED", unit.fromKm(totals.avgSpeed.toFloat()).roundToInt().toString(), unit.speed,
                             c.amber, Modifier.weight(1f),
                         )
                         Summary(
                             "LONGEST",
-                            "%.1f".format((rides.maxOfOrNull { it.distanceMeters } ?: 0) / 1000f),
-                            "km", c.blue, Modifier.weight(1f),
+                            "%.1f".format(unit.fromKm((rides.maxOfOrNull { it.distanceMeters } ?: 0) / 1000f)),
+                            unit.short, c.blue, Modifier.weight(1f),
                         )
                     }
                 }
@@ -331,12 +333,12 @@ private fun RideRow(ride: RideEntity) {
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                "%.1f km".format(ride.distanceMeters / 1000f),
+                "%.1f %s".format(LocalDistanceUnit.current.fromKm(ride.distanceMeters / 1000f), LocalDistanceUnit.current.short),
                 style = RcxType.Label.copy(fontSize = 14.sp),
                 color = c.blue,
             )
             Text(
-                "${formatDuration(ride.durationMillis)} · ${ride.avgSpeedKmh} km/h",
+                "${formatDuration(ride.durationMillis)} · ${LocalDistanceUnit.current.fromKm(ride.avgSpeedKmh.toFloat()).roundToInt()} ${LocalDistanceUnit.current.speed}",
                 style = RcxType.Mono.copy(fontSize = 11.sp),
                 color = c.muted,
             )

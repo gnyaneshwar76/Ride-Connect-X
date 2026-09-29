@@ -140,6 +140,7 @@ class MainActivity : ComponentActivity() {
             val accent by appearance.accentColor.collectAsStateWithLifecycle()
             val surfaceStyle by appearance.surfaceStyle.collectAsStateWithLifecycle()
             val glassIntensity by appearance.glassIntensity.collectAsStateWithLifecycle()
+            val distanceUnit by appearance.distanceUnit.collectAsStateWithLifecycle()
             val batterySaver by rememberBatterySaver()
 
 
@@ -156,6 +157,7 @@ class MainActivity : ComponentActivity() {
                     LocalStyleMode provides
                         if (surfaceStyle == SurfaceStyle.GLASS) StyleMode.GLASS else StyleMode.FLAT,
                     LocalGlassIntensity provides glassIntensity,
+                    com.eshwar.rideconnectx.presentation.theme.LocalDistanceUnit provides distanceUnit,
                     LocalAmbientMotion provides (!batterySaver && animationsEnabled()),
                 ) {
                 Surface(

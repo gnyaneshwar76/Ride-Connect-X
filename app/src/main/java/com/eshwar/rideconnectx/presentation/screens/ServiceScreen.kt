@@ -870,19 +870,24 @@ private fun ServiceRecordSheet(
                 ) {
                     when {
                         // Step 1: the state.
+                        // Typing filters the state and city lists; picking one
+                        // clears the typing, ready for the centre's name.
                         pickState.isBlank() -> {
                             PickerTitle("Choose your state")
-                            IndianCities.states.forEach { s -> PickerRow(s) { pickState = s } }
+                            IndianCities.states.filter { it.contains(centre.trim(), ignoreCase = true) }
+                                .forEach { s -> PickerRow(s) { pickState = s; centre = "" } }
                         }
                         // Step 2: that state's cities (the N15 list, by state).
                         pickCity.isBlank() -> {
                             PickerTitle("$pickState  ·  change") { pickState = "" }
-                            IndianCities.citiesIn(pickState).forEach { city ->
-                                PickerRow(city) {
-                                    pickCity = city
-                                    onPlacePicked(pickState, city)
+                            IndianCities.citiesIn(pickState).filter { it.contains(centre.trim(), ignoreCase = true) }
+                                .forEach { city ->
+                                    PickerRow(city) {
+                                        pickCity = city
+                                        centre = ""
+                                        onPlacePicked(pickState, city)
+                                    }
                                 }
-                            }
                         }
                         // Step 3: centres for the city.
                         else -> {

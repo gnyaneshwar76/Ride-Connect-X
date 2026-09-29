@@ -17,6 +17,12 @@ enum class DistanceUnit(val label: String, val short: String) {
         MILES -> Math.round(km * MILES_PER_KM).toInt()
     }
 
+    /** Speed label for this unit. */
+    val speed: String get() = if (this == KM) "km/h" else "mph"
+
+    /** Same, for readings with decimals (trip meters, ride distances). */
+    fun fromKm(km: Float): Float = if (this == KM) km else km * MILES_PER_KM
+
     /** "3,000 km" / "1,864 mi" — grouped, because these run to five digits. */
     fun format(km: Int): String = "%,d %s".format(fromKm(km), short)
 

@@ -57,6 +57,11 @@ class AppearanceViewModel @Inject constructor(
 
     fun setSurfaceStyle(style: SurfaceStyle) = appScope.launch { store.setSurfaceStyle(style) }
 
+    /** km or miles, published app-wide so every screen shows the same unit. */
+    val distanceUnit: StateFlow<com.eshwar.rideconnectx.domain.model.DistanceUnit> =
+        store.settings.map { it.distanceUnit }.distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.Eagerly, com.eshwar.rideconnectx.domain.model.DistanceUnit.KM)
+
     val glassIntensity: StateFlow<Float> =
         store.glassIntensity.stateIn(viewModelScope, SharingStarted.Eagerly, DEFAULT_GLASS_INTENSITY)
 

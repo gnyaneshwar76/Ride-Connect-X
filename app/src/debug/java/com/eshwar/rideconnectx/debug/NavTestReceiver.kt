@@ -143,6 +143,12 @@ class NavTestReceiver : BroadcastReceiver() {
                 val title = intent.getStringExtra("title").orEmpty()
                 val text = intent.getStringExtra("text").orEmpty()
 
+                // Same order as the real listener: a reroute is not a maneuver.
+                if (MapsNotificationParser.isReroute("$title $text")) {
+                    scope.launch { relay.onReroute("$title | $text") }
+                    return
+                }
+
                 val maneuver = MapsNotificationParser.parse(title, text)
                 if (maneuver == null) {
                     Log.w(TAG, "[TEST] not a navigation notification: '$title' / '$text'")
