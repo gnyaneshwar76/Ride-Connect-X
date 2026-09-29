@@ -1,5 +1,14 @@
 package com.eshwar.rideconnectx.presentation.components
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import com.eshwar.rideconnectx.presentation.theme.pressScale
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -64,8 +73,11 @@ fun PrimaryButton(
 ) {
     val c = Rcx.colors
     val shape = RoundedCornerShape(16.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
 
     val base = modifier
+        .pressScale(pressed && enabled, 0.97f)
         .height(56.dp)
         // The design dims disabled buttons to 40%; without this they look tappable.
         .alpha(if (enabled) 1f else 0.4f)
@@ -83,7 +95,7 @@ fun PrimaryButton(
 
     Box(
         modifier = styled
-            .clickableIfEnabled(enabled, onClick)
+            .then(if (enabled) Modifier.clickable(interaction, LocalIndication.current, onClick = onClick) else Modifier)
             .padding(horizontal = 20.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -116,12 +128,16 @@ fun DotIndicator(
     ) {
         repeat(count) { i ->
             val on = i == active
+            // The active pill stretches and the colour follows, so moving a
+            // page reads as the pill travelling rather than two dots swapping.
+            val w by animateDpAsState(if (on) 22.dp else 7.dp, spring(dampingRatio = 0.7f, stiffness = 500f), label = "dotW")
+            val col by animateColorAsState(if (on) c.blue else c.blue.copy(alpha = 0.157f), label = "dotC")
             Box(
                 Modifier
-                    .width(if (on) 22.dp else 7.dp)
+                    .width(w)
                     .height(5.dp)
                     .clip(RoundedCornerShape(3.dp))
-                    .background(if (on) c.blue else c.blue.copy(alpha = 0.157f))
+                    .background(col)
             )
         }
     }

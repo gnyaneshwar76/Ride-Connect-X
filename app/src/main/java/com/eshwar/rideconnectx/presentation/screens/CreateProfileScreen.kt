@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.shake
+import com.eshwar.rideconnectx.presentation.theme.rememberShakeKey
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -530,7 +532,7 @@ private fun RcxField(
         label = "fieldGlow",
     )
 
-    Column {
+    Column(Modifier.shake(rememberShakeKey(error))) {
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,

@@ -1,5 +1,10 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.shake
+import com.eshwar.rideconnectx.presentation.theme.rememberShakeKey
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.graphicsLayer
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.foundation.Image
@@ -564,6 +569,7 @@ private fun VehicleCard(
                 accent = c.blue,
                 modifier = Modifier.clip(RoundedCornerShape(16.dp)),
                 height = 180.dp,
+                float = true,
             )
         }
 
@@ -630,7 +636,7 @@ internal fun NameFieldNote(error: String?, hint: String) {
         error ?: hint,
         style = RcxType.BodySmall.copy(fontSize = 12.sp),
         color = if (error != null) Rcx.colors.red else Rcx.colors.muted,
-        modifier = Modifier.padding(start = 4.dp, top = 5.dp),
+        modifier = Modifier.padding(start = 4.dp, top = 5.dp).shake(rememberShakeKey(error)),
     )
 }
 
@@ -665,8 +671,12 @@ private fun PhotoViewer(
                     modifier = Modifier.clickable(onClick = onDismiss).padding(8.dp),
                 )
             }
+            val zoom = remember { Animatable(0.4f) }
+            LaunchedEffect(Unit) { zoom.animateTo(1f, spring(dampingRatio = 0.72f, stiffness = 320f)) }
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                RiderAvatar(name = name, size = 300.dp, ring = false, version = version)
+                Box(Modifier.graphicsLayer { scaleX = zoom.value; scaleY = zoom.value; alpha = (zoom.value - 0.4f) / 0.6f }) {
+                    RiderAvatar(name = name, size = 300.dp, ring = false, version = version)
+                }
             }
             // Edit the picture already set (N17): re-frame it, or turn it.
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

@@ -88,6 +88,17 @@ fun Modifier.shake(trigger: Int): Modifier = composed {
     graphicsLayer { translationX = x.value * density }
 }
 
+/**
+ * A counter that goes up each time [error] turns on or changes, to feed
+ * [shake] — so a refused character wiggles the field once per new message.
+ */
+@Composable
+fun rememberShakeKey(error: String?): Int {
+    var key by remember { mutableStateOf(0) }
+    LaunchedEffect(error) { if (error != null) key++ }
+    return key
+}
+
 /** A slow, endless 0→1→0 value for glows and floats. */
 @Composable
 fun rememberBreath(periodMs: Int = 3200, label: String = "breath"): State<Float> =

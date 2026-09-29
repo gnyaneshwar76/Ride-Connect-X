@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.enterRise
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -108,13 +110,14 @@ fun NotificationsScreen(
             NotificationAccessWarning(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp))
 
             if (items.isEmpty()) {
-                EmptyNotifications(Modifier.padding(horizontal = 20.dp))
+                EmptyNotifications(Modifier.padding(horizontal = 20.dp).enterRise(0))
             } else {
                 LazyColumn(
                     contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(items, key = { it.id }) { n ->
+                    itemsIndexed(items, key = { _, n -> n.id }) { i, n ->
+                        Box(Modifier.animateItem().enterRise(i.coerceAtMost(8))) {
                         NotificationRow(
                             notification = n,
                             onClick = {
@@ -122,6 +125,7 @@ fun NotificationsScreen(
                                 onOpen(n.kind)
                             },
                         )
+                        }
                     }
                 }
             }

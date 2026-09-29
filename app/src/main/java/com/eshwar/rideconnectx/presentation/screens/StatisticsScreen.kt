@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -28,6 +29,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import com.eshwar.rideconnectx.presentation.theme.enterRise
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -130,10 +138,10 @@ fun StatisticsScreen(
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                item { PeriodTabs(period, vm::setPeriod) }
+                item { Box(Modifier.enterRise(0)) { PeriodTabs(period, vm::setPeriod) } }
 
                 item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.enterRise(1), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Summary("DISTANCE", "%.1f".format(totals.totalMeters / 1000f), "km", c.blue, Modifier.weight(1f))
                         Summary("TIME", formatDuration(totals.totalMillis), "", c.cyan, Modifier.weight(1f))
                         Summary("TRIPS", totals.trips.toString(), "", c.green, Modifier.weight(1f))
@@ -141,7 +149,7 @@ fun StatisticsScreen(
                 }
 
                 item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.enterRise(2), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Summary(
                             "AVG SPEED", totals.avgSpeed.roundToInt().toString(), "km/h",
                             c.amber, Modifier.weight(1f),
@@ -155,7 +163,7 @@ fun StatisticsScreen(
                 }
 
                 if (buckets.isNotEmpty()) {
-                    item { DistanceChart(buckets) }
+                    item { Box(Modifier.enterRise(3)) { DistanceChart(buckets) } }
                 }
 
                 item {
@@ -174,7 +182,7 @@ fun StatisticsScreen(
                 if (rides.isEmpty()) {
                     item { EmptyState(period) }
                 } else {
-                    items(rides, key = { it.id }) { RideRow(it) }
+                    itemsIndexed(rides, key = { _, r -> r.id }) { i, r -> Box(Modifier.animateItem().enterRise(4 + i.coerceAtMost(6))) { RideRow(r) } }
                 }
             }
         }
@@ -194,11 +202,12 @@ private fun PeriodTabs(active: StatsPeriod, onSelect: (StatsPeriod) -> Unit) {
         ) {
             StatsPeriod.entries.forEach { p ->
                 val on = p == active
+                val tabBg by animateColorAsState(if (on) c.blue else Color.Transparent, tween(250), label = "periodTab")
                 Box(
                     Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(11.dp))
-                        .background(if (on) c.blue else Color.Transparent)
+                        .background(tabBg)
                         .clickable { onSelect(p) }
                         .padding(vertical = 9.dp),
                     contentAlignment = Alignment.Center,
@@ -256,6 +265,11 @@ private fun Summary(
 private fun DistanceChart(buckets: List<RideBucket>) {
     val c = Rcx.colors
     val max = (buckets.maxOfOrNull { it.meters } ?: 1).coerceAtLeast(1)
+    val grow = remember { Animatable(0f) }
+    LaunchedEffect(buckets) {
+        grow.snapTo(0f)
+        grow.animateTo(1f, tween(900, easing = FastOutSlowInEasing))
+    }
 
     Column(
         Modifier
@@ -272,7 +286,10 @@ private fun DistanceChart(buckets: List<RideBucket>) {
             val gap = size.width * 0.02f
             val barWidth = (size.width - gap * (buckets.size - 1)) / buckets.size
             buckets.forEachIndexed { i, bucket ->
-                val h = (bucket.meters.toFloat() / max) * size.height
+                // Each bar starts a little after the one before it.
+                val lag = i.toFloat() / (buckets.size + 2)
+                val t = ((grow.value - lag) / (1f - lag)).coerceIn(0f, 1f)
+                val h = (bucket.meters.toFloat() / max) * size.height * t
                 drawRoundRect(
                     color = c.blue.copy(alpha = 0.75f),
                     topLeft = Offset(i * (barWidth + gap), size.height - h),

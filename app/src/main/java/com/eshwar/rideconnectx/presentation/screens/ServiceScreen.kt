@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.enterRise
 import androidx.compose.runtime.LaunchedEffect
 import com.eshwar.rideconnectx.core.util.rememberSystemServices
 import androidx.activity.result.contract.ActivityResultContracts
@@ -157,12 +158,13 @@ fun ServiceScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.weight(1f),
             ) {
-                item { RcxHeroBanner(R.drawable.img_service_hero) }
+                item { Box(Modifier.enterRise(0)) { RcxHeroBanner(R.drawable.img_service_hero) } }
 
                 // Order is what the rider does next, then when, then what they
                 // have already done. Next Service used to lead, which is the
                 // summary of a schedule the rider had not been shown yet.
                 item {
+                    Column(Modifier.enterRise(1)) {
                     SectionHeader(
                         stringResource(R.string.service_upcoming_tasks),
                         Icons.Filled.Checklist,
@@ -173,9 +175,10 @@ fun ServiceScreen(
                         onEdit = { editingTask = it },
                         onAdd = { editingTask = UpcomingTask(0, "", 3_000, null) },
                     )
+                    }
                 }
 
-                item { ServiceStatusCard(status) }
+                item { Box(Modifier.enterRise(2)) { ServiceStatusCard(status) } }
 
                 item {
                     SectionHeader(
@@ -206,11 +209,14 @@ fun ServiceScreen(
                     }
                 } else {
                     items(records, key = { it.id }) { record ->
+                        // New records slide in, deleted ones fold away.
+                        Box(Modifier.animateItem().enterRise(3)) {
                         ServiceRecordCard(
                             record = record,
                             onEdit = { editing = record },
                             onDelete = { pendingDelete = record },
                         )
+                        }
                     }
                 }
 
