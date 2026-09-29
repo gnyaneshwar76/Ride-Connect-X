@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.R
 import com.eshwar.rideconnectx.presentation.theme.innerFill
 import com.eshwar.rideconnectx.presentation.theme.cardFill
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
@@ -93,7 +94,7 @@ fun PermissionDetailsScreen(onBack: () -> Unit) {
         lifecycleOwner.lifecycle.addObserver(observer)
     }
 
-    ScreenBackdrop {
+    ScreenBackdrop(photo = R.drawable.img_permissions_hero, accent = c.amber) {
         Column(
             Modifier
                 .fillMaxHeight()

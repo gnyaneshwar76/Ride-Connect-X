@@ -88,7 +88,7 @@ fun AppearanceScreen(
     val surfaceStyle by vm.surfaceStyle.collectAsStateWithLifecycle()
     val intensity by vm.glassIntensity.collectAsStateWithLifecycle()
 
-    ScreenBackdrop {
+    ScreenBackdrop(accent = c.cyan) {
         Column(
             Modifier
                 .fillMaxHeight()

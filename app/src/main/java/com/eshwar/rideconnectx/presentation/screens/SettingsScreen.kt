@@ -108,7 +108,7 @@ fun SettingsScreen(
 
     val connected = connection is ConnectionState.Connected
 
-    ScreenBackdrop {
+    ScreenBackdrop(photo = R.drawable.img_permissions_hero, accent = c.blue) {
         Column(
             Modifier
                 .fillMaxHeight()

@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.theme
 
+import androidx.compose.ui.draw.blur
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -345,7 +346,8 @@ fun GlassLightField(
     accent: Color? = null,
 ) {
     val c = Rcx.colors
-    val k = (0.45f + 0.9f * LocalGlassIntensity.current).coerceAtMost(1.35f)
+    // x0.7: the pools were bright enough to tire the eyes on a dark phone.
+    val k = 0.7f * (0.45f + 0.9f * LocalGlassIntensity.current).coerceAtMost(1.35f)
     val t by rememberInfiniteTransition(label = "lightField").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -367,6 +369,9 @@ fun GlassLightField(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
+                    // Shallow depth of field: the page's photo is atmosphere,
+                    // not content, so it sits slightly out of focus.
+                    .blur(6.dp)
                     .graphicsLayer {
                         val s = 1.06f + 0.08f * t
                         scaleX = s; scaleY = s
@@ -377,9 +382,11 @@ fun GlassLightField(
             Box(
                 Modifier.fillMaxSize().background(
                     Brush.verticalGradient(
-                        0f to c.bg.copy(alpha = 0.55f),
-                        0.25f to c.bg.copy(alpha = 0.05f),
-                        0.6f to c.bg.copy(alpha = 0.35f),
+                        // Owner found the photos too bright: a steady dim
+                        // over the whole picture, heavier at the header.
+                        0f to c.bg.copy(alpha = 0.70f),
+                        0.3f to c.bg.copy(alpha = 0.38f),
+                        0.65f to c.bg.copy(alpha = 0.55f),
                         1f to c.bg,
                     )
                 )
@@ -419,7 +426,7 @@ fun Modifier.glassSheen(g: GlassTokens, pressed: Boolean = false): Modifier = dr
                 // follows the rounded corners instead of being a straight bar.
                 drawRect(
                     Brush.verticalGradient(
-                        0f to g.highlight.copy(alpha = g.highlight.alpha * if (pressed) 0.12f else 0.24f),
+                        0f to g.highlight.copy(alpha = g.highlight.alpha * if (pressed) 0.08f else 0.16f),
                         0.45f to Color.Transparent,
                     )
                 )
@@ -428,7 +435,7 @@ fun Modifier.glassSheen(g: GlassTokens, pressed: Boolean = false): Modifier = dr
                 // 480px radius centred on the top-left pixel.
                 drawRect(
                     Brush.radialGradient(
-                        colors = listOf(g.specular.copy(alpha = g.specular.alpha * 0.7f), Color.Transparent),
+                        colors = listOf(g.specular.copy(alpha = g.specular.alpha * 0.5f), Color.Transparent),
                         center = Offset(size.width * 0.32f, 0f),
                         radius = size.maxDimension * 0.75f,
                     )

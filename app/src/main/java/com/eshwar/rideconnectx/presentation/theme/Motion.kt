@@ -39,10 +39,27 @@ object RcxMotion {
     /** Number count-ups. */
     const val COUNT_MS = 1100
 
-    /** Presses: quick, with a little overshoot on release. */
-    fun <T> press() = spring<T>(dampingRatio = 0.55f, stiffness = 900f)
+    /**
+     * Apple's SwiftUI springs, converted: SwiftUI describes a spring by its
+     * `response` (seconds per oscillation) and damping fraction; Compose by
+     * stiffness = (2 pi / response)^2 and the same damping ratio.
+     */
+    private fun <T> apple(response: Float, damping: Float) =
+        spring<T>(dampingRatio = damping, stiffness = (2f * Math.PI.toFloat() / response).let { it * it })
+
+    /** `.smooth` (0.5 s, no bounce): screen pushes, large moves. */
+    fun <T> smooth() = apple<T>(0.5f, 1f)
+    /** `.snappy` (0.35 s, 0.85): entrances, toggles. */
+    fun <T> snappy() = apple<T>(0.35f, 0.85f)
+    /** `.bouncy` (0.5 s, 0.7): playful pops. */
+    fun <T> bouncy() = apple<T>(0.5f, 0.7f)
+    /** `.interactiveSpring` (0.15 s, 0.86): follows a finger. */
+    fun <T> interactive() = apple<T>(0.15f, 0.86f)
+
+    /** Presses: the interactive spring, so release feels immediate. */
+    fun <T> press() = interactive<T>()
     /** Things that pop in (badges, dots, FAB). */
-    fun <T> pop() = spring<T>(dampingRatio = 0.5f, stiffness = 500f)
+    fun <T> pop() = bouncy<T>()
 }
 
 /**
@@ -55,7 +72,7 @@ fun Modifier.enterRise(index: Int = 0, distanceDp: Float = 16f): Modifier = comp
     LaunchedEffect(Unit) {
         if (!played) {
             delay(index * RcxMotion.STAGGER_MS)
-            progress.animateTo(1f, tween(RcxMotion.SCREEN_MS + 120, easing = FastOutSlowInEasing))
+            progress.animateTo(1f, RcxMotion.snappy())
             played = true
         }
     }

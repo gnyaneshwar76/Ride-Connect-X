@@ -122,7 +122,7 @@ fun DashboardScreen(
                 )
             )
     ) {
-        if (glassMode) GlassLightField(haze)
+        if (glassMode) GlassLightField(haze, photo = R.drawable.img_onboarding_intelligence, accent = c.blue)
         Column(
             Modifier
                 .fillMaxHeight()

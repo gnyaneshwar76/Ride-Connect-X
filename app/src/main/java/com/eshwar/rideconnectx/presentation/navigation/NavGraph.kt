@@ -127,7 +127,7 @@ fun NavGraph(
     // Push: the new screen slides in from the right while the old one drifts
     // back and dims; Back reverses it, so the rider always sees where they came
     // from. Leaving the splash only fades — nothing is "behind" it.
-    val spec = tween<androidx.compose.ui.unit.IntOffset>(RcxMotion.SCREEN_MS, easing = FastOutSlowInEasing)
+    val spec = RcxMotion.smooth<androidx.compose.ui.unit.IntOffset>()
     val fade = tween<Float>(RcxMotion.SCREEN_MS)
     NavHost(
         navController = navController,

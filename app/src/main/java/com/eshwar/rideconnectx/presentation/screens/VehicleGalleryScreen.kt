@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.R
 import com.eshwar.rideconnectx.presentation.theme.cardFill
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
 import androidx.compose.foundation.background
@@ -47,7 +48,7 @@ import com.eshwar.rideconnectx.presentation.theme.RcxType
 fun VehicleGalleryScreen(onContinue: () -> Unit = {}) {
     val c = Rcx.colors
 
-    ScreenBackdrop {
+    ScreenBackdrop(photo = R.drawable.img_welcome_hero, accent = c.blue) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxHeight()
