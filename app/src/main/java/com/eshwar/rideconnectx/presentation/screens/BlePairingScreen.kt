@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.isGlass
+import com.eshwar.rideconnectx.presentation.theme.glassButton
 import com.eshwar.rideconnectx.presentation.theme.cardFill
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import androidx.compose.animation.AnimatedContent
@@ -524,8 +526,11 @@ private fun DeviceRow(
 
             else -> Box(
                 Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Brush.linearGradient(listOf(c.blue, Color(0xFF1A56CC))))
+                    .then(
+                        if (isGlass) Modifier.glassButton(RoundedCornerShape(12.dp), c.blue, strong = true)
+                        else Modifier.clip(RoundedCornerShape(12.dp))
+                            .background(Brush.linearGradient(listOf(c.blue, Color(0xFF1A56CC))))
+                    )
                     .clickable(onClick = onConnect)
                     .padding(horizontal = 16.dp, vertical = 9.dp),
             ) {

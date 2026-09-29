@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.components
 
+import com.eshwar.rideconnectx.presentation.theme.isGlass
+import com.eshwar.rideconnectx.presentation.theme.glassButton
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.LocalIndication
@@ -83,7 +85,9 @@ fun PrimaryButton(
         .alpha(if (enabled) 1f else 0.4f)
         .clip(shape)
 
-    val styled = if (secondary) {
+    val styled = if (isGlass) {
+        base.glassButton(shape, c.blue, strong = !secondary, pressed = pressed)
+    } else if (secondary) {
         base
             .background(c.blue.copy(alpha = 0.051f))
             .border(1.5.dp, c.blue.copy(alpha = 0.267f), shape)
@@ -228,9 +232,12 @@ fun BackHeader(
         Box(
             Modifier
                 .size(36.dp)
-                .clip(shape)
-                .background(c.blue.copy(alpha = 0.07f))
-                .border(1.dp, c.blue.copy(alpha = 0.133f), shape)
+                .then(
+                    if (isGlass) Modifier.glassButton(shape, c.blue, strong = false)
+                    else Modifier.clip(shape)
+                        .background(c.blue.copy(alpha = 0.07f))
+                        .border(1.dp, c.blue.copy(alpha = 0.133f), shape)
+                )
                 .clickable(onClick = onBack),
             contentAlignment = Alignment.Center,
         ) {

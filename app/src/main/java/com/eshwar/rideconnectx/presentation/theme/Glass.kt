@@ -490,3 +490,39 @@ fun GlassSheetWindow() {
         onDispose { }
     }
 }
+
+/** True when the rider has Glass on — for components that swap their look. */
+val isGlass: Boolean
+    @Composable get() = LocalStyleMode.current == StyleMode.GLASS
+
+/**
+ * A liquid-glass button: the backdrop frosted and tinted with [tint] (strong
+ * for a main action, faint for a secondary one), a lit rim in the tint's
+ * colour, and gloss that dims while pressed. Use only when [isGlass].
+ */
+@Composable
+fun Modifier.glassButton(shape: Shape, tint: Color, strong: Boolean, pressed: Boolean = false): Modifier {
+    val g = glassTokens(GlassTier.LIGHT)
+    val k = LocalGlassIntensity.current
+    val haze = LocalHaze.current
+    val fillAlpha = (if (strong) 0.62f else 0.10f) * (if (pressed) 1.25f else 1f)
+    val fill = tint.copy(alpha = fillAlpha.coerceAtMost(0.9f))
+    val base = if (Rcx.colors.isDark) g.fallback else Color.White
+    val rim = Brush.linearGradient(
+        0f to Color.White.copy(alpha = if (strong) 0.55f else 0.40f),
+        0.4f to tint.copy(alpha = 0.25f),
+        1f to tint.copy(alpha = if (strong) 0.55f else 0.30f),
+    )
+    return this
+        .clip(shape)
+        .then(
+            if (haze != null && canBlur) Modifier.hazeEffect(haze) {
+                blurRadius = g.blur * (0.4f + k)
+                noiseFactor = 0.02f
+                backgroundColor = base
+                tints = listOf(HazeTint(fill))
+            } else Modifier.background(fill)
+        )
+        .glassSheen(g, pressed)
+        .border(1.dp, rim, shape)
+}

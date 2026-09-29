@@ -162,7 +162,7 @@ fun AppearanceScreen(
                         }
                         // Only meaningful for glass, so it appears with it.
                         AnimatedVisibility(surfaceStyle == SurfaceStyle.GLASS) {
-                            GlassIntensityRow(intensity, vm::setGlassIntensity)
+                            GlassIntensityRow(intensity, vm::previewGlassIntensity, vm::setGlassIntensity)
                         }
                     }
                 }
@@ -192,10 +192,10 @@ fun AppearanceScreen(
 
 /** Slider for how strong the glass is: blur, tint, rim and background light. */
 @Composable
-private fun GlassIntensityRow(value: Float, onChange: (Float) -> Unit) {
+private fun GlassIntensityRow(value: Float, onPreview: (Float) -> Unit, onChange: (Float) -> Unit) {
     val c = Rcx.colors
-    // Moves locally while dragging and saves once on release, so the store is
-    // not written sixty times a second.
+    // The app follows the finger live (onPreview, memory only); the value is
+    // saved once on release, so storage is not written every frame.
     var local by remember(value) { mutableFloatStateOf(value) }
     Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
         SettingsDivider()
@@ -213,7 +213,7 @@ private fun GlassIntensityRow(value: Float, onChange: (Float) -> Unit) {
         }
         Slider(
             value = local,
-            onValueChange = { local = it },
+            onValueChange = { local = it; onPreview(it) },
             onValueChangeFinished = { onChange(local) },
             colors = SliderDefaults.colors(
                 thumbColor = Color.White,

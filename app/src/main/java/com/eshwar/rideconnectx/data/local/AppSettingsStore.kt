@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.data.local
 
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.datastore.preferences.core.floatPreferencesKey
 import android.content.Context
 import androidx.datastore.core.DataStore
@@ -84,11 +86,25 @@ class AppSettingsStore @Inject constructor(
 
     suspend fun setSurfaceStyle(style: SurfaceStyle) = put(SURFACE_STYLE, style.name)
 
-    /** Glass strength, 0 (barely there) to 1 (strongest). */
-    val glassIntensity: Flow<Float> =
-        context.appSettings.data.map { (it[GLASS_INTENSITY] ?: DEFAULT_GLASS_INTENSITY).coerceIn(0f, 1f) }
+    /** The slider's value while it is being dragged; null when not dragging. */
+    private val draggingIntensity = MutableStateFlow<Float?>(null)
 
-    suspend fun setGlassIntensity(value: Float) = put(GLASS_INTENSITY, value.coerceIn(0f, 1f))
+    /**
+     * Glass strength, 0 (barely there) to 1 (strongest). Follows the slider
+     * live while it is dragged, so the whole app changes under the finger.
+     */
+    val glassIntensity: Flow<Float> = combine(
+        context.appSettings.data.map { (it[GLASS_INTENSITY] ?: DEFAULT_GLASS_INTENSITY).coerceIn(0f, 1f) },
+        draggingIntensity,
+    ) { saved, dragging -> dragging ?: saved }
+
+    /** Live preview while dragging; not written to disk. */
+    fun previewGlassIntensity(value: Float) { draggingIntensity.value = value.coerceIn(0f, 1f) }
+
+    suspend fun setGlassIntensity(value: Float) {
+        put(GLASS_INTENSITY, value.coerceIn(0f, 1f))
+        draggingIntensity.value = null
+    }
     suspend fun setAutoStartNavigation(on: Boolean) = put(AUTO_START_NAV, on)
 
     suspend fun setAutoConnect(on: Boolean) = put(AUTO_CONNECT, on)

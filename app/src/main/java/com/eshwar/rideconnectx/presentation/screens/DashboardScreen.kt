@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.isGlass
+import com.eshwar.rideconnectx.presentation.theme.glassButton
 import com.eshwar.rideconnectx.presentation.theme.cardFill
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import com.eshwar.rideconnectx.presentation.theme.GlassLightField
@@ -368,13 +370,16 @@ private fun PrimaryAction(
     Column(
         modifier
             .scale(scale)
-            .clip(shape)
-            .background(
-                Brush.verticalGradient(
-                    listOf(accent.copy(alpha = 0.13f), accent.copy(alpha = 0.03f))
-                )
+            .then(
+                if (isGlass) Modifier.glassButton(shape, accent, strong = false, pressed = pressed)
+                else Modifier.clip(shape)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(accent.copy(alpha = 0.13f), accent.copy(alpha = 0.03f))
+                        )
+                    )
+                    .border(1.dp, accent.copy(alpha = 0.24f), shape)
             )
-            .border(1.dp, accent.copy(alpha = 0.24f), shape)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(16.dp),
     ) {

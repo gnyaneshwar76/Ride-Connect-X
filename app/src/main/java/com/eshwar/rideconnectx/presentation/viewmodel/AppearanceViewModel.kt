@@ -61,4 +61,6 @@ class AppearanceViewModel @Inject constructor(
         store.glassIntensity.stateIn(viewModelScope, SharingStarted.Eagerly, DEFAULT_GLASS_INTENSITY)
 
     fun setGlassIntensity(value: Float) = appScope.launch { store.setGlassIntensity(value) }
+
+    fun previewGlassIntensity(value: Float) = store.previewGlassIntensity(value)
 }
