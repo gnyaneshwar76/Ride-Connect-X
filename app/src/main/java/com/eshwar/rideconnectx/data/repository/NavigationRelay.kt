@@ -68,6 +68,7 @@ class NavigationRelay @Inject constructor(
         // ([awaitMaps]). The switch was saved but never read (AUD-3).
         if (_state.value is NavState.Inactive && !appSettings.settings.first().autoStartNavigation) return
         _state.value = NavState.Active(maneuver)
+        rerouting = false
         relay(maneuver)
         armWatchdog(arrived = maneuver.isArrival())
     }
@@ -95,6 +96,34 @@ class NavigationRelay @Inject constructor(
         }
     }
 
+    /**
+     * Maps is recalculating because the rider left the planned route.
+     *
+     * The cluster has no reroute icon (none photographed, none in the Suzuki
+     * app's set), so the rider is shown a "working" frame instead: the arrow
+     * blanked (46, the official app's own blank) and "----" where the turn
+     * distance goes, ETA and remaining distance kept. The next real Maps
+     * instruction overwrites it. Sent once per reroute, not per notification.
+     */
+    private var rerouting = false
+
+    suspend fun onReroute(what: String) {
+        val active = _state.value as? NavState.Active ?: return
+        if (rerouting) return
+        rerouting = true
+        val packet = ProtocolEngine.buildNavigationPacket(
+            clusterCode = ProtocolEngine.Maneuver.FIRST_BLANK,
+            distanceMetres = 0,
+            clock = etaClock(active.maneuver.etaMinutes),
+            remainingMetres = active.maneuver.remainingMetres(),
+            distanceText = "----M",
+        )
+        val delivered = runCatching { bleRepository.sendPacket(packet).first() }.getOrDefault(false)
+        Log.d(TAG, "Reroute frame sent=$delivered ($what)")
+        rideLog.reroute(what, delivered, packet)
+        armWatchdog(arrived = false)
+    }
+
     /** Maps says "Arrive at…" / "…destination…", or under ~50 m remain. */
     private fun NavManeuver.isArrival(): Boolean {
         val text = instruction.lowercase()
@@ -110,6 +139,7 @@ class NavigationRelay @Inject constructor(
         }
         _state.value = NavState.Inactive
         _clusterLinked.value = false
+        rerouting = false
     }
 
     /**
@@ -191,6 +221,7 @@ class NavigationRelay @Inject constructor(
             iconCode = maneuver.iconManeuverId,
             codeSource = maneuver.codeSource.name,
             screenOn = maneuver.screenOn,
+            packet = packet,
         )
         _clusterLinked.value = delivered
     }

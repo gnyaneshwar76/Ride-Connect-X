@@ -176,6 +176,12 @@ object ProtocolEngine {
         remainingMetres: Int = 0,
         gpsStatus: Char = GPS_OK,
         navActive: Char = '1',
+        /**
+         * Five ASCII characters to put in the turn-distance field instead of
+         * [distanceMetres] - the reroute frame's "----". Unverified: whether
+         * the cluster draws non-digits there is exactly what a ride settles.
+         */
+        distanceText: String? = null,
     ): ByteArray {
         val frame = ByteArray(PACKET_LENGTH)
         frame[0] = START_BYTE
@@ -195,7 +201,7 @@ object ProtocolEngine {
         // carries an `m` unit, and speed would be km/h - it was simply
         // mislabelled. The turn distance was going to bytes 18-22 instead, so it
         // appeared in the destination-remaining slot at the bottom.
-        putAscii(frame, 4, formatDistance(distanceMetres))
+        putAscii(frame, 4, distanceText?.padEnd(5)?.take(5) ?: formatDistance(distanceMetres))
         putAscii(frame, 9, clock.padEnd(6).take(6))
 
         frame[15] = 0xFF.toByte(); frame[16] = 0xFF.toByte(); frame[17] = 0xFF.toByte()

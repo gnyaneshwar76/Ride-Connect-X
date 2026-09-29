@@ -10,6 +10,7 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.launch
 
 /**
  * Appends every maneuver sent to the cluster to a file on the device.
@@ -28,8 +29,29 @@ import javax.inject.Singleton
 @Singleton
 class RideLog @Inject constructor(
     @ApplicationContext private val context: Context,
+    settings: com.eshwar.rideconnectx.data.local.AppSettingsStore,
+    @com.eshwar.rideconnectx.core.di.ApplicationScope scope: kotlinx.coroutines.CoroutineScope,
 ) {
     private val stamp = SimpleDateFormat("HH:mm:ss", Locale.US)
+
+    /**
+     * Settings → Ride testing → Ride recorder. Off by default: the log says
+     * where the rider went, so it is written only while they ask for it.
+     */
+    @Volatile
+    private var recording = false
+
+    init {
+        scope.launch { settings.rideRecorder.collect { recording = it } }
+    }
+
+    /** The log file, for sharing from Settings; null when there is none yet. */
+    fun fileOrNull(): File? =
+        runCatching { File(context.getExternalFilesDir(null), FILE_NAME) }.getOrNull()?.takeIf { it.exists() }
+
+    fun clear() {
+        runCatching { fileOrNull()?.delete() }
+    }
 
     /**
      * Debug builds only.
@@ -44,7 +66,7 @@ class RideLog @Inject constructor(
      */
     private val file: File?
         get() {
-            if (!BuildConfig.DEBUG) return null
+            if (!BuildConfig.DEBUG && !recording) return null
             return runCatching { File(context.getExternalFilesDir(null), FILE_NAME) }.getOrNull()
         }
 
@@ -75,6 +97,7 @@ class RideLog @Inject constructor(
         iconCode: Int? = null,
         codeSource: String = "TEXT",
         screenOn: Boolean = true,
+        packet: ByteArray? = null,
     ) {
         val m = com.eshwar.rideconnectx.domain.ProtocolEngine.Maneuver
         val label = m.label(code)
@@ -111,6 +134,7 @@ class RideLog @Inject constructor(
         } else if (!phraseRecognised) {
             append("            (direction came from the icon, not the words)")
         }
+        packet?.let { append("            Bytes sent  : ${it.hex()}") }
         append("            Reached the scooter : ${if (delivered) "yes" else "NO — not delivered"}")
         append("            Screen : ${if (screenOn) "on" else "OFF"}   Gap since last : ${gapSeconds}s")
         if (gapSeconds >= 5) {
@@ -162,6 +186,18 @@ class RideLog @Inject constructor(
     fun diag(line: String) {
         append("  DIAG $line")
     }
+
+    /** Maps recalculated; the cluster was sent the blank "----" frame. */
+    fun reroute(what: String, delivered: Boolean, packet: ByteArray) {
+        append("[${stamp.format(Date())}]  *** REROUTE - Maps said: \"$what\"")
+        append("            We sent     : blank arrow (46) + \"----\" distance")
+        append("            Bytes sent  : ${packet.hex()}")
+        append("            Reached the scooter : ${if (delivered) "yes" else "NO — not delivered"}")
+        append("            Did the cluster show ---- ? ______________________")
+        append("")
+    }
+
+    private fun ByteArray.hex(): String = joinToString(" ") { "%02X".format(it) }
 
     /** Marks the start of a route so separate rides can be told apart. */
     fun sessionStart() {

@@ -47,3 +47,6 @@ docs/app-walkthrough.mp4
 
 # Scratch space — stays on this computer, never published.
 /temporary/
+
+# Private ride test notes (contain locations)
+Ride-Test-*.md

@@ -28,6 +28,19 @@ import org.junit.Test
  */
 class MapsNotificationParserTest {
 
+    @Test
+    fun `reroute wording is recognised and normal turns are not`() {
+        assertTrue(MapsNotificationParser.isReroute("Rerouting..."))
+        assertTrue(MapsNotificationParser.isReroute(" Finding a new route"))
+        assertTrue(!MapsNotificationParser.isReroute("200 m Turn right onto Dammaiguda Road"))
+    }
+
+    @Test
+    fun `reroute frame puts dashes in the turn distance field`() {
+        val f = ProtocolEngine.buildNavigationPacket(46, 0, "0930PM", distanceText = "----M")
+        assertEquals("----M", String(f.copyOfRange(4, 9), Charsets.US_ASCII))
+    }
+
     /** Builds a notification the way Maps actually posts one. */
     private fun maps(instruction: String, distance: String, journey: String = "") =
         MapsNotificationParser.parse(title = distance, text = instruction, subText = journey)

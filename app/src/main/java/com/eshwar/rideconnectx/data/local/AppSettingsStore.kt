@@ -43,6 +43,7 @@ class AppSettingsStore @Inject constructor(
         val UNITS = stringPreferencesKey("distance_unit")
         val SURFACE_STYLE = stringPreferencesKey("surface_style")
         val GLASS_INTENSITY = floatPreferencesKey("glass_intensity")
+        val RIDE_RECORDER = booleanPreferencesKey("ride_recorder")
         val AUTO_START_NAV = booleanPreferencesKey("auto_start_navigation")
 
         // Bluetooth
@@ -85,6 +86,11 @@ class AppSettingsStore @Inject constructor(
     suspend fun setDistanceUnit(unit: DistanceUnit) = put(UNITS, unit.name)
 
     suspend fun setSurfaceStyle(style: SurfaceStyle) = put(SURFACE_STYLE, style.name)
+
+    /** Ride recorder for navigation testing; off unless the rider turns it on. */
+    val rideRecorder: Flow<Boolean> = context.appSettings.data.map { it[RIDE_RECORDER] ?: false }
+
+    suspend fun setRideRecorder(on: Boolean) = put(RIDE_RECORDER, on)
 
     /** The slider's value while it is being dragged; null when not dragging. */
     private val draggingIntensity = MutableStateFlow<Float?>(null)

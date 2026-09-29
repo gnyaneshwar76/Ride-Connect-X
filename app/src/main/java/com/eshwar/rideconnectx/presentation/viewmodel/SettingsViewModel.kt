@@ -38,7 +38,18 @@ class SettingsViewModel @Inject constructor(
     userPrefs: UserPreferencesStore,
     vehicleRepository: VehicleRepository,
     @ApplicationScope private val appScope: CoroutineScope,
+    private val rideLog: com.eshwar.rideconnectx.data.nav.RideLog,
 ) : ViewModel() {
+
+    val rideRecorder: StateFlow<Boolean> =
+        store.rideRecorder.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun setRideRecorder(on: Boolean) = appScope.launch { store.setRideRecorder(on) }
+
+    /** The recorded ride log, or null when nothing has been recorded yet. */
+    fun rideLogFile(): java.io.File? = rideLog.fileOrNull()
+
+    fun clearRideLog() = rideLog.clear()
 
     val settings: StateFlow<AppSettings> =
         store.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())

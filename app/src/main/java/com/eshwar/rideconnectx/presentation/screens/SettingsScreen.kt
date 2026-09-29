@@ -102,6 +102,7 @@ fun SettingsScreen(
     val connection by vm.connectionState.collectAsStateWithLifecycle()
     val vehicleName by vm.vehicleName.collectAsStateWithLifecycle()
     val account by vm.account.collectAsStateWithLifecycle()
+    val rideRecorder by vm.rideRecorder.collectAsStateWithLifecycle()
 
     var showUnits by remember { mutableStateOf(false) }
     var confirmForget by remember { mutableStateOf(false) }
@@ -218,6 +219,50 @@ fun SettingsScreen(
                         )
                         // Marketing notifications removed — the app does not
                         // send any, so a switch for them was pure noise.
+                    }
+                }
+
+                // ── Ride testing ─────────────────────────────────────
+                // Records every instruction sent to the cluster (what Maps said,
+                // the code, the exact bytes, delivered or not, reroutes), so a
+                // ride can be checked against what the dashboard showed.
+                item {
+                    SettingsGroup("Ride testing", Icons.Filled.Tune) {
+                        SettingsToggleRow(
+                            title = "Ride recorder",
+                            subtitle = "Save every instruction sent to your scooter during navigation",
+                            checked = rideRecorder,
+                            onCheckedChange = vm::setRideRecorder,
+                        )
+                        SettingsDivider()
+                        SettingsLinkRow(
+                            title = "Share ride log",
+                            subtitle = "Send the recording to yourself or a tester",
+                            onClick = {
+                                val f = vm.rideLogFile()
+                                if (f == null) {
+                                    android.widget.Toast.makeText(context, "Nothing recorded yet", android.widget.Toast.LENGTH_SHORT).show()
+                                } else {
+                                    val uri = androidx.core.content.FileProvider.getUriForFile(
+                                        context, context.packageName + ".files", f,
+                                    )
+                                    val send = android.content.Intent(android.content.Intent.ACTION_SEND)
+                                        .setType("text/plain")
+                                        .putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                        .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    context.startActivity(android.content.Intent.createChooser(send, "Share ride log"))
+                                }
+                            },
+                        )
+                        SettingsDivider()
+                        SettingsLinkRow(
+                            title = "Clear ride log",
+                            subtitle = "Delete the recording from this phone",
+                            onClick = {
+                                vm.clearRideLog()
+                                android.widget.Toast.makeText(context, "Ride log cleared", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                        )
                     }
                 }
 

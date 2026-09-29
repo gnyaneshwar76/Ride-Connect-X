@@ -444,6 +444,15 @@ class MapsNotificationListener : NotificationListenerService() {
 
         if (title.isBlank() && text.isBlank()) return
 
+        // Maps is working out a new route (rider left the planned one). The
+        // cluster has no reroute icon, so the relay shows a "working" frame
+        // until the next real instruction arrives.
+        if (MapsNotificationParser.isReroute("$title $text")) {
+            Log.d(TAG, "Reroute: title='$title' text='$text'")
+            scope.launch { relay.onReroute("$title | $text") }
+            return
+        }
+
         val parsed = MapsNotificationParser.parse(
             title, text, subText, iconName, arrowMatch?.code,
         )
@@ -640,6 +649,21 @@ object MapsNotificationParser {
         val words = iconName.replace('_', ' ').replace('-', ' ')
         return MANEUVERS.firstOrNull { (pattern, _) -> pattern.containsMatchIn(words) }?.second
     }
+
+    /**
+     * Maps' wording while it recalculates. ponytail: English phrases only,
+     * collected from the ride log's RAW lines; add a phrase when a ride shows
+     * another one.
+     */
+    fun isReroute(s: String): Boolean {
+        val t = s.lowercase()
+        return REROUTE_PHRASES.any { it in t }
+    }
+
+    private val REROUTE_PHRASES = listOf(
+        "rerouting", "re-routing", "recalculating", "finding a new route",
+        "finding a better route", "new route", "off route",
+    )
 
     /**
      * Metres left of the whole journey, read from Maps' subText.
