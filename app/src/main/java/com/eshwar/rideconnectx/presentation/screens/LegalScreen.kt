@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -57,7 +58,7 @@ fun LegalScreen(
     val termsCount = LegalContent.TERMS.size
     val sections = LegalContent.sections(doc)
 
-    Box(Modifier.fillMaxSize().background(c.bg)) {
+    ScreenBackdrop {
         Column(
             Modifier
                 .fillMaxHeight()

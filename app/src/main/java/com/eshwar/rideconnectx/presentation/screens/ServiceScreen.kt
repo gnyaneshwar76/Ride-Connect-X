@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
+import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import com.eshwar.rideconnectx.presentation.theme.enterRise
 import androidx.compose.runtime.LaunchedEffect
 import com.eshwar.rideconnectx.core.util.rememberSystemServices
@@ -142,7 +144,7 @@ fun ServiceScreen(
     // Everything below reads the rider's chosen units from here. Distances are
     // always stored in kilometres; only the display changes.
     CompositionLocalProvider(LocalDistanceUnit provides unit) {
-    Box(Modifier.fillMaxSize().background(c.bg)) {
+    ScreenBackdrop {
         Column(
             Modifier
                 .fillMaxHeight()
@@ -508,8 +510,7 @@ private fun UpcomingTasksCard(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
-            .border(1.dp, c.border, shape)
+            .cardSurface(shape)
             .padding(vertical = 6.dp),
     ) {
         tasks.forEach { item ->
@@ -624,8 +625,7 @@ private fun ServiceRecordCard(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
-            .border(1.dp, c.border, shape)
+            .cardSurface(shape)
             .padding(16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -701,8 +701,7 @@ private fun EmptyCard(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
-            .border(1.dp, c.border, shape)
+            .cardSurface(shape)
             .clickable(onClick = onAdd)
             .padding(vertical = 32.dp, horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

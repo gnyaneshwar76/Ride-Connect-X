@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
+import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -64,7 +66,7 @@ fun AboutScreen(
     val c = Rcx.colors
     var sheet by remember { mutableStateOf<AboutSheet?>(null) }
 
-    Box(Modifier.fillMaxSize().background(c.bg)) {
+    ScreenBackdrop {
         Column(
             Modifier
                 .fillMaxHeight()
@@ -122,8 +124,7 @@ private fun AppInformationCard() {
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
-            .border(1.dp, c.border, shape)
+            .cardSurface(shape)
     ) {
         // The open road sits *behind* the card rather than above it, so the
         // version details stay the subject. Dimmed towards the card colour it

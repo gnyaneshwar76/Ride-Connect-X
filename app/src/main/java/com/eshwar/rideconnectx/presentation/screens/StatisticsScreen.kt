@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -275,8 +276,7 @@ private fun DistanceChart(buckets: List<RideBucket>) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(c.card)
-            .border(1.dp, c.border, RoundedCornerShape(18.dp))
+            .cardSurface(RoundedCornerShape(18.dp))
             .padding(16.dp),
     ) {
         Text("DISTANCE", style = RcxType.MonoTiny.copy(fontSize = 9.sp), color = c.muted)
@@ -317,8 +317,7 @@ private fun RideRow(ride: RideEntity) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(c.card)
-            .border(1.dp, c.border, RoundedCornerShape(18.dp))
+            .cardSurface(RoundedCornerShape(18.dp))
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

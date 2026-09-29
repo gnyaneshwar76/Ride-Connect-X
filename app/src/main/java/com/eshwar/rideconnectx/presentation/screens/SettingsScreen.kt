@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
+import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -104,7 +106,7 @@ fun SettingsScreen(
 
     val connected = connection is ConnectionState.Connected
 
-    Box(Modifier.fillMaxSize().background(c.bg)) {
+    ScreenBackdrop {
         Column(
             Modifier
                 .fillMaxHeight()
@@ -325,8 +327,7 @@ private fun AccountCard(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
-            .border(1.dp, c.border, shape)
+            .cardSurface(shape)
             .clickable(onClick = onClick)
             .padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),

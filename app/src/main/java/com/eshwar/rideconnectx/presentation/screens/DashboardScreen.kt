@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import com.eshwar.rideconnectx.presentation.theme.GlassLightField
 import com.eshwar.rideconnectx.presentation.theme.LocalHaze
 import com.eshwar.rideconnectx.presentation.theme.LocalStyleMode
@@ -469,8 +470,7 @@ private fun HeaderIconButton(
         Modifier
             .size(36.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(c.card)
-            .border(1.dp, c.border, RoundedCornerShape(12.dp))
+            .cardSurface(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -610,8 +610,7 @@ private fun NoVehicleCard(onPair: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
-            .background(c.card)
-            .border(1.dp, c.border, RoundedCornerShape(22.dp))
+            .cardSurface(RoundedCornerShape(22.dp))
             .clickable(onClick = onPair)
             .padding(20.dp),
     ) {
@@ -756,8 +755,7 @@ private fun ActionRow(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(c.card)
-            .border(1.dp, c.border, RoundedCornerShape(18.dp))
+            .cardSurface(RoundedCornerShape(18.dp))
             .clickable(onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,

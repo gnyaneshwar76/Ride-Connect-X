@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -216,7 +219,7 @@ fun glassTokens(tier: GlassTier): GlassTokens = when {
  */
 @Composable
 fun Modifier.glassSurface(
-    shape: RoundedCornerShape,
+    shape: Shape,
     state: GlassState = GlassState.Default,
     accent: Boolean = false,
     tier: GlassTier = GlassTier.LIGHT,
@@ -297,34 +300,7 @@ fun BoxScope.GlassSheen(
     Box(
         Modifier
             .matchParentSize()
-            .drawBehind {
-                // Gloss: the top of the pane catches light and it fades out
-                // before the middle. Drawn inside the clipped shape, so it
-                // follows the rounded corners instead of being a straight bar.
-                drawRect(
-                    Brush.verticalGradient(
-                        0f to g.highlight.copy(alpha = g.highlight.alpha * if (pressed) 0.12f else 0.24f),
-                        0.45f to Color.Transparent,
-                    )
-                )
-                // Specular pool: a soft light near the top, a little left of
-                // centre, sized to the surface. The old one used a fixed
-                // 480px radius centred on the top-left pixel.
-                drawRect(
-                    Brush.radialGradient(
-                        colors = listOf(g.specular.copy(alpha = g.specular.alpha * 0.7f), Color.Transparent),
-                        center = Offset(size.width * 0.32f, 0f),
-                        radius = size.maxDimension * 0.75f,
-                    )
-                )
-                // A faint darker floor so the pane has thickness.
-                drawRect(
-                    Brush.verticalGradient(
-                        0.6f to Color.Transparent,
-                        1f to Color.Black.copy(alpha = 0.12f),
-                    )
-                )
-            }
+            .glassSheen(g, pressed)
     )
 }
 
@@ -370,3 +346,68 @@ fun GlassLightField(state: HazeState, modifier: Modifier = Modifier) {
 fun Modifier.photoScrim(): Modifier = this.background(
     Brush.linearGradient(listOf(ScrimGradientTop, ScrimGradientBottom))
 )
+
+/** Gloss, specular pool and floor shade for a glass pane (see [GlassSheen]). */
+fun Modifier.glassSheen(g: GlassTokens, pressed: Boolean = false): Modifier = drawBehind {
+                // Gloss: the top of the pane catches light and it fades out
+                // before the middle. Drawn inside the clipped shape, so it
+                // follows the rounded corners instead of being a straight bar.
+                drawRect(
+                    Brush.verticalGradient(
+                        0f to g.highlight.copy(alpha = g.highlight.alpha * if (pressed) 0.12f else 0.24f),
+                        0.45f to Color.Transparent,
+                    )
+                )
+                // Specular pool: a soft light near the top, a little left of
+                // centre, sized to the surface. The old one used a fixed
+                // 480px radius centred on the top-left pixel.
+                drawRect(
+                    Brush.radialGradient(
+                        colors = listOf(g.specular.copy(alpha = g.specular.alpha * 0.7f), Color.Transparent),
+                        center = Offset(size.width * 0.32f, 0f),
+                        radius = size.maxDimension * 0.75f,
+                    )
+                )
+                // A faint darker floor so the pane has thickness.
+                drawRect(
+                    Brush.verticalGradient(
+                        0.6f to Color.Transparent,
+                        1f to Color.Black.copy(alpha = 0.12f),
+                    )
+                )
+}
+
+/**
+ * A card background that follows the rider's style: flat card + hairline in
+ * Flat, frosted glass with lit rim and gloss in Glass.
+ */
+@Composable
+fun Modifier.cardSurface(shape: Shape): Modifier =
+    if (LocalStyleMode.current == StyleMode.GLASS) {
+        val g = glassTokens(GlassTier.LIGHT)
+        this.glassSurface(shape).glassSheen(g)
+    } else {
+        val c = Rcx.colors
+        this.background(c.card).border(1.dp, c.border, shape)
+    }
+
+/**
+ * A screen's backdrop. Flat: the plain app background. Glass: the drifting
+ * light field, which every glass card on the screen frosts.
+ */
+@Composable
+fun ScreenBackdrop(
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val c = Rcx.colors
+    if (LocalStyleMode.current == StyleMode.GLASS) {
+        val haze = remember { HazeState() }
+        Box(modifier.fillMaxSize().background(c.bg)) {
+            GlassLightField(haze)
+            CompositionLocalProvider(LocalHaze provides haze) { content() }
+        }
+    } else {
+        Box(modifier.fillMaxSize().background(c.bg), content = content)
+    }
+}

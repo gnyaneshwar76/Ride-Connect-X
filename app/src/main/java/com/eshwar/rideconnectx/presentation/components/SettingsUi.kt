@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.components
 
+import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import com.eshwar.rideconnectx.presentation.theme.enterRise
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -63,8 +64,7 @@ fun SettingsGroup(
             Modifier
                 .fillMaxWidth()
                 .clip(shape)
-                .background(c.card)
-                .border(1.dp, c.border, shape)
+                .cardSurface(shape)
                 .padding(vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -99,17 +99,10 @@ fun SettingsToggleRow(
                 Text(subtitle, style = RcxType.BodySmall.copy(fontSize = 12.sp), color = c.muted)
             }
         }
-        Switch(
+        RcxSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = c.blue,
-                uncheckedThumbColor = c.muted,
-                uncheckedTrackColor = c.card2,
-                uncheckedBorderColor = c.border,
-            ),
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -90,7 +91,7 @@ fun PermissionDetailsScreen(onBack: () -> Unit) {
         lifecycleOwner.lifecycle.addObserver(observer)
     }
 
-    Box(Modifier.fillMaxSize().background(c.bg)) {
+    ScreenBackdrop {
         Column(
             Modifier
                 .fillMaxHeight()

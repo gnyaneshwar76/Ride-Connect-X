@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
+import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import com.eshwar.rideconnectx.presentation.theme.enterRise
 import com.eshwar.rideconnectx.presentation.theme.shake
 import com.eshwar.rideconnectx.presentation.theme.rememberShakeKey
@@ -98,6 +100,7 @@ import com.eshwar.rideconnectx.data.repository.ContactError
 import com.eshwar.rideconnectx.domain.model.FieldRules
 import androidx.compose.ui.res.stringResource
 import com.eshwar.rideconnectx.R
+import com.eshwar.rideconnectx.presentation.components.RcxSwitch
 import com.eshwar.rideconnectx.presentation.components.BackHeader
 import com.eshwar.rideconnectx.presentation.components.PrimaryButton
 import com.eshwar.rideconnectx.presentation.components.RcxHeroBanner
@@ -282,7 +285,7 @@ fun SafetyScreen(
         onLocationDeclined()
     }
 
-    Box(Modifier.fillMaxSize().background(c.bg)) {
+    ScreenBackdrop {
         Column(
             Modifier
                 .fillMaxHeight()
@@ -571,7 +574,7 @@ private fun EmergencyCard(
                 color = c.text,
                 modifier = Modifier.weight(1f),
             )
-            Switch(checked = enabled, onCheckedChange = onToggle, colors = rcxSwitchColors())
+            RcxSwitch(checked = enabled, onCheckedChange = onToggle)
         }
     }
 }
@@ -738,8 +741,7 @@ private fun RideSafetyCard(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
-            .border(1.dp, c.border, shape)
+            .cardSurface(shape)
             .padding(16.dp),
     ) {
         Row(
@@ -760,7 +762,7 @@ private fun RideSafetyCard(
                     color = c.muted,
                 )
             }
-            Switch(checked = helmetReminder, onCheckedChange = onHelmetToggle, colors = rcxSwitchColors())
+            RcxSwitch(checked = helmetReminder, onCheckedChange = onHelmetToggle)
         }
 
         Spacer(Modifier.height(14.dp))
@@ -1206,8 +1208,7 @@ private fun ShareLocationToggle(enabled: Boolean, onToggle: (Boolean) -> Unit) {
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
-            .border(1.dp, c.border, shape)
+            .cardSurface(shape)
             .padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1226,7 +1227,7 @@ private fun ShareLocationToggle(enabled: Boolean, onToggle: (Boolean) -> Unit) {
                 color = c.muted,
             )
         }
-        Switch(checked = enabled, onCheckedChange = onToggle, colors = rcxSwitchColors())
+        RcxSwitch(checked = enabled, onCheckedChange = onToggle)
     }
 }
 
@@ -1334,11 +1335,3 @@ private fun SafetyField(
     )
 }
 
-@Composable
-private fun rcxSwitchColors() = SwitchDefaults.colors(
-    checkedThumbColor = Color.White,
-    checkedTrackColor = Rcx.colors.blue,
-    uncheckedThumbColor = Rcx.colors.muted,
-    uncheckedTrackColor = Rcx.colors.card2,
-    uncheckedBorderColor = Rcx.colors.border,
-)

@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
+import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import com.eshwar.rideconnectx.presentation.theme.enterRise
 import com.eshwar.rideconnectx.presentation.theme.shake
 import com.eshwar.rideconnectx.presentation.theme.rememberShakeKey
@@ -144,7 +146,7 @@ fun ProfileScreen(
 
     val connected = connection is ConnectionState.Connected
 
-    Box(Modifier.fillMaxSize().background(c.bg)) {
+    ScreenBackdrop {
         Column(
             Modifier
                 .fillMaxHeight()
@@ -433,8 +435,7 @@ private fun ProfileCard(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
-            .border(1.dp, c.border, shape)
+            .cardSurface(shape)
     ) {
         // Cover banner across the top of the card, with the avatar overlapping
         // its lower half. The gradient runs the photo into the card colour so
@@ -557,8 +558,7 @@ private fun VehicleCard(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
-            .border(1.dp, c.border, shape)
+            .cardSurface(shape)
             .clickable(onClick = onChange)
             .padding(18.dp),
     ) {

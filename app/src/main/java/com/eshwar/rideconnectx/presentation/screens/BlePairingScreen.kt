@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
@@ -285,8 +286,7 @@ private fun NothingFound(
             Modifier
                 .fillMaxWidth()
                 .clip(shape)
-                .background(c.card)
-                .border(1.dp, c.border, shape)
+                .cardSurface(shape)
                 .padding(20.dp),
         ) {
             Row(

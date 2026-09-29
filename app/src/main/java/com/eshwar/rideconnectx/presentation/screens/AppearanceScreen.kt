@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
+import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
@@ -78,7 +80,7 @@ fun AppearanceScreen(
     val accent by vm.accentColor.collectAsStateWithLifecycle()
     val surfaceStyle by vm.surfaceStyle.collectAsStateWithLifecycle()
 
-    Box(Modifier.fillMaxSize().background(c.bg)) {
+    ScreenBackdrop {
         Column(
             Modifier
                 .fillMaxHeight()
@@ -189,8 +191,7 @@ private fun AppearancePreviewCard() {
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
-            .border(1.dp, c.border, shape)
+            .cardSurface(shape)
             .padding(18.dp),
     ) {
         Text(stringResource(R.string.appearance_preview), style = RcxType.MonoTiny, color = c.muted)
@@ -273,8 +274,7 @@ private fun AccentColourSection(
             Modifier
                 .fillMaxWidth()
                 .clip(shape)
-                .background(c.card)
-                .border(1.dp, c.border, shape)
+                .cardSurface(shape)
                 .padding(16.dp),
         ) {
             // Two rows of four, so every swatch stays a comfortable target.

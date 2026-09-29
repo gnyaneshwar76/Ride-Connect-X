@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
+import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import com.eshwar.rideconnectx.presentation.theme.enterRise
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.background
@@ -78,7 +80,7 @@ fun NotificationsScreen(
     val items by vm.notifications.collectAsStateWithLifecycle()
     val unread by vm.unreadCount.collectAsStateWithLifecycle()
 
-    Box(Modifier.fillMaxSize().background(c.bg)) {
+    ScreenBackdrop {
         Column(
             Modifier
                 .fillMaxHeight()
@@ -213,8 +215,7 @@ private fun EmptyNotifications(modifier: Modifier = Modifier) {
         modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(c.card)
-            .border(1.dp, c.border, RoundedCornerShape(20.dp))
+            .cardSurface(RoundedCornerShape(20.dp))
             .padding(vertical = 40.dp, horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
