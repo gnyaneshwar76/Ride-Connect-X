@@ -24,4 +24,5 @@ interface ServiceEntryPoint {
     fun phoneStatusProvider(): com.eshwar.rideconnectx.data.ble.PhoneStatusProvider
     fun serviceReminder(): com.eshwar.rideconnectx.data.repository.ServiceReminder
     fun connectionAlerts(): com.eshwar.rideconnectx.data.repository.ConnectionAlerts
+    fun rideTracker(): com.eshwar.rideconnectx.data.repository.RideTracker
 }

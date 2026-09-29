@@ -47,5 +47,7 @@ class RideConnectXApp : Application() {
         entry.serviceReminder().start()
         // Settings → Connection alerts (AUD-2).
         entry.connectionAlerts().start()
+        // Statistics: rides recorded from the scooter's trip meter (F1/F2).
+        entry.rideTracker().start()
     }
 }
