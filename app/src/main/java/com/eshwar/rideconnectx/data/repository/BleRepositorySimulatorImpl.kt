@@ -36,8 +36,7 @@ class BleRepositorySimulatorImpl @Inject constructor() : BleRepository {
 
     override fun scanDevices(): Flow<List<BleDevice>> = flow {
         val mockDevices = listOf(
-            BleDevice("SAS-SIM-AVENIS", "00:11:22:33:44:55", -55),
-            BleDevice("SUZUKI-SIM-BURGMAN", "AA:BB:CC:DD:EE:FF", -62)
+            BleDevice("SAS210217219 (virtual)", "00:11:22:33:44:55", -55),
         )
         while (true) {
             emit(mockDevices)
@@ -51,9 +50,14 @@ class BleRepositorySimulatorImpl @Inject constructor() : BleRepository {
         emit(ConnectionState.Connecting(address, "Simulated Scooter"))
         delay(1500)
         emit(ConnectionState.Connected(address, "Simulated Scooter"))
+        // Example readings so the dashboard has something to show.
+        _telemetry.value = ScooterTelemetry(
+            odometerKm = 12846, tripAKm = 42.6f, tripBKm = 318.2f, fuelSegments = 4, isValid = true,
+        )
     }.onEach { _connectionState.value = it }
 
     override fun disconnect() {
+        _telemetry.value = ScooterTelemetry()
         _connectionState.value = ConnectionState.Disconnected("Disconnected")
     }
 
