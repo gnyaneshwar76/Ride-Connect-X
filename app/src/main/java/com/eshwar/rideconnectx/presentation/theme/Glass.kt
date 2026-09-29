@@ -1,5 +1,14 @@
 package com.eshwar.rideconnectx.presentation.theme
 
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -109,9 +118,11 @@ val GlassDarkHeavy = GlassTokens(
  */
 val GlassDarkLight = GlassTokens(
     blur = 20.dp,
-    fill = Color(0x17FFFFFF),           // rgba(255,255,255,0.09)
+    // Smoked, not milky: a dark tint keeps small labels readable over the
+    // coloured light, and the lit rim + gloss supply the "glass".
+    fill = Color(0x47070D1B),           // rgba(7,13,27,0.28) - was white 0.09, read as grey slabs
     fillAccent = Color(0x382B7FFF),     // rgba(43,127,255,0.22)
-    fillPressed = Color(0x2BFFFFFF),    // rgba(255,255,255,0.17)
+    fillPressed = Color(0x70070D1B),    // rgba(7,13,27,0.44)
     fillDisabled = Color(0x0AFFFFFF),   // rgba(255,255,255,0.04)
     fallback = Color(0xFF111E38),
     border = Color(0x3DFFFFFF),         // rgba(255,255,255,0.24)
@@ -235,6 +246,8 @@ fun Modifier.glassSurface(
                 // Real frosting: samples the screen's declared backdrop.
                 haze != null && canBlur -> Modifier.hazeEffect(haze) {
                     blurRadius = g.blur
+                    // Haze's default grain read as a dirty screen on a phone.
+                    noiseFactor = 0.02f
                     backgroundColor = base
                     tints = listOf(HazeTint(fill))
                 }
@@ -245,7 +258,24 @@ fun Modifier.glassSurface(
                 else -> Modifier.background(fill)
             }
         )
-        .border(1.dp, borderColor, shape)
+        .border(1.dp, rimBrush(borderColor, state == GlassState.Disabled), shape)
+}
+
+/**
+ * The rim of a piece of glass is not one colour: light catches the top-left
+ * edge, the sides almost vanish, and the bottom-right picks up a little bounce.
+ * A flat 1dp outline in one colour is what made the old surfaces look like
+ * grey boxes with a border drawn on.
+ */
+private fun rimBrush(base: Color, disabled: Boolean): Brush {
+    if (disabled) return Brush.linearGradient(listOf(base, base))
+    val strong = base.copy(alpha = (base.alpha * 1.9f).coerceAtMost(0.75f))
+    return Brush.linearGradient(
+        0f to strong,
+        0.35f to base.copy(alpha = base.alpha * 0.35f),
+        0.7f to base.copy(alpha = base.alpha * 0.2f),
+        1f to base.copy(alpha = base.alpha * 0.8f),
+    )
 }
 
 /**
@@ -263,28 +293,75 @@ fun BoxScope.GlassSheen(
     if (state == GlassState.Disabled) return
     val g = glassTokens(tier)
 
+    val pressed = state == GlassState.Pressed
     Box(
         Modifier
             .matchParentSize()
-            .background(
-                // radial-gradient(ellipse 72% 38% at 50% 0%, …) from the export.
-                Brush.radialGradient(
-                    colors = listOf(g.specular, Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset(0.5f, 0f),
-                    radius = 480f,
+            .drawBehind {
+                // Gloss: the top of the pane catches light and it fades out
+                // before the middle. Drawn inside the clipped shape, so it
+                // follows the rounded corners instead of being a straight bar.
+                drawRect(
+                    Brush.verticalGradient(
+                        0f to g.highlight.copy(alpha = g.highlight.alpha * if (pressed) 0.12f else 0.24f),
+                        0.45f to Color.Transparent,
+                    )
                 )
-            )
+                // Specular pool: a soft light near the top, a little left of
+                // centre, sized to the surface. The old one used a fixed
+                // 480px radius centred on the top-left pixel.
+                drawRect(
+                    Brush.radialGradient(
+                        colors = listOf(g.specular.copy(alpha = g.specular.alpha * 0.7f), Color.Transparent),
+                        center = Offset(size.width * 0.32f, 0f),
+                        radius = size.maxDimension * 0.75f,
+                    )
+                )
+                // A faint darker floor so the pane has thickness.
+                drawRect(
+                    Brush.verticalGradient(
+                        0.6f to Color.Transparent,
+                        1f to Color.Black.copy(alpha = 0.12f),
+                    )
+                )
+            }
     )
+}
 
-    // Inset 20dp each side, as in the export — the highlight stops short of the
-    // corners, which is what stops it reading as a drawn border.
+/**
+ * Coloured light for glass to sit on.
+ *
+ * Glass over a flat dark background has nothing to bend or blur, so it reads as
+ * grey plastic. This paints a few soft pools of the brand colours that drift
+ * very slowly; the screen marks it as the haze source and every glass surface
+ * above frosts it. Only drawn in Glass mode.
+ */
+@Composable
+fun GlassLightField(state: HazeState, modifier: Modifier = Modifier) {
+    val c = Rcx.colors
+    val t by rememberInfiniteTransition(label = "lightField").animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(14_000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "lightFieldDrift",
+    )
     Box(
-        Modifier
-            .align(Alignment.TopCenter)
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .height(1.dp)
-            .background(g.highlight)
+        modifier
+            .fillMaxSize()
+            .hazeSource(state)
+            .drawBehind {
+                fun orb(color: Color, x: Float, y: Float, r: Float) = drawCircle(
+                    Brush.radialGradient(listOf(color, Color.Transparent), center = Offset(x, y), radius = r),
+                    radius = r,
+                    center = Offset(x, y),
+                )
+                val w = size.width
+                val h = size.height
+                orb(c.blue.copy(alpha = 0.38f), w * (0.85f - 0.15f * t), h * (0.12f + 0.05f * t), w * 0.75f)
+                orb(c.cyan.copy(alpha = 0.22f), w * (0.10f + 0.12f * t), h * (0.42f - 0.04f * t), w * 0.65f)
+                orb(c.green.copy(alpha = 0.16f), w * (0.75f + 0.08f * t), h * (0.70f + 0.04f * t), w * 0.6f)
+                orb(c.blue.copy(alpha = 0.20f), w * (0.25f - 0.08f * t), h * (0.92f - 0.03f * t), w * 0.6f)
+            }
     )
 }
 
