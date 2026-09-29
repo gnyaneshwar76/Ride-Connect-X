@@ -155,4 +155,4 @@ Source code: [`main`](../../tree/main)
 
 Files are named `<ID>-<short-description>`, for example `B3-roundabout-exit-2.jpg`, and kept in a folder per section (`A-vehicle-link/`, `B-navigation/`, …). Long recordings are published as [release](../../releases) attachments and linked from the table.
 
-_Last updated: 28 Sep 2026_
+_Last updated: 29 Sep 2026_
