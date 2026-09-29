@@ -1,5 +1,13 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import com.eshwar.rideconnectx.presentation.theme.enterRise
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -189,6 +197,8 @@ fun BlePairingScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(state.devices, key = { it.address }) { device ->
+                        // Devices appear as they are found rather than popping in.
+                        Box(Modifier.animateItem().enterRise()) {
                         DeviceRow(
                             device = device,
                             connecting = (state.connectionState as? ConnectionState.Connecting)
@@ -196,6 +206,7 @@ fun BlePairingScreen(
                             connected = connected?.address == device.address,
                             onConnect = { vm.onIntent(ScanUiIntent.SelectDevice(device.address)) },
                         )
+                        }
                     }
                 }
             }
@@ -452,7 +463,7 @@ private fun DeviceRow(
     onConnect: () -> Unit,
 ) {
     val c = Rcx.colors
-    val accent = if (connected) c.green else c.blue
+    val accent by animateColorAsState(if (connected) c.green else c.blue, tween(500), label = "deviceAccent")
     val shape = RoundedCornerShape(20.dp)
 
     Row(
@@ -494,13 +505,19 @@ private fun DeviceRow(
             )
         }
 
-        when {
-            connected -> Box(
+        // Connect -> spinner -> tick, each swapping in with a small pop.
+        AnimatedContent(
+            targetState = when { connected -> 2; connecting -> 1; else -> 0 },
+            transitionSpec = { (scaleIn(initialScale = 0.6f) + fadeIn()) togetherWith (scaleOut(targetScale = 0.6f) + fadeOut()) },
+            label = "deviceAction",
+        ) { step ->
+        when (step) {
+            2 -> Box(
                 Modifier.size(32.dp).clip(CircleShape).background(accent.copy(alpha = 0.09f)),
                 contentAlignment = Alignment.Center,
             ) { Icon(Icons.Default.Check, null, Modifier.size(15.dp), tint = accent) }
 
-            connecting -> CircularProgressIndicator(
+            1 -> CircularProgressIndicator(
                 modifier = Modifier.size(28.dp), strokeWidth = 2.dp, color = c.blue,
             )
 
@@ -513,6 +530,7 @@ private fun DeviceRow(
             ) {
                 Text("Connect", style = RcxType.Label.copy(fontSize = 12.sp), color = Color.White)
             }
+        }
         }
     }
 }

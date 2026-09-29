@@ -1,5 +1,20 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.graphicsLayer
+import com.eshwar.rideconnectx.presentation.theme.enterRise
+import com.eshwar.rideconnectx.presentation.theme.rememberBreath
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
@@ -136,7 +151,7 @@ fun NavigationScreen(
                     else -> when (val s = navState) {
                         is NavState.Active -> ManeuverCard(
                             s.maneuver,
-                            Modifier.align(Alignment.TopCenter).padding(horizontal = 16.dp, vertical = 12.dp),
+                            Modifier.align(Alignment.TopCenter).padding(horizontal = 16.dp, vertical = 12.dp).enterRise(0, -16f),
                         )
 
                         NavState.AwaitingMaps -> StatusCard(
@@ -211,6 +226,10 @@ fun NavigationScreen(
 @Composable
 private fun RouteBackdrop() {
     val c = Rcx.colors
+    val draw = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { draw.animateTo(1f, tween(1400, delayMillis = 200, easing = FastOutSlowInEasing)) }
+    val pulse by rememberBreath(1400, "navDot")
+    val routeMeasure = remember { PathMeasure() }
     Canvas(Modifier.fillMaxSize()) {
         val gridColor = c.blue.copy(alpha = 0.031f)
         val step = 30.dp.toPx()
@@ -242,13 +261,17 @@ private fun RouteBackdrop() {
             quadraticTo(p(125f, 290f).x, p(125f, 290f).y, p(160f, 165f).x, p(160f, 165f).y)
             quadraticTo(p(198f, 142f).x, p(198f, 142f).y, p(240f, 130f).x, p(240f, 130f).y)
         }
-        drawPath(route, c.blue, style = Stroke(width = 4.dp.toPx() * sx))
+        // The route traces itself from the rider to the destination.
+        routeMeasure.setPath(route, false)
+        val drawn = Path()
+        routeMeasure.getSegment(0f, routeMeasure.length * draw.value, drawn, true)
+        drawPath(drawn, c.blue, style = Stroke(width = 4.dp.toPx() * sx))
 
         // Destination pin and current position.
-        drawCircle(c.blue.copy(alpha = 0.10f), radius = 22f * sx, center = p(240f, 130f))
+        drawCircle(c.blue.copy(alpha = 0.10f * draw.value), radius = 22f * sx * draw.value, center = p(240f, 130f))
         drawCircle(c.blue, radius = 10f * sx, center = p(240f, 130f))
         drawCircle(Color.White, radius = 5f * sx, center = p(240f, 130f))
-        drawCircle(c.cyan.copy(alpha = 0.12f), radius = 18f * sx, center = p(90f, 360f))
+        drawCircle(c.cyan.copy(alpha = 0.18f * (1f - pulse)), radius = (14f + 16f * pulse) * sx, center = p(90f, 360f))
         drawCircle(c.cyan.copy(alpha = 0.9f), radius = 9f * sx, center = p(90f, 360f))
     }
 }
@@ -281,6 +304,17 @@ private fun ManeuverCard(maneuver: NavManeuver, modifier: Modifier = Modifier) {
                 modifier = Modifier.size(20.dp),
             )
         }
+        AnimatedContent(
+            targetState = maneuver,
+            transitionSpec = {
+                if (targetState.instruction != initialState.instruction) {
+                    (slideInVertically { it / 2 } + fadeIn()) togetherWith (slideOutVertically { -it / 2 } + fadeOut())
+                } else {
+                    fadeIn(tween(150)) togetherWith fadeOut(tween(150))
+                }
+            },
+            label = "maneuver",
+        ) { maneuver ->
         Column {
             Text(
                 "IN ${maneuver.distanceToTurn.uppercase()}",
@@ -292,6 +326,7 @@ private fun ManeuverCard(maneuver: NavManeuver, modifier: Modifier = Modifier) {
                 style = RcxType.Label.copy(fontSize = 14.sp),
                 color = c.text,
             )
+        }
         }
     }
 }
@@ -402,6 +437,15 @@ private fun RelayStatus(
             color = c.muted,
             modifier = Modifier.weight(1f),
         )
-        Box(Modifier.size(8.dp).clip(CircleShape).background(dot))
+        val dotColor by animateColorAsState(dot, tween(500), label = "relayDot")
+        val ping by rememberBreath(1200, "relayPing")
+        Box(contentAlignment = Alignment.Center) {
+            if (linked) Box(
+                Modifier.size(16.dp)
+                    .graphicsLayer { scaleX = 0.5f + ping; scaleY = 0.5f + ping; alpha = 1f - ping }
+                    .border(1.dp, dotColor, CircleShape)
+            )
+            Box(Modifier.size(8.dp).clip(CircleShape).background(dotColor))
+        }
     }
 }

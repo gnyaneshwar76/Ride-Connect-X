@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.components
 
+import com.eshwar.rideconnectx.presentation.theme.enterRise
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,7 +50,7 @@ fun SettingsGroup(
 ) {
     val c = Rcx.colors
     val shape = RoundedCornerShape(20.dp)
-    Column(modifier.fillMaxWidth()) {
+    Column(modifier.fillMaxWidth().enterRise()) {
         Row(
             Modifier.padding(start = 2.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
