@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.cardFill
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -112,7 +113,7 @@ fun ProfileFoundScreen(
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
-                    .background(c.card)
+                    .cardFill()
                     .border(1.dp, c.blue.copy(alpha = 0.35f), RoundedCornerShape(20.dp))
                     .padding(18.dp),
                 verticalAlignment = Alignment.CenterVertically,

@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.cardFill
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -220,7 +221,7 @@ private fun PermissionCard(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
+            .cardFill()
             .border(1.dp, if (granted) accent.copy(alpha = 0.24f) else c.border, shape)
             .padding(16.dp),
     ) {
@@ -296,7 +297,7 @@ private fun SpecialAccessCard(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
+            .cardFill()
             .border(1.dp, if (granted) accent.copy(alpha = 0.24f) else c.border, shape)
             .padding(16.dp),
     ) {

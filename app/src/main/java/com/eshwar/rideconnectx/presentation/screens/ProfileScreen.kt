@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
+import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import com.eshwar.rideconnectx.presentation.theme.enterRise
@@ -719,8 +721,9 @@ private fun PhotoActionSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = c.card,
+        containerColor = sheetContainerColor(),
     ) {
+        GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(
                 stringResource(R.string.profile_photo_title),
@@ -780,8 +783,9 @@ private fun EditProfileSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = c.card,
+        containerColor = sheetContainerColor(),
     ) {
+        GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text("Edit profile", style = RcxType.Section.copy(fontSize = 17.sp), color = c.text)
             Spacer(Modifier.height(6.dp))

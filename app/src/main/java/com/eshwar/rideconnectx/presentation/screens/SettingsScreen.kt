@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
+import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import android.content.Intent
@@ -407,8 +409,9 @@ private fun ChoiceSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(),
-        containerColor = c.card,
+        containerColor = sheetContainerColor(),
     ) {
+        GlassSheetWindow()
         Column(Modifier.padding(horizontal = 8.dp).padding(bottom = 32.dp)) {
             Text(
                 title,
@@ -437,8 +440,9 @@ fun ConfirmSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(),
-        containerColor = c.card,
+        containerColor = sheetContainerColor(),
     ) {
+        GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(title, style = RcxType.Section.copy(fontSize = 17.sp), color = c.text)
             Spacer(Modifier.height(8.dp))

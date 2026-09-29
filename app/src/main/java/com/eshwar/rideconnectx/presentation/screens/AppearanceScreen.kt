@@ -1,5 +1,11 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import androidx.compose.foundation.background
@@ -79,6 +85,7 @@ fun AppearanceScreen(
     val fontSize by vm.fontSize.collectAsStateWithLifecycle()
     val accent by vm.accentColor.collectAsStateWithLifecycle()
     val surfaceStyle by vm.surfaceStyle.collectAsStateWithLifecycle()
+    val intensity by vm.glassIntensity.collectAsStateWithLifecycle()
 
     ScreenBackdrop {
         Column(
@@ -153,6 +160,10 @@ fun AppearanceScreen(
                                 onSelect = { vm.setSurfaceStyle(style) },
                             )
                         }
+                        // Only meaningful for glass, so it appears with it.
+                        AnimatedVisibility(surfaceStyle == SurfaceStyle.GLASS) {
+                            GlassIntensityRow(intensity, vm::setGlassIntensity)
+                        }
                     }
                 }
 
@@ -176,6 +187,40 @@ fun AppearanceScreen(
                 }
             }
         }
+    }
+}
+
+/** Slider for how strong the glass is: blur, tint, rim and background light. */
+@Composable
+private fun GlassIntensityRow(value: Float, onChange: (Float) -> Unit) {
+    val c = Rcx.colors
+    // Moves locally while dragging and saves once on release, so the store is
+    // not written sixty times a second.
+    var local by remember(value) { mutableFloatStateOf(value) }
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+        SettingsDivider()
+        Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Glass intensity", style = RcxType.Label.copy(fontSize = 14.sp), color = c.text, modifier = Modifier.weight(1f))
+            Text(
+                when {
+                    local < 0.34f -> "Subtle"
+                    local < 0.67f -> "Balanced"
+                    else -> "Strong"
+                },
+                style = RcxType.Mono.copy(fontSize = 11.sp),
+                color = c.muted,
+            )
+        }
+        Slider(
+            value = local,
+            onValueChange = { local = it },
+            onValueChangeFinished = { onChange(local) },
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White,
+                activeTrackColor = c.blue,
+                inactiveTrackColor = c.muted.copy(alpha = 0.25f),
+            ),
+        )
     }
 }
 

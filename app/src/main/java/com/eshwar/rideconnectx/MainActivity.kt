@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx
 
+import com.eshwar.rideconnectx.presentation.theme.LocalGlassIntensity
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -59,6 +61,23 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Ask for the display's fastest mode at the current resolution (90/120 Hz
+     * where the phone has it). Many phones keep apps at 60 Hz unless asked, and
+     * every Compose animation is drawn once per refresh, so this is what makes
+     * motion as smooth as the phone allows. The system can still lower it for
+     * battery saver or heat.
+     */
+    private fun preferHighestRefreshRate() {
+        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) display else null
+        display ?: return
+        val current = display.mode
+        val best = display.supportedModes
+            .filter { it.physicalWidth == current.physicalWidth && it.physicalHeight == current.physicalHeight }
+            .maxByOrNull { it.refreshRate } ?: return
+        window.attributes = window.attributes.apply { preferredDisplayModeId = best.modeId }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Must run before super.onCreate() — swaps the stock system launch icon
         // for the RCX splash and hands off cleanly to the Compose splash.
@@ -66,6 +85,7 @@ class MainActivity : ComponentActivity() {
 
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        preferHighestRefreshRate()
 
         // Cold start with a vehicle already paired should just reconnect —
         // the rider should not have to walk back into Pair Vehicle every time.
@@ -81,6 +101,7 @@ class MainActivity : ComponentActivity() {
             val fontSize by appearance.fontSize.collectAsStateWithLifecycle()
             val accent by appearance.accentColor.collectAsStateWithLifecycle()
             val surfaceStyle by appearance.surfaceStyle.collectAsStateWithLifecycle()
+            val glassIntensity by appearance.glassIntensity.collectAsStateWithLifecycle()
 
 
             val dark = when (themeMode) {
@@ -94,7 +115,8 @@ class MainActivity : ComponentActivity() {
                 // without threading it through a dozen composables.
                 CompositionLocalProvider(
                     LocalStyleMode provides
-                        if (surfaceStyle == SurfaceStyle.GLASS) StyleMode.GLASS else StyleMode.FLAT
+                        if (surfaceStyle == SurfaceStyle.GLASS) StyleMode.GLASS else StyleMode.FLAT,
+                    LocalGlassIntensity provides glassIntensity,
                 ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),

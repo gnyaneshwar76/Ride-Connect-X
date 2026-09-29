@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.viewmodel
 
+import com.eshwar.rideconnectx.data.local.DEFAULT_GLASS_INTENSITY
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eshwar.rideconnectx.core.di.ApplicationScope
@@ -55,4 +56,9 @@ class AppearanceViewModel @Inject constructor(
     fun setAccentColor(accent: AccentColor) = appScope.launch { store.setAccentColor(accent) }
 
     fun setSurfaceStyle(style: SurfaceStyle) = appScope.launch { store.setSurfaceStyle(style) }
+
+    val glassIntensity: StateFlow<Float> =
+        store.glassIntensity.stateIn(viewModelScope, SharingStarted.Eagerly, DEFAULT_GLASS_INTENSITY)
+
+    fun setGlassIntensity(value: Float) = appScope.launch { store.setGlassIntensity(value) }
 }

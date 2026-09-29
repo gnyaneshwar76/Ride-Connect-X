@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.cardFill
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -470,7 +471,7 @@ private fun DeviceRow(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
+            .cardFill()
             .border(1.dp, if (connected) accent.copy(alpha = 0.21f) else c.border, shape)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,

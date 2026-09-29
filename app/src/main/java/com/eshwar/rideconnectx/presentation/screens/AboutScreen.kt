@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
+import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import androidx.compose.foundation.background
@@ -230,8 +232,9 @@ private fun AboutTextSheet(title: String, body: String, onDismiss: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = c.card,
+        containerColor = sheetContainerColor(),
     ) {
+        GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 40.dp)) {
             Text(title, style = RcxType.Section.copy(fontSize = 17.sp), color = c.text)
             Spacer(Modifier.height(14.dp))

@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.data.local
 
+import androidx.datastore.preferences.core.floatPreferencesKey
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -39,6 +40,7 @@ class AppSettingsStore @Inject constructor(
         // General
         val UNITS = stringPreferencesKey("distance_unit")
         val SURFACE_STYLE = stringPreferencesKey("surface_style")
+        val GLASS_INTENSITY = floatPreferencesKey("glass_intensity")
         val AUTO_START_NAV = booleanPreferencesKey("auto_start_navigation")
 
         // Bluetooth
@@ -81,6 +83,12 @@ class AppSettingsStore @Inject constructor(
     suspend fun setDistanceUnit(unit: DistanceUnit) = put(UNITS, unit.name)
 
     suspend fun setSurfaceStyle(style: SurfaceStyle) = put(SURFACE_STYLE, style.name)
+
+    /** Glass strength, 0 (barely there) to 1 (strongest). */
+    val glassIntensity: Flow<Float> =
+        context.appSettings.data.map { (it[GLASS_INTENSITY] ?: DEFAULT_GLASS_INTENSITY).coerceIn(0f, 1f) }
+
+    suspend fun setGlassIntensity(value: Float) = put(GLASS_INTENSITY, value.coerceIn(0f, 1f))
     suspend fun setAutoStartNavigation(on: Boolean) = put(AUTO_START_NAV, on)
 
     suspend fun setAutoConnect(on: Boolean) = put(AUTO_CONNECT, on)
@@ -96,6 +104,8 @@ class AppSettingsStore @Inject constructor(
         context.appSettings.edit { it[key] = value }
     }
 }
+
+const val DEFAULT_GLASS_INTENSITY = 0.6f
 
 /** Stored name → enum, falling back to [fallback] on anything unrecognised. */
 private inline fun <reified E : Enum<E>> String?.toEnum(fallback: E): E =

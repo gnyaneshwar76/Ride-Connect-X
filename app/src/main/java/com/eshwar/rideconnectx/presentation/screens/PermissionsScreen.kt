@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.cardFill
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -355,7 +356,7 @@ private fun PermissionCard(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
+            .cardFill()
             .border(1.5.dp, borderColor, shape)
             .padding(16.dp)
     ) {

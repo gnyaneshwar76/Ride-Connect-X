@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Shape
@@ -172,6 +175,15 @@ val canBlur: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 val LocalStyleMode = staticCompositionLocalOf { StyleMode.FLAT }
 
 /**
+ * The rider's glass strength from Appearance, 0..1. Scales blur, tint, rim and
+ * the background light together, so one slider moves the whole look.
+ */
+val LocalGlassIntensity = staticCompositionLocalOf { 0.6f }
+
+/** [v] at the default intensity, scaled by the rider's choice (x0.35 .. x1.6). */
+private fun Float.byIntensity(i: Float): Float = this * (0.35f + 0.65f * i / 0.6f)
+
+/**
  * The blur source for the current screen.
  *
  * Haze works in two halves: something declares "this is the backdrop", and
@@ -225,18 +237,21 @@ fun Modifier.glassSurface(
     tier: GlassTier = GlassTier.LIGHT,
 ): Modifier {
     val g = glassTokens(tier)
+    val k = LocalGlassIntensity.current
 
-    val fill = when {
+    val fill0 = when {
         state == GlassState.Disabled -> g.fillDisabled
         state == GlassState.Pressed -> g.fillPressed
         accent -> g.fillAccent
         else -> g.fill
     }
-    val borderColor = when {
+    val fill = fill0.copy(alpha = fill0.alpha.byIntensity(k).coerceAtMost(0.9f))
+    val borderColor0 = when {
         state == GlassState.Disabled -> g.borderDisabled
         accent -> g.borderAccent
         else -> g.border
     }
+    val borderColor = borderColor0.copy(alpha = borderColor0.alpha.byIntensity(k).coerceAtMost(0.9f))
 
     val haze = LocalHaze.current
     // Read outside the effect block — that lambda is not composable.
@@ -248,7 +263,7 @@ fun Modifier.glassSurface(
             when {
                 // Real frosting: samples the screen's declared backdrop.
                 haze != null && canBlur -> Modifier.hazeEffect(haze) {
-                    blurRadius = g.blur
+                    blurRadius = g.blur * (0.4f + k)
                     // Haze's default grain read as a dirty screen on a phone.
                     noiseFactor = 0.02f
                     backgroundColor = base
@@ -315,6 +330,7 @@ fun BoxScope.GlassSheen(
 @Composable
 fun GlassLightField(state: HazeState, modifier: Modifier = Modifier) {
     val c = Rcx.colors
+    val k = (0.45f + 0.9f * LocalGlassIntensity.current).coerceAtMost(1.35f)
     val t by rememberInfiniteTransition(label = "lightField").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -333,10 +349,10 @@ fun GlassLightField(state: HazeState, modifier: Modifier = Modifier) {
                 )
                 val w = size.width
                 val h = size.height
-                orb(c.blue.copy(alpha = 0.38f), w * (0.85f - 0.15f * t), h * (0.12f + 0.05f * t), w * 0.75f)
-                orb(c.cyan.copy(alpha = 0.22f), w * (0.10f + 0.12f * t), h * (0.42f - 0.04f * t), w * 0.65f)
-                orb(c.green.copy(alpha = 0.16f), w * (0.75f + 0.08f * t), h * (0.70f + 0.04f * t), w * 0.6f)
-                orb(c.blue.copy(alpha = 0.20f), w * (0.25f - 0.08f * t), h * (0.92f - 0.03f * t), w * 0.6f)
+                orb(c.blue.copy(alpha = 0.38f * k), w * (0.85f - 0.15f * t), h * (0.12f + 0.05f * t), w * 0.75f)
+                orb(c.cyan.copy(alpha = 0.22f * k), w * (0.10f + 0.12f * t), h * (0.42f - 0.04f * t), w * 0.65f)
+                orb(c.green.copy(alpha = 0.16f * k), w * (0.75f + 0.08f * t), h * (0.70f + 0.04f * t), w * 0.6f)
+                orb(c.blue.copy(alpha = 0.20f * k), w * (0.25f - 0.08f * t), h * (0.92f - 0.03f * t), w * 0.6f)
             }
     )
 }
@@ -409,5 +425,68 @@ fun ScreenBackdrop(
         }
     } else {
         Box(modifier.fillMaxSize().background(c.bg), content = content)
+    }
+}
+
+/**
+ * Card fill only, for cards that draw their own (e.g. state-coloured) border:
+ * frosted glass with gloss in Glass mode, the flat card colour otherwise.
+ * Put it after the card's clip.
+ */
+@Composable
+fun Modifier.cardFill(): Modifier =
+    if (LocalStyleMode.current == StyleMode.GLASS) {
+        val g = glassTokens(GlassTier.LIGHT)
+        val k = LocalGlassIntensity.current
+        val fill = g.fill.copy(alpha = (g.fill.alpha * (0.35f + 0.65f * k / 0.6f)).coerceAtMost(0.9f))
+        val haze = LocalHaze.current
+        val base = if (Rcx.colors.isDark) g.fallback else Color.White
+        (if (haze != null && canBlur) {
+            this.hazeEffect(haze) {
+                blurRadius = g.blur * (0.4f + k)
+                noiseFactor = 0.02f
+                backgroundColor = base
+                tints = listOf(HazeTint(fill))
+            }
+        } else this.background(if (haze != null) g.fallback else fill)).glassSheen(g)
+    } else {
+        this.background(Rcx.colors.card)
+    }
+
+/**
+ * Bottom-sheet colour: see-through in Glass mode so [GlassSheetWindow]'s blur
+ * of the screen behind shows through; the normal card colour in Flat.
+ */
+@Composable
+fun sheetContainerColor(): Color {
+    val c = Rcx.colors
+    if (LocalStyleMode.current != StyleMode.GLASS || !canBlur) return c.card
+    val k = LocalGlassIntensity.current
+    return c.card.copy(alpha = (0.92f - 0.42f * k).coerceIn(0.45f, 0.92f))
+}
+
+/**
+ * Call first thing inside a bottom sheet or dialog. In Glass mode it asks
+ * Android to blur everything behind that window (Android 12+, on phones that
+ * support cross-window blur), which is what makes a sheet look like frosted
+ * glass instead of a flat panel. Strength follows the intensity slider.
+ */
+@Composable
+fun GlassSheetWindow() {
+    if (LocalStyleMode.current != StyleMode.GLASS || !canBlur) return
+    val view = LocalView.current
+    val k = LocalGlassIntensity.current
+    DisposableEffect(view, k) {
+        var v: android.view.ViewParent? = view.parent
+        var window: android.view.Window? = null
+        while (v != null && window == null) {
+            window = (v as? DialogWindowProvider)?.window
+            v = v.parent
+        }
+        window?.let {
+            it.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+            it.attributes = it.attributes.apply { blurBehindRadius = (18 + 70 * k).toInt() }
+        }
+        onDispose { }
     }
 }

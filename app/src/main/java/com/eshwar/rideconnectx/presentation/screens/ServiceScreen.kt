@@ -1,5 +1,8 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
+import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
+import com.eshwar.rideconnectx.presentation.theme.cardFill
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import com.eshwar.rideconnectx.presentation.theme.enterRise
@@ -328,7 +331,7 @@ private fun ServiceStatusCard(status: ServiceStatus) {
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
+            .cardFill()
             .border(1.dp, if (status.isOverdue) accent.copy(alpha = 0.31f) else c.border, shape)
             .padding(20.dp),
     ) {
@@ -771,8 +774,9 @@ private fun ServiceRecordSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = c.card,
+        containerColor = sheetContainerColor(),
     ) {
+        GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(
                 if (record.id == 0L)
@@ -1094,8 +1098,9 @@ private fun TaskSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = c.card,
+        containerColor = sheetContainerColor(),
     ) {
+        GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(
                 if (task.id == 0L)
@@ -1173,8 +1178,9 @@ private fun ConfirmDeleteSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(),
-        containerColor = c.card,
+        containerColor = sheetContainerColor(),
     ) {
+        GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(
                 question,

@@ -1,5 +1,8 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
+import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
+import com.eshwar.rideconnectx.presentation.theme.cardFill
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import com.eshwar.rideconnectx.presentation.theme.enterRise
@@ -512,7 +515,7 @@ private fun EmergencyCard(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
+            .cardFill()
             .border(1.dp, c.red.copy(alpha = 0.24f), shape)
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -598,8 +601,9 @@ private fun SosSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(),
-        containerColor = c.card,
+        containerColor = sheetContainerColor(),
     ) {
+        GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(
                 stringResource(R.string.safety_get_help_now),
@@ -834,7 +838,7 @@ private fun AccidentInformationCard(onRead: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
+            .cardFill()
             .border(1.dp, c.amber.copy(alpha = 0.2f), shape)
             // `indication = null` kills the Material ripple. On a card this
             // large the ripple drew an expanding circle across the whole
@@ -940,7 +944,7 @@ private fun ContactRow(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
+            .cardFill()
             .border(1.dp, if (contact.isPrimary) c.red.copy(alpha = 0.24f) else c.border, shape)
             .padding(14.dp),
     ) {
@@ -1026,7 +1030,7 @@ private fun NoContactsCard() {
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
+            .cardFill()
             .border(1.dp, c.amber.copy(alpha = 0.2f), shape)
             .padding(vertical = 28.dp, horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1070,8 +1074,9 @@ private fun ContactSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = c.card,
+        containerColor = sheetContainerColor(),
     ) {
+        GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(
                 if (contact.id == 0L)
@@ -1154,8 +1159,9 @@ private fun ConfirmDeleteContactSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(),
-        containerColor = c.card,
+        containerColor = sheetContainerColor(),
     ) {
+        GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(
                 stringResource(R.string.safety_remove_q, contact.name),

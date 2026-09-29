@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.cardFill
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import com.eshwar.rideconnectx.presentation.theme.GlassLightField
 import com.eshwar.rideconnectx.presentation.theme.LocalHaze
@@ -501,7 +502,7 @@ private fun ServiceReminderCard(status: ServiceStatus, onClick: () -> Unit) {
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
+            .cardFill()
             .border(1.dp, if (needsAttention) accent.copy(alpha = edge) else c.border, shape)
             .clickable(onClick = onClick)
             .padding(14.dp),

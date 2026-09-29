@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.cardFill
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -106,7 +107,7 @@ private fun VehicleCard(vehicle: Vehicle) {
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
+            .cardFill()
             .border(1.5.dp, c.border, shape)
             .padding(16.dp),
     ) {

@@ -1,5 +1,8 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
+import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
+import com.eshwar.rideconnectx.presentation.theme.cardFill
 import com.eshwar.rideconnectx.presentation.theme.shake
 import com.eshwar.rideconnectx.presentation.theme.rememberShakeKey
 import android.graphics.BitmapFactory
@@ -624,7 +627,7 @@ private fun ChooserRow(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card)
+            .cardFill()
             .border(1.dp, if (value != null) c.blue.copy(alpha = 0.30f) else c.border, shape)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 15.dp),
@@ -801,8 +804,9 @@ private fun TypeSheet(onDismiss: () -> Unit, onPick: (VehicleCategory) -> Unit) 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(),
-        containerColor = c.card,
+        containerColor = sheetContainerColor(),
     ) {
+        GlassSheetWindow()
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text("Choose your vehicle type", style = RcxType.Label.copy(fontSize = 16.sp), color = c.text)
             Spacer(Modifier.height(16.dp))
@@ -848,8 +852,9 @@ private fun ModelSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = c.card,
+        containerColor = sheetContainerColor(),
     ) {
+        GlassSheetWindow()
         Column(Modifier.fillMaxWidth()) {
             Text(
                 title,
@@ -948,8 +953,9 @@ private fun ColorSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(),
-        containerColor = c.card,
+        containerColor = sheetContainerColor(),
     ) {
+        GlassSheetWindow()
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text("${vehicle.name} — colour", style = RcxType.Label.copy(fontSize = 16.sp), color = c.text)
             Spacer(Modifier.height(16.dp))
