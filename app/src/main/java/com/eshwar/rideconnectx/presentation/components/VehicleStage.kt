@@ -77,9 +77,10 @@ fun VehicleStage(
     val paint = colorway?.primary ?: accent
 
     // The light breathes a little all the time and swells when connected.
-    val breath by rememberBreath(4000, "stageBreath")
-    val power by animateFloatAsState(if (live) 1f else 0f, tween(900), label = "stagePower")
-    val glow = 0.82f + 0.12f * breath + 0.35f * power
+    // Read inside the Canvas (draw phase) only, so each frame just redraws the
+    // light instead of recomposing the whole stage.
+    val breath = rememberBreath(4000, "stageBreath")
+    val power = animateFloatAsState(if (live) 1f else 0f, tween(900), label = "stagePower")
 
     var rolled by rememberSaveable { mutableStateOf(!rollIn) }
     val roll = remember { Animatable(if (rolled) 1f else 0f) }
@@ -91,12 +92,6 @@ fun VehicleStage(
     }
     val hover by rememberBreath(3200, "stageFloat")
 
-    val sweep = rememberInfiniteTransition(label = "stageScan").animateFloat(
-        initialValue = -0.3f,
-        targetValue = 1.3f,
-        animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart),
-        label = "stageScan",
-    )
 
     BoxWithConstraints(
         modifier
@@ -115,6 +110,7 @@ fun VehicleStage(
             val rx = size.width * 0.46f
             val ry = size.height * 0.20f
 
+            val glow = 0.82f + 0.12f * breath.value + 0.35f * power.value
             drawOval(
                 brush = Brush.radialGradient(
                     0f to paint.copy(alpha = (0.55f * glow).coerceAtMost(1f)),
@@ -132,7 +128,7 @@ fun VehicleStage(
             val coreY = size.height * 0.075f
             drawOval(
                 brush = Brush.radialGradient(
-                    0f to Color.White.copy(alpha = 0.20f + 0.12f * power),
+                    0f to Color.White.copy(alpha = 0.20f + 0.12f * power.value),
                     1f to Color.Transparent,
                     center = Offset(cx, cy),
                     radius = coreX,
@@ -172,6 +168,13 @@ fun VehicleStage(
 
         if (scanning) {
             // A band of light passing over the vehicle while it is being found.
+            // Created only while scanning, so it costs nothing the rest of the time.
+            val sweep = rememberInfiniteTransition(label = "stageScan").animateFloat(
+                initialValue = -0.3f,
+                targetValue = 1.3f,
+                animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart),
+                label = "stageScan",
+            )
             Canvas(Modifier.fillMaxSize()) {
                 val w = size.width * 0.3f
                 val x = size.width * sweep.value - w / 2f

@@ -135,7 +135,7 @@ val GlassDarkLight = GlassTokens(
     blur = 20.dp,
     // Smoked, not milky: a dark tint keeps small labels readable over the
     // coloured light, and the lit rim + gloss supply the "glass".
-    fill = Color(0x47070D1B),           // rgba(7,13,27,0.28) - was white 0.09, read as grey slabs
+    fill = Color(0x5C070D1B),           // rgba(7,13,27,0.36) - was white 0.09, read as grey slabs
     fillAccent = Color(0x382B7FFF),     // rgba(43,127,255,0.22)
     fillPressed = Color(0x70070D1B),    // rgba(7,13,27,0.44)
     fillDisabled = Color(0x0AFFFFFF),   // rgba(255,255,255,0.04)
@@ -269,19 +269,12 @@ fun Modifier.glassSurface(
     return this
         .clip(shape)
         .then(
+            // Performance: no live blur per card. Re-blurring an animated
+            // backdrop for every card on every frame cost more than a phone
+            // can give at 120 Hz. The backdrop is blurred once at its source
+            // (GlassLightField), so a tinted pane over it reads as frosted
+            // glass at a fraction of the cost - the same trick iOS uses.
             when {
-                // Real frosting: samples the screen's declared backdrop.
-                haze != null && canBlur -> Modifier.hazeEffect(haze) {
-                    blurRadius = g.blur * (0.4f + k)
-                    // Haze's default grain read as a dirty screen on a phone.
-                    noiseFactor = 0.02f
-                    backgroundColor = base
-                    tints = listOf(HazeTint(fill))
-                }
-                // API < 31 has no RenderEffect, so an opaque stand-in rather
-                // than a see-through panel that cannot be read.
-                haze != null -> Modifier.background(g.fallback)
-                // No backdrop declared — plain translucency is correct here.
                 else -> Modifier.background(fill)
             }
         )
@@ -348,12 +341,8 @@ fun GlassLightField(
     val c = Rcx.colors
     // x0.7: the pools were bright enough to tire the eyes on a dark phone.
     val k = 0.7f * (0.45f + 0.9f * LocalGlassIntensity.current).coerceAtMost(1.35f)
-    val t by rememberInfiniteTransition(label = "lightField").animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(14_000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "lightFieldDrift",
-    )
+    // Throttled ambient clock (~30 fps, frozen in Battery Saver).
+    val t by rememberBreath(14_000, "lightFieldDrift")
     val density = androidx.compose.ui.platform.LocalDensity.current
     Box(
         modifier
@@ -369,14 +358,16 @@ fun GlassLightField(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    // Shallow depth of field: the page's photo is atmosphere,
-                    // not content, so it sits slightly out of focus.
-                    .blur(6.dp)
+                    // Transform first, blur inside: the blurred picture is
+                    // rendered once and cached; each frame only moves it.
                     .graphicsLayer {
                         val s = 1.06f + 0.08f * t
                         scaleX = s; scaleY = s
                         translationX = (t - 0.5f) * with(density) { 28.dp.toPx() }
-                    },
+                    }
+                    // The page's photo is atmosphere, not content: out of
+                    // focus, which is also what makes the glass read as frost.
+                    .blur(14.dp),
             )
             // Header stays readable at the top; the photo melts into the page below.
             Box(
@@ -499,14 +490,7 @@ fun Modifier.cardFill(): Modifier =
         val fill = g.fill.copy(alpha = (g.fill.alpha * (0.35f + 0.65f * k / 0.6f)).coerceAtMost(0.9f))
         val haze = LocalHaze.current
         val base = if (Rcx.colors.isDark) g.fallback else Color.White
-        (if (haze != null && canBlur) {
-            this.hazeEffect(haze) {
-                blurRadius = g.blur * (0.4f + k)
-                noiseFactor = 0.02f
-                backgroundColor = base
-                tints = listOf(HazeTint(fill))
-            }
-        } else this.background(if (haze != null) g.fallback else fill)).glassSheen(g)
+        this.background(fill).glassSheen(g)
     } else {
         this.background(Rcx.colors.card)
     }
@@ -574,12 +558,7 @@ fun Modifier.glassButton(shape: Shape, tint: Color, strong: Boolean, pressed: Bo
     return this
         .clip(shape)
         .then(
-            if (haze != null && canBlur) Modifier.hazeEffect(haze) {
-                blurRadius = g.blur * (0.4f + k)
-                noiseFactor = 0.02f
-                backgroundColor = base
-                tints = listOf(HazeTint(fill))
-            } else Modifier.background(fill)
+            Modifier.background(fill)
         )
         .glassSheen(g, pressed)
         .border(1.dp, rim, shape)

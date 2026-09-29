@@ -90,6 +90,15 @@ android {
             }
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
+        // Release speed for testing on your own phone: R8-optimised and not
+        // debuggable (debug builds run Compose several times slower, so they
+        // are no measure of smoothness), but signed with the debug key so it
+        // installs over the debug app and Google sign-in keeps working.
+        create("smooth") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -148,6 +157,7 @@ dependencies {
     // Rules stop cross-user reads; they do not stop quota abuse. This does.
     implementation(libs.firebase.appcheck)
     debugImplementation(libs.firebase.appcheck.debug)
+    "smoothImplementation"(libs.firebase.appcheck.debug)
     implementation(libs.coroutines.play.services)
 
     // The in-app "Turn on location?" dialog. Without it the only route is

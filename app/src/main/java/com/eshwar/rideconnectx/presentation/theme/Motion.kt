@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.theme
 
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -116,15 +118,40 @@ fun rememberShakeKey(error: String?): Int {
     return key
 }
 
-/** A slow, endless 0→1→0 value for glows and floats. */
+/**
+ * False in Battery Saver (and when the phone's animations are turned off):
+ * ambient motion - drifting backgrounds, breathing glows - holds still.
+ * Provided by MainActivity.
+ */
+val LocalAmbientMotion = staticCompositionLocalOf { true }
+
+/** Ambient motion redraws at ~30 fps; see [rememberBreath]. */
+private const val AMBIENT_FRAME_MS = 33L
+
+/**
+ * A slow, endless 0->1->0 value for glows, floats and drifting backgrounds.
+ *
+ * Battery: these move too slowly for the eye to tell 30 from 120 frames a
+ * second, so they tick ~30 times a second instead of every display refresh.
+ * Taps, scrolls and screen changes still run at the display's full rate.
+ * Holds at the midpoint when [LocalAmbientMotion] is off.
+ */
 @Composable
-fun rememberBreath(periodMs: Int = 3200, label: String = "breath"): State<Float> =
-    rememberInfiniteTransition(label = label).animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(periodMs, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = label,
-    )
+fun rememberBreath(periodMs: Int = 3200, @Suppress("UNUSED_PARAMETER") label: String = "breath"): State<Float> {
+    val value = remember { mutableFloatStateOf(0.5f) }
+    val on = LocalAmbientMotion.current
+    LaunchedEffect(on, periodMs) {
+        if (!on) { value.floatValue = 0.5f; return@LaunchedEffect }
+        val start = System.nanoTime()
+        while (true) {
+            val phase = ((System.nanoTime() - start) / 1_000_000L % (2L * periodMs)).toFloat() / periodMs
+            val tri = if (phase < 1f) phase else 2f - phase
+            value.floatValue = FastOutSlowInEasing.transform(tri)
+            delay(AMBIENT_FRAME_MS)
+        }
+    }
+    return value
+}
 
 /** Counts from 0 (first show) or the previous value up to [target]. */
 @Composable

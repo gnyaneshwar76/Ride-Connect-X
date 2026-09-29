@@ -107,7 +107,7 @@ fun RcxHeroBanner(
     // In Glass the page's photo fills the top of the screen behind everything
     // (ScreenBackdrop), so the banner leaves its space open to show it.
     if (isGlass) {
-        Spacer(modifier.fillMaxWidth().height(height + 40.dp))
+        Spacer(modifier.fillMaxWidth().height(4.dp))
         return
     }
     RcxPhotoFill(

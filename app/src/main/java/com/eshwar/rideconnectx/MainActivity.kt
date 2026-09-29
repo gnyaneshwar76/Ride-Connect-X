@@ -1,5 +1,18 @@
 package com.eshwar.rideconnectx
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.core.content.ContextCompat
+import com.eshwar.rideconnectx.presentation.theme.LocalAmbientMotion
 import com.eshwar.rideconnectx.presentation.theme.LocalGlassIntensity
 import android.os.Build
 import android.os.Bundle
@@ -69,6 +82,8 @@ class MainActivity : ComponentActivity() {
      * battery saver or heat.
      */
     private fun preferHighestRefreshRate() {
+        // Battery Saver: leave the rate to the system.
+        if (getSystemService(PowerManager::class.java)?.isPowerSaveMode == true) return
         val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) display else null
         display ?: return
         val current = display.mode
@@ -77,6 +92,29 @@ class MainActivity : ComponentActivity() {
             .maxByOrNull { it.refreshRate } ?: return
         window.attributes = window.attributes.apply { preferredDisplayModeId = best.modeId }
     }
+
+    /** Live Battery Saver state; flips ambient motion off while it is on. */
+    @Composable
+    private fun rememberBatterySaver(): State<Boolean> {
+        val pm = remember { getSystemService(PowerManager::class.java) }
+        val state = remember { mutableStateOf(pm?.isPowerSaveMode == true) }
+        DisposableEffect(Unit) {
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(c: Context?, i: Intent?) { state.value = pm?.isPowerSaveMode == true }
+            }
+            ContextCompat.registerReceiver(
+                this@MainActivity, receiver,
+                IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED),
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+            onDispose { unregisterReceiver(receiver) }
+        }
+        return state
+    }
+
+    /** False when the rider turned animations off in Developer/Accessibility settings. */
+    private fun animationsEnabled(): Boolean =
+        Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Must run before super.onCreate() — swaps the stock system launch icon
@@ -102,6 +140,7 @@ class MainActivity : ComponentActivity() {
             val accent by appearance.accentColor.collectAsStateWithLifecycle()
             val surfaceStyle by appearance.surfaceStyle.collectAsStateWithLifecycle()
             val glassIntensity by appearance.glassIntensity.collectAsStateWithLifecycle()
+            val batterySaver by rememberBatterySaver()
 
 
             val dark = when (themeMode) {
@@ -117,6 +156,7 @@ class MainActivity : ComponentActivity() {
                     LocalStyleMode provides
                         if (surfaceStyle == SurfaceStyle.GLASS) StyleMode.GLASS else StyleMode.FLAT,
                     LocalGlassIntensity provides glassIntensity,
+                    LocalAmbientMotion provides (!batterySaver && animationsEnabled()),
                 ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),

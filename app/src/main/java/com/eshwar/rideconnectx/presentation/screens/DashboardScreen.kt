@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.draw.drawWithContent
 import com.eshwar.rideconnectx.presentation.theme.isGlass
 import com.eshwar.rideconnectx.presentation.theme.glassButton
 import com.eshwar.rideconnectx.presentation.theme.cardFill
@@ -500,15 +502,24 @@ private fun ServiceReminderCard(status: ServiceStatus, onClick: () -> Unit) {
     }
     val needsAttention = status.isOverdue || status.isDueSoon
     // Overdue breathes its border so it is noticed without shouting.
-    val breath by rememberBreath(2400, "serviceAttention")
-    val edge = if (status.isOverdue) 0.27f + 0.35f * breath else 0.27f
+    val breath = rememberBreath(2400, "serviceAttention")
 
     Row(
         Modifier
             .fillMaxWidth()
             .clip(shape)
             .cardFill()
-            .border(1.dp, if (needsAttention) accent.copy(alpha = edge) else c.border, shape)
+            .border(1.dp, if (needsAttention) accent.copy(alpha = 0.27f) else c.border, shape)
+            .drawWithContent {
+                drawContent()
+                // Overdue: a brighter rim fades in and out, drawn per frame
+                // without recomposing the card.
+                if (status.isOverdue) drawOutline(
+                    shape.createOutline(size, layoutDirection, this),
+                    accent.copy(alpha = 0.35f * breath.value),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()),
+                )
+            }
             .clickable(onClick = onClick)
             .padding(14.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
