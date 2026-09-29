@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.innerFill
 import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
 import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
 import com.eshwar.rideconnectx.presentation.theme.cardFill
@@ -288,7 +289,7 @@ fun SafetyScreen(
         onLocationDeclined()
     }
 
-    ScreenBackdrop {
+    ScreenBackdrop(photo = R.drawable.img_safety_hero, accent = c.red) {
         Column(
             Modifier
                 .fillMaxHeight()
@@ -566,7 +567,7 @@ private fun EmergencyCard(
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(14.dp))
-                .background(c.card2)
+                .innerFill()
                 .border(1.dp, c.border, RoundedCornerShape(14.dp))
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,

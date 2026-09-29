@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.components
 
+import com.eshwar.rideconnectx.presentation.theme.innerFill
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -60,7 +61,7 @@ fun RcxImagePlaceholder(
             .fillMaxWidth()
             .aspectRatio(ratio)
             .clip(shape)
-            .background(c.card2),
+            .innerFill(),
         contentAlignment = Alignment.Center,
     ) {
         // Dashed outline, so it never reads as a finished surface.

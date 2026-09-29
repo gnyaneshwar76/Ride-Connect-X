@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.innerFill
 import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
 import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
@@ -68,7 +69,7 @@ fun AboutScreen(
     val c = Rcx.colors
     var sheet by remember { mutableStateOf<AboutSheet?>(null) }
 
-    ScreenBackdrop {
+    ScreenBackdrop(photo = R.drawable.img_about_header) {
         Column(
             Modifier
                 .fillMaxHeight()
@@ -171,7 +172,7 @@ private fun VersionChip(label: String, value: String) {
     Column(
         Modifier
             .clip(shape)
-            .background(c.card2)
+            .innerFill()
             .border(1.dp, c.border, shape)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

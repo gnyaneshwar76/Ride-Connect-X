@@ -80,7 +80,7 @@ fun NotificationsScreen(
     val items by vm.notifications.collectAsStateWithLifecycle()
     val unread by vm.unreadCount.collectAsStateWithLifecycle()
 
-    ScreenBackdrop {
+    ScreenBackdrop(accent = c.amber) {
         Column(
             Modifier
                 .fillMaxHeight()

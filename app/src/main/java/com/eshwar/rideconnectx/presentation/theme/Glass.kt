@@ -1,6 +1,14 @@
 package com.eshwar.rideconnectx.presentation.theme
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -328,7 +336,14 @@ fun BoxScope.GlassSheen(
  * above frosts it. Only drawn in Glass mode.
  */
 @Composable
-fun GlassLightField(state: HazeState, modifier: Modifier = Modifier) {
+fun GlassLightField(
+    state: HazeState,
+    modifier: Modifier = Modifier,
+    /** The page's photograph, shown full-width at the top and drifting slowly. */
+    @DrawableRes photo: Int? = null,
+    /** The page's colour; the light pools take its hue so the glass is clean, not muddy. */
+    accent: Color? = null,
+) {
     val c = Rcx.colors
     val k = (0.45f + 0.9f * LocalGlassIntensity.current).coerceAtMost(1.35f)
     val t by rememberInfiniteTransition(label = "lightField").animateFloat(
@@ -337,11 +352,40 @@ fun GlassLightField(state: HazeState, modifier: Modifier = Modifier) {
         animationSpec = infiniteRepeatable(tween(14_000, easing = LinearEasing), RepeatMode.Reverse),
         label = "lightFieldDrift",
     )
+    val density = androidx.compose.ui.platform.LocalDensity.current
     Box(
         modifier
             .fillMaxSize()
             .hazeSource(state)
-            .drawBehind {
+    ) {
+        if (photo != null) Box(Modifier.fillMaxWidth().fillMaxHeight(0.58f).clipToBounds()) {
+            // Ken Burns: the picture breathes in and drifts sideways over
+            // ~14 s, so the page feels alive without anything to watch.
+            Image(
+                painter = painterResource(photo),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val s = 1.06f + 0.08f * t
+                        scaleX = s; scaleY = s
+                        translationX = (t - 0.5f) * with(density) { 28.dp.toPx() }
+                    },
+            )
+            // Header stays readable at the top; the photo melts into the page below.
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        0f to c.bg.copy(alpha = 0.55f),
+                        0.25f to c.bg.copy(alpha = 0.05f),
+                        0.6f to c.bg.copy(alpha = 0.35f),
+                        1f to c.bg,
+                    )
+                )
+            )
+        }
+        Box(Modifier.fillMaxSize().drawBehind {
                 fun orb(color: Color, x: Float, y: Float, r: Float) = drawCircle(
                     Brush.radialGradient(listOf(color, Color.Transparent), center = Offset(x, y), radius = r),
                     radius = r,
@@ -349,12 +393,17 @@ fun GlassLightField(state: HazeState, modifier: Modifier = Modifier) {
                 )
                 val w = size.width
                 val h = size.height
-                orb(c.blue.copy(alpha = 0.38f * k), w * (0.85f - 0.15f * t), h * (0.12f + 0.05f * t), w * 0.75f)
-                orb(c.cyan.copy(alpha = 0.22f * k), w * (0.10f + 0.12f * t), h * (0.42f - 0.04f * t), w * 0.65f)
-                orb(c.green.copy(alpha = 0.16f * k), w * (0.75f + 0.08f * t), h * (0.70f + 0.04f * t), w * 0.6f)
-                orb(c.blue.copy(alpha = 0.20f * k), w * (0.25f - 0.08f * t), h * (0.92f - 0.03f * t), w * 0.6f)
-            }
-    )
+                // One hue family per page keeps the frosted glass clean; mixing
+                // blue, cyan and green under a blur averages out to grey.
+                val a = accent ?: c.blue
+                val second = if (accent == null) c.cyan else lerp(accent, c.blue, 0.35f)
+                val top = if (photo != null) 0.35f else 1f
+                orb(a.copy(alpha = 0.38f * k * top), w * (0.85f - 0.15f * t), h * (0.12f + 0.05f * t), w * 0.75f)
+                orb(second.copy(alpha = 0.24f * k), w * (0.10f + 0.12f * t), h * (0.45f - 0.04f * t), w * 0.65f)
+                orb(a.copy(alpha = 0.20f * k), w * (0.78f + 0.08f * t), h * (0.72f + 0.04f * t), w * 0.6f)
+                orb(second.copy(alpha = 0.18f * k), w * (0.25f - 0.08f * t), h * (0.94f - 0.03f * t), w * 0.6f)
+            })
+    }
 }
 
 /** Scrim for content sitting over a photograph. See [ScrimMin]. */
@@ -414,13 +463,15 @@ fun Modifier.cardSurface(shape: Shape): Modifier =
 @Composable
 fun ScreenBackdrop(
     modifier: Modifier = Modifier,
+    @DrawableRes photo: Int? = null,
+    accent: Color? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val c = Rcx.colors
     if (LocalStyleMode.current == StyleMode.GLASS) {
         val haze = remember { HazeState() }
         Box(modifier.fillMaxSize().background(c.bg)) {
-            GlassLightField(haze)
+            GlassLightField(haze, photo = photo, accent = accent)
             CompositionLocalProvider(LocalHaze provides haze) { content() }
         }
     } else {
@@ -526,3 +577,12 @@ fun Modifier.glassButton(shape: Shape, tint: Color, strong: Boolean, pressed: Bo
         .glassSheen(g, pressed)
         .border(1.dp, rim, shape)
 }
+
+/**
+ * Fill for a row or chip that sits inside a card: a faint white veil in Glass
+ * (Apple's inset-grouped look), the second card colour in Flat.
+ */
+@Composable
+fun Modifier.innerFill(): Modifier =
+    if (LocalStyleMode.current == StyleMode.GLASS) this.background(Color.White.copy(alpha = 0.06f))
+    else this.background(Rcx.colors.card2)

@@ -1,5 +1,8 @@
 package com.eshwar.rideconnectx.presentation.components
 
+import com.eshwar.rideconnectx.presentation.theme.innerFill
+import com.eshwar.rideconnectx.presentation.theme.isGlass
+import androidx.compose.foundation.layout.Spacer
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -57,7 +60,7 @@ fun RcxPhoto(
             .aspectRatio(ratio)
             // Shows through while the bitmap decodes, and behind any photo whose
             // ratio does not fill the box exactly.
-            .background(c.card2),
+            .innerFill(),
     ) {
         Image(
             painter = painterResource(res),
@@ -101,6 +104,12 @@ fun RcxHeroBanner(
     overlay: @Composable BoxScope.() -> Unit = {},
 ) {
     val c = Rcx.colors
+    // In Glass the page's photo fills the top of the screen behind everything
+    // (ScreenBackdrop), so the banner leaves its space open to show it.
+    if (isGlass) {
+        Spacer(modifier.fillMaxWidth().height(height + 40.dp))
+        return
+    }
     RcxPhotoFill(
         res = res,
         modifier = modifier
@@ -140,7 +149,7 @@ fun RcxPhotoFill(
     overlay: @Composable BoxScope.() -> Unit = {},
 ) {
     val c = Rcx.colors
-    Box(modifier.background(c.card2)) {
+    Box(modifier.innerFill()) {
         Image(
             painter = painterResource(res),
             contentDescription = null,

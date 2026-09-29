@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.innerFill
 import com.eshwar.rideconnectx.presentation.theme.cardFill
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
 import androidx.compose.foundation.background
@@ -356,7 +357,7 @@ private fun NotAskedCard() {
             .fillMaxWidth()
             .padding(top = 8.dp)
             .clip(shape)
-            .background(c.card2)
+            .innerFill()
             .border(1.dp, c.border, shape)
             .padding(16.dp),
     ) {

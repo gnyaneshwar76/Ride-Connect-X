@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.innerFill
 import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
 import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
@@ -148,7 +149,7 @@ fun ProfileScreen(
 
     val connected = connection is ConnectionState.Connected
 
-    ScreenBackdrop {
+    ScreenBackdrop(photo = R.drawable.img_profile_cover, accent = c.cyan) {
         Column(
             Modifier
                 .fillMaxHeight()
@@ -843,7 +844,7 @@ private fun EditProfileSheet(
                         .padding(top = 6.dp)
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(c.card2)
+                        .innerFill()
                         .border(1.dp, c.border, RoundedCornerShape(14.dp)),
                 ) {
                     cities.forEach { city ->

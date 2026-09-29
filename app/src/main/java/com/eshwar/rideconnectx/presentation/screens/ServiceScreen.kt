@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.innerFill
 import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
 import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
 import com.eshwar.rideconnectx.presentation.theme.cardFill
@@ -147,7 +148,7 @@ fun ServiceScreen(
     // Everything below reads the rider's chosen units from here. Distances are
     // always stored in kilometres; only the display changes.
     CompositionLocalProvider(LocalDistanceUnit provides unit) {
-    ScreenBackdrop {
+    ScreenBackdrop(photo = R.drawable.img_service_hero, accent = c.green) {
         Column(
             Modifier
                 .fillMaxHeight()
@@ -478,7 +479,7 @@ private fun StatTile(
     Column(
         modifier
             .clip(shape)
-            .background(c.card2)
+            .innerFill()
             .border(1.dp, c.border, shape)
             .padding(14.dp),
     ) {
@@ -793,7 +794,7 @@ private fun ServiceRecordSheet(
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(c.card2)
+                    .innerFill()
                     .border(1.dp, c.border, RoundedCornerShape(14.dp))
                     .clickable { showDatePicker = true }
                     .padding(horizontal = 16.dp, vertical = 16.dp),
@@ -863,7 +864,7 @@ private fun ServiceRecordSheet(
                         .fillMaxWidth()
                         .heightIn(max = 300.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(c.card2)
+                        .innerFill()
                         .border(1.dp, c.border, RoundedCornerShape(14.dp))
                         .verticalScroll(rememberScrollState()),
                 ) {

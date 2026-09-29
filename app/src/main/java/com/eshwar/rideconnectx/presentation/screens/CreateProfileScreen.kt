@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.innerFill
 import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
 import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
 import com.eshwar.rideconnectx.presentation.theme.cardFill
@@ -817,7 +818,7 @@ private fun TypeSheet(onDismiss: () -> Unit, onPick: (VehicleCategory) -> Unit) 
                         .fillMaxWidth()
                         .padding(bottom = 10.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(c.card2)
+                        .innerFill()
                         .border(1.dp, c.border, RoundedCornerShape(16.dp))
                         .clickable { onPick(category) }
                         .padding(18.dp),
@@ -890,7 +891,7 @@ private fun ModelCard(vehicle: Vehicle, selected: Boolean, onClick: () -> Unit) 
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(c.card2)
+            .innerFill()
             .border(1.dp, if (selected) c.blue else c.border, shape)
             .clickable(onClick = onClick)
             .padding(14.dp),
@@ -966,7 +967,7 @@ private fun ColorSheet(
                         .fillMaxWidth()
                         .padding(bottom = 10.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(c.card2)
+                        .innerFill()
                         .border(
                             1.dp,
                             if (swatch.id == selectedId) c.blue else c.border,

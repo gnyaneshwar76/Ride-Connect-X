@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.innerFill
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -279,7 +280,7 @@ private fun PreviewTile(label: String, value: String, accent: Color, modifier: M
     Column(
         modifier
             .clip(shape)
-            .background(c.card2)
+            .innerFill()
             .border(1.dp, c.border, shape)
             .padding(12.dp),
     ) {
