@@ -46,6 +46,11 @@ class SettingsViewModel @Inject constructor(
 
     fun setRideRecorder(on: Boolean) = appScope.launch { store.setRideRecorder(on) }
 
+    val gpsCountdown: StateFlow<Boolean> =
+        store.gpsCountdown.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    fun setGpsCountdown(on: Boolean) = appScope.launch { store.setGpsCountdown(on) }
+
     /** The recorded ride log, or null when nothing has been recorded yet. */
     fun rideLogFile(): java.io.File? = rideLog.fileOrNull()
 

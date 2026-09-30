@@ -18,6 +18,17 @@ import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.annotation.SuppressLint
+import android.content.Context
+import android.os.Looper
+import android.os.SystemClock
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlin.math.roundToInt
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -35,6 +46,7 @@ class NavigationRelay @Inject constructor(
     private val rideLog: com.eshwar.rideconnectx.data.nav.RideLog,
     private val appSettings: com.eshwar.rideconnectx.data.local.AppSettingsStore,
     @ApplicationScope private val appScope: CoroutineScope,
+    @ApplicationContext private val context: Context,
 ) {
     private val _state = MutableStateFlow<NavState>(NavState.Inactive)
     val state: StateFlow<NavState> = _state.asStateFlow()
@@ -47,29 +59,114 @@ class NavigationRelay @Inject constructor(
         const val STALE_CLEAR_MS = 90_000L
         const val ARRIVAL_METRES = 50
         const val REPEAT_SKIP_MS = 1_000L
+        /** How often the GPS countdown refreshes the cluster (4 times a second). */
+        const val TICK_MS = 250L
         val DISTANCE = Regex("""(\d+(?:[.,]\d+)?)\s*(km|m|mi|ft|yd)""", RegexOption.IGNORE_CASE)
     }
 
     /**
-     * Maps updates, sent one at a time in the order they arrived.
-     *
-     * CONFLATED: if Maps posts again while a frame is still going out, only the
-     * newest is kept. A frame that is already out of date must never be sent -
-     * the "still showing 20 m after I turned" lag from the 30 Sep ride.
+     * Everything that changes the cluster, handled one at a time in arrival
+     * order: Maps updates, GPS fixes and countdown ticks. One consumer means an
+     * older frame can never overtake a newer one, and the countdown state is
+     * only ever touched from one place. Sending is quick (the BLE queue keeps
+     * only the newest navigation frame), so nothing piles up here.
      */
     private sealed interface Update {
         data class Turn(val maneuver: NavManeuver) : Update
         data class Reroute(val what: String) : Update
+        data class Fix(val fix: GpsCountdown.Fix) : Update
+        object Tick : Update
     }
-    private val updates = Channel<Update>(Channel.CONFLATED)
+    private val updates = Channel<Update>(Channel.UNLIMITED)
 
     init {
         appScope.launch {
             for (u in updates) when (u) {
                 is Update.Turn -> onManeuver(u.maneuver)
                 is Update.Reroute -> onReroute(u.what)
+                is Update.Fix -> countdown.onFix(u.fix)
+                Update.Tick -> onTick()
             }
         }
+    }
+
+    /**
+     * The phone's own GPS counting the metres down between Maps updates.
+     *
+     * The 30 Sep ride log: Maps' notification - the only thing the app can read
+     * - changed its distance only every ~2 s near a turn and every ~3.5 s with
+     * the screen off, so the cluster always trailed the scooter. Maps still
+     * sets every number; this only fills the gaps between its updates.
+     */
+    private val countdown = GpsCountdown { a, b ->
+        val out = FloatArray(1)
+        android.location.Location.distanceBetween(a.lat, a.lon, b.lat, b.lon, out)
+        out[0].toDouble()
+    }
+    private var countdownOn = false
+    private var locationCallback: LocationCallback? = null
+    private var tickJob: Job? = null
+    private var lastSentDistance = -1
+
+    @SuppressLint("MissingPermission")
+    private suspend fun startGps() {
+        if (locationCallback != null) return
+        countdownOn = appSettings.gpsCountdown.first()
+        if (!countdownOn) return
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.ACCESS_FINE_LOCATION,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!granted) {
+            countdownOn = false
+            rideLog.diag("GPS countdown off - location permission not granted")
+            return
+        }
+        val callback = object : LocationCallback() {
+            override fun onLocationResult(result: LocationResult) {
+                val l = result.lastLocation ?: return
+                updates.trySend(Update.Fix(GpsCountdown.Fix(
+                    lat = l.latitude, lon = l.longitude, accuracyM = l.accuracy,
+                    speedMps = if (l.hasSpeed()) l.speed else 0f,
+                    atMs = SystemClock.elapsedRealtime(),
+                )))
+            }
+        }
+        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, TICK_MS)
+            .setMinUpdateIntervalMillis(TICK_MS)
+            .build()
+        runCatching {
+            LocationServices.getFusedLocationProviderClient(context)
+                .requestLocationUpdates(request, callback, Looper.getMainLooper())
+        }.onFailure {
+            Log.w(TAG, "GPS countdown could not start", it)
+            countdownOn = false
+            return
+        }
+        locationCallback = callback
+        tickJob = appScope.launch {
+            while (true) {
+                delay(TICK_MS)
+                updates.trySend(Update.Tick)
+            }
+        }
+    }
+
+    private fun stopGps() {
+        tickJob?.cancel()
+        tickJob = null
+        locationCallback?.let {
+            runCatching { LocationServices.getFusedLocationProviderClient(context).removeLocationUpdates(it) }
+        }
+        locationCallback = null
+        countdownOn = false
+    }
+
+    /** Between Maps updates: send the counted-down metres when they change. */
+    private suspend fun onTick() {
+        if (!countdownOn || rerouting) return
+        val active = _state.value as? NavState.Active ?: return
+        if (countdown.shown(SystemClock.elapsedRealtime()) == lastSentDistance) return
+        relay(active.maneuver, fromGps = true)
     }
 
     fun submit(maneuver: NavManeuver) { updates.trySend(Update.Turn(maneuver)) }
@@ -99,9 +196,17 @@ class NavigationRelay @Inject constructor(
         // stays off the cluster until the rider starts it from the app
         // ([awaitMaps]). The switch was saved but never read (AUD-3).
         if (_state.value is NavState.Inactive && !appSettings.settings.first().autoStartNavigation) return
-        if (_state.value !is NavState.Active) bleRepository.setLowLatency(true)
+        if (_state.value !is NavState.Active) {
+            bleRepository.setLowLatency(true)
+            startGps()
+        }
         _state.value = NavState.Active(maneuver)
         rerouting = false
+        countdown.onMaps(
+            key = maneuver.instruction to maneuver.maneuverId,
+            metres = maneuver.distanceMetres(),
+            nowMs = SystemClock.elapsedRealtime(),
+        )
         relay(maneuver)
         armWatchdog(arrived = maneuver.isArrival())
     }
@@ -174,6 +279,8 @@ class NavigationRelay @Inject constructor(
         _clusterLinked.value = false
         rerouting = false
         lastPacket = null
+        lastSentDistance = -1
+        stopGps()
         bleRepository.setLowLatency(false)
     }
 
@@ -211,14 +318,16 @@ class NavigationRelay @Inject constructor(
      * navigation must keep working on the phone even when the bike is out of
      * range, which is what the spec calls degrading to phone-only.
      */
-    private suspend fun relay(maneuver: NavManeuver) {
+    private suspend fun relay(maneuver: NavManeuver, fromGps: Boolean = false) {
+        val distance = if (countdownOn) countdown.shown(SystemClock.elapsedRealtime())
+            else maneuver.distanceMetres()
         // `maneuverId` already holds the cluster code. The official app maps the
         // Mappls maneuver id onto these values in ViewOnClickListenerC4857A0,
         // and the app's own Maneuver constants are that table's output side.
         val packet = ProtocolEngine.buildNavigationPacket(
             clusterCode = maneuver.maneuverId,
             // Beside the arrow: how far to the next turn.
-            distanceMetres = maneuver.distanceMetres(),
+            distanceMetres = distance,
             // The cluster prints this field under the label ETA, so it wants the
             // ARRIVAL time, not the current one. It had been fed the phone's
             // clock since the field was first written, which the rider spotted
@@ -242,9 +351,15 @@ class NavigationRelay @Inject constructor(
         if (lastPacket?.contentEquals(packet) == true && now - lastPacketAt < REPEAT_SKIP_MS) return
         lastPacket = packet
         lastPacketAt = now
+        lastSentDistance = distance
 
         val delivered = runCatching { bleRepository.sendPacket(packet).first() }
             .getOrDefault(false)
+        if (fromGps) {
+            rideLog.gpsCount(distance, maneuver.distanceMetres(), delivered)
+            _clusterLinked.value = delivered
+            return
+        }
         val delayMs = if (maneuver.postedAt > 0) System.currentTimeMillis() - maneuver.postedAt else -1L
 
         Log.d(
@@ -257,7 +372,7 @@ class NavigationRelay @Inject constructor(
         rideLog.maneuver(
             instruction = maneuver.instruction,
             code = maneuver.maneuverId,
-            distanceMetres = maneuver.distanceMetres(),
+            distanceMetres = distance,
             delivered = delivered,
             phraseRecognised = maneuver.phraseRecognised,
             iconName = maneuver.iconName,
@@ -317,5 +432,74 @@ class NavigationRelay @Inject constructor(
         if (etaMinutes == null || etaMinutes <= 0) return clockNow()
         val arrival = Date(System.currentTimeMillis() + etaMinutes * 60_000L)
         return SimpleDateFormat("hhmma", Locale.US).format(arrival).uppercase()
+    }
+}
+
+/**
+ * Counts the metres to the next turn down from the phone's own GPS, between
+ * the moments Maps updates its notification.
+ *
+ * Maps' figure is the truth; this only moves the number on while Maps is
+ * silent. The shown value never goes up for the same turn (a stale Maps repeat
+ * must not push the cluster back), never below 0, and is re-anchored to Maps
+ * when Maps is lower (we were slow) or much higher (we over-counted). Standing
+ * still, or a poor fix, counts nothing, so GPS jitter at a signal cannot move it.
+ */
+internal class GpsCountdown(private val metresBetween: (Fix, Fix) -> Double) {
+
+    data class Fix(val lat: Double, val lon: Double, val accuracyM: Float, val speedMps: Float, val atMs: Long)
+
+    private var key: Any? = null
+    private var anchor = 0
+    private var anchorAt = 0L
+    private var moved = 0.0
+    private var last: Fix? = null
+    private var shown = 0
+
+    fun onMaps(key: Any, metres: Int, nowMs: Long) {
+        val counted = shown(nowMs)
+        val tolerance = maxOf(MIN_TOLERANCE_M, metres * 15 / 100)
+        if (key != this.key || metres < counted || metres - counted > tolerance) {
+            this.key = key
+            anchor = metres
+            anchorAt = nowMs
+            moved = 0.0
+            shown = metres
+        }
+    }
+
+    fun onFix(f: Fix) {
+        val prev = last
+        last = f
+        if (prev == null || !usable(f) || f.atMs <= prev.atMs) return
+        // Only the part of this stretch ridden after Maps last set the number.
+        val from = maxOf(prev.atMs, anchorAt)
+        if (f.atMs <= from) return
+        val share = (f.atMs - from).toDouble() / (f.atMs - prev.atMs)
+        moved += metresBetween(prev, f) * share
+    }
+
+    fun shown(nowMs: Long): Int {
+        var ahead = 0.0
+        val l = last
+        if (l != null && usable(l)) {
+            val since = nowMs - maxOf(l.atMs, anchorAt)
+            if (since in 0..MAX_AHEAD_MS) ahead = l.speedMps * since / 1000.0
+        }
+        val counted = (anchor - moved - ahead).roundToInt().coerceAtLeast(0)
+        if (counted < shown) shown = counted
+        return shown
+    }
+
+    private fun usable(f: Fix) = f.accuracyM <= MAX_ACCURACY_M && f.speedMps >= MIN_SPEED_MPS
+
+    private companion object {
+        /** Maps rounds to 10 m and trails by a second or two; within this, keep counting. */
+        const val MIN_TOLERANCE_M = 30
+        const val MAX_ACCURACY_M = 30f
+        /** Under ~4 km/h is standing still: count nothing. */
+        const val MIN_SPEED_MPS = 1f
+        /** Predict from speed for at most this long after the last fix (GPS lost = stop). */
+        const val MAX_AHEAD_MS = 1_500L
     }
 }

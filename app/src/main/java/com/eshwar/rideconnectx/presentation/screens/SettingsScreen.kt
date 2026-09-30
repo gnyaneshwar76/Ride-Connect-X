@@ -103,6 +103,7 @@ fun SettingsScreen(
     val vehicleName by vm.vehicleName.collectAsStateWithLifecycle()
     val account by vm.account.collectAsStateWithLifecycle()
     val rideRecorder by vm.rideRecorder.collectAsStateWithLifecycle()
+    val gpsCountdown by vm.gpsCountdown.collectAsStateWithLifecycle()
 
     var showUnits by remember { mutableStateOf(false) }
     var confirmForget by remember { mutableStateOf(false) }
@@ -233,6 +234,13 @@ fun SettingsScreen(
                             subtitle = "Save every instruction sent to your scooter during navigation",
                             checked = rideRecorder,
                             onCheckedChange = vm::setRideRecorder,
+                        )
+                        SettingsDivider()
+                        SettingsToggleRow(
+                            title = "Live metre countdown",
+                            subtitle = "Phone GPS counts the metres down between Maps updates (takes effect on the next route)",
+                            checked = gpsCountdown,
+                            onCheckedChange = vm::setGpsCountdown,
                         )
                         SettingsDivider()
                         SettingsLinkRow(

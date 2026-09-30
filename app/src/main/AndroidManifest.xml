@@ -23,6 +23,8 @@
     <!-- Foreground Service Permission -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- Live metre countdown: phone GPS while navigating, screen off included. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
     <!-- Notification Permission (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -95,7 +97,7 @@
             android:name=".data.ble.BleForegroundService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="connectedDevice" />
+            android:foregroundServiceType="connectedDevice|location" />
 
         <!--
             Reads Google Maps' navigation notification so turn-by-turn can be

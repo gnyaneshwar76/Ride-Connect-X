@@ -44,6 +44,7 @@ class AppSettingsStore @Inject constructor(
         val SURFACE_STYLE = stringPreferencesKey("surface_style")
         val GLASS_INTENSITY = floatPreferencesKey("glass_intensity")
         val RIDE_RECORDER = booleanPreferencesKey("ride_recorder")
+        val GPS_COUNTDOWN = booleanPreferencesKey("gps_countdown")
         val AUTO_START_NAV = booleanPreferencesKey("auto_start_navigation")
 
         // Bluetooth
@@ -91,6 +92,11 @@ class AppSettingsStore @Inject constructor(
     val rideRecorder: Flow<Boolean> = context.appSettings.data.map { it[RIDE_RECORDER] ?: false }
 
     suspend fun setRideRecorder(on: Boolean) = put(RIDE_RECORDER, on)
+
+    /** Live metre countdown from the phone's GPS between Maps updates; on by default. */
+    val gpsCountdown: Flow<Boolean> = context.appSettings.data.map { it[GPS_COUNTDOWN] ?: true }
+
+    suspend fun setGpsCountdown(on: Boolean) = put(GPS_COUNTDOWN, on)
 
     /** The slider's value while it is being dragged; null when not dragging. */
     private val draggingIntensity = MutableStateFlow<Float?>(null)

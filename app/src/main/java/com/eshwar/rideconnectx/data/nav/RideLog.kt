@@ -189,6 +189,11 @@ class RideLog @Inject constructor(
         append("  DIAG $line")
     }
 
+    /** A GPS countdown frame: one short line, it goes out several times a second. */
+    fun gpsCount(sentMetres: Int, mapsMetres: Int, delivered: Boolean) {
+        append("[${stamp.format(Date())}]    GPS count : $sentMetres m  (Maps last said $mapsMetres m)${if (delivered) "" else "  NOT delivered"}")
+    }
+
     /** A call or message the app saw (who and which app; never the message text). */
     fun alert(line: String) {
         append("[${stamp.format(Date())}]  >>> $line")

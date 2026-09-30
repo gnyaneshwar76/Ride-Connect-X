@@ -412,7 +412,19 @@ class BleForegroundService : Service() {
         val notification = createNotification("Starting RideConnectX...")
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+                // Location too, when allowed, so the GPS metre countdown keeps
+                // working with the screen off. Android refuses it when location
+                // is not granted (or the app is in the background), so fall
+                // back to Bluetooth only - the link must never fail over this.
+                val withLocation = ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                val locationGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+                    this, android.Manifest.permission.ACCESS_FINE_LOCATION,
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                val started = locationGranted && runCatching {
+                    startForeground(1, notification, withLocation)
+                }.isSuccess
+                if (!started) startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
             } else {
                 startForeground(1, notification)
             }
