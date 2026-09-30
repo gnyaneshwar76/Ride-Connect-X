@@ -337,6 +337,20 @@ class BleForegroundService : Service() {
         return true
     }
 
+    /**
+     * HIGH shortens the radio's connection interval (~11-15 ms instead of up to
+     * ~50 ms), so a turn reaches the cluster at once. Only while a route is
+     * running - it costs battery - and BALANCED again when it ends.
+     */
+    @SuppressLint("MissingPermission")
+    fun setLowLatency(on: Boolean) {
+        mainHandler.post {
+            val priority = if (on) BluetoothGatt.CONNECTION_PRIORITY_HIGH else BluetoothGatt.CONNECTION_PRIORITY_BALANCED
+            val ok = runCatching { bluetoothGatt?.requestConnectionPriority(priority) }.getOrNull()
+            Log.d(TAG, "Connection priority ${if (on) "HIGH" else "BALANCED"} requested=$ok")
+        }
+    }
+
     private fun ByteArray.toHexString(): String = joinToString("") { "%02x".format(it) }
 
     private fun describeProps(props: Int) = buildList {

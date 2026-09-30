@@ -55,6 +55,18 @@ class BleRepositoryImpl @Inject constructor(
     @Volatile private var userDisconnected = false
 
     /**
+     * True until the rider opens the app, and again once they swipe it away.
+     *
+     * The rider's report, 30 Sep: after removing the app from recents - even
+     * after Force stop - it was running again with its notification up. Android
+     * re-binds the Maps listener, which restarts the process, and the watcher
+     * below then reconnected and started the foreground service by itself.
+     * shutdown() never told the watcher to stop either, so a swipe was undone
+     * three seconds later.
+     */
+    @Volatile private var dormant = true
+
+    /**
      * Keeps trying to bring the link back while the app is alive.
      *
      * **This did not exist.** `reconnectLastDevice()` was called from exactly one
@@ -81,7 +93,7 @@ class BleRepositoryImpl @Inject constructor(
                     delayMs = RECONNECT_MIN_MS
                     continue
                 }
-                if (userDisconnected) continue
+                if (userDisconnected || dormant) continue
                 if (!appSettings.settings.first().autoConnect) continue
 
                 val address = sessionDataStore.lastDeviceAddress.first()
@@ -187,6 +199,10 @@ class BleRepositoryImpl @Inject constructor(
             observeNotifications().collect { packet ->
                 val telemetry = com.eshwar.rideconnectx.domain.ProtocolEngine.parseTelemetry(packet.data)
                 telemetry?.let {
+                    if (!odometerGuard.accept(_telemetry.value.odometerKm, it.odometerKm)) {
+                        Log.w(TAG, "Odometer ${it.odometerKm} km held back until a second frame confirms it")
+                        return@let
+                    }
                     _telemetry.value = it
                     // Persisted so the dashboard survives a dropout and a restart.
                     //
@@ -258,6 +274,8 @@ class BleRepositoryImpl @Inject constructor(
         return true
     }
 
+    private val odometerGuard = OdometerGuard()
+
     private val _telemetry = MutableStateFlow(ScooterTelemetry())
     override val telemetry: Flow<ScooterTelemetry> = _telemetry.asStateFlow()
 
@@ -294,6 +312,7 @@ class BleRepositoryImpl @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun connect(address: String): Flow<ConnectionState> {
         Log.d(TAG, "Connect requested: $address")
+        dormant = false
         if (!ensureServiceStarted()) {
             return flowOf(ConnectionState.Failed("Bluetooth permission is required to connect."))
                 .onEach { _connectionState.value = it }
@@ -385,6 +404,7 @@ class BleRepositoryImpl @Inject constructor(
      */
     override fun reconnectLastDevice() {
         userDisconnected = false
+        dormant = false
         repositoryScope.launch {
             val address = sessionDataStore.lastDeviceAddress.first()
             if (address.isNullOrBlank()) {
@@ -415,6 +435,7 @@ class BleRepositoryImpl @Inject constructor(
      */
     override fun shutdown() {
         Log.d(TAG, "Shutdown requested — dropping link and stopping service")
+        dormant = true
         profileJob?.cancel()
         heartbeatJob?.cancel()
         bleService?.disconnect()
@@ -443,6 +464,10 @@ class BleRepositoryImpl @Inject constructor(
      * characteristic has not been resolved, so the Navigation screen says
      * "not relaying" instead of claiming a delivery that never left the phone.
      */
+    override fun setLowLatency(on: Boolean) {
+        bleService?.setLowLatency(on)
+    }
+
     override fun sendPacket(packet: ByteArray): Flow<Boolean> {
         val service = bleService
         if (service == null || !service.isReadyToWrite) {
@@ -590,5 +615,29 @@ class BleRepositoryImpl @Inject constructor(
                 BlePacket(uuid, data)
             } ?: emptyFlow()
         }
+    }
+}
+
+/**
+ * Keeps a garbled telemetry frame off the dashboard.
+ *
+ * 30 Sep 2026, on the road: the odometer flashed ~3 lakh km while the scooter
+ * reconnected, then went back. The byte-28 check lets roughly 1 in 128 bad
+ * frames through (two accepted branches), and nothing guarded what was SHOWN -
+ * only what was cached. A real reading repeats in every frame, a garbled one
+ * does not, so a reading far from the last one is shown only once the next
+ * frame agrees with it.
+ */
+internal class OdometerGuard(private val maxStepKm: Int = 5) {
+    private var unconfirmed = -1
+
+    fun accept(lastKm: Int, km: Int): Boolean {
+        if (km <= 0 || km > MAX_PLAUSIBLE_ODO_KM) return false
+        if (lastKm <= 0 || km in lastKm..lastKm + maxStepKm || km == unconfirmed) {
+            unconfirmed = -1
+            return true
+        }
+        unconfirmed = km
+        return false
     }
 }

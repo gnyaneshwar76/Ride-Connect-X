@@ -60,6 +60,13 @@ sealed class GattCommand {
 class GattCommandQueue {
     private val queue = ConcurrentLinkedQueue<GattCommand>()
     private var isProcessing = false
+    private var startedAt = 0L
+
+    private companion object {
+        /** A completion callback that never arrives must not freeze the queue. */
+        const val STUCK_MS = 1_000L
+        const val NAVIGATION = 0x31.toByte()
+    }
 
     @Synchronized
     fun addCommand(command: GattCommand, gatt: BluetoothGatt?) {
@@ -69,7 +76,15 @@ class GattCommandQueue {
             isProcessing = false
             return
         }
+        // A queued navigation frame is out of date the moment a newer one exists.
+        if (command is GattCommand.WriteCharacteristic && command.value.getOrNull(1) == NAVIGATION) {
+            queue.removeIf { it is GattCommand.WriteCharacteristic && it.value.getOrNull(1) == NAVIGATION }
+        }
         queue.add(command)
+        if (isProcessing && System.currentTimeMillis() - startedAt > STUCK_MS) {
+            Log.w("GattCommandQueue", "Previous command never completed - moving on")
+            isProcessing = false
+        }
         if (!isProcessing) {
             processNext(gatt)
         }
@@ -87,6 +102,7 @@ class GattCommandQueue {
         val command = queue.poll()
         if (command != null) {
             isProcessing = true
+            startedAt = System.currentTimeMillis()
             Log.d("GattCommandQueue", "Executing command: ${command.javaClass.simpleName}")
             val success = try {
                 command.execute(gatt)

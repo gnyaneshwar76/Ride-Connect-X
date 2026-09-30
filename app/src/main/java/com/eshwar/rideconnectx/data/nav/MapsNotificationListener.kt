@@ -449,7 +449,7 @@ class MapsNotificationListener : NotificationListenerService() {
         // until the next real instruction arrives.
         if (MapsNotificationParser.isReroute("$title $text")) {
             Log.d(TAG, "Reroute: title='$title' text='$text'")
-            scope.launch { relay.onReroute("$title | $text") }
+            relay.submitReroute("$title | $text")
             return
         }
 
@@ -463,10 +463,13 @@ class MapsNotificationListener : NotificationListenerService() {
         // Read here rather than in the relay: the rider's report that the screen
         // being off stalls navigation has to be measured at the moment Maps
         // posts, not whenever the packet happens to be built.
-        val maneuver = parsed.copy(screenOn = isScreenOn())
+        val maneuver = parsed.copy(screenOn = isScreenOn(), postedAt = sbn.postTime)
 
         Log.d(TAG, "Maneuver: ${maneuver.instruction} in ${maneuver.distanceToTurn}")
-        scope.launch { relay.onManeuver(maneuver) }
+        // Queued, not launched: one coroutine per notification let an older frame
+        // overtake a newer one on the way to the scooter (the 30 Sep ride log has
+        // two frames written at once). The relay sends in order, newest wins.
+        relay.submit(maneuver)
     }
 
     /**
@@ -498,11 +501,17 @@ class MapsNotificationListener : NotificationListenerService() {
         // return` at the top of this function threw away every incoming call
         // before the category was even looked at. That is why the call lamp
         // never lit during the 18 August test.
+        // The 30 Sep ride: a friend's call never showed on the cluster, and
+        // nothing recorded whether the app even saw it.
+        if (isCall && !isTrustedCallSource(sbn.packageName)) {
+            logAlert("CALL notification from ${sbn.packageName} IGNORED (not a trusted dialer)")
+        }
         when {
             isCall && isTrustedCallSource(sbn.packageName) -> {
                 val who = sbn.notification.extras
                     ?.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
                 Log.d(TAG, "Call from ${sbn.packageName} who='$who' - flagging cluster")
+                logAlert("CALL from $who (${sbn.packageName}) - sent to the cluster")
                 ClusterAlerts.onMissedCall(title = who)
             }
             sbn.isOngoing -> return
@@ -514,6 +523,7 @@ class MapsNotificationListener : NotificationListenerService() {
                 // in the 0x06 packet.
                 val app = if (sbn.packageName.startsWith("com.whatsapp")) 'W' else 'N'
                 Log.d(TAG, "Message from ${sbn.packageName} who='$who' - flagging cluster")
+                logAlert("MESSAGE from $who (${sbn.packageName}) - sent to the cluster")
                 ClusterAlerts.onNotification(appIdentifier = app, title = who, text = body)
             }
         }
@@ -549,6 +559,13 @@ class MapsNotificationListener : NotificationListenerService() {
 
         Log.d(TAG, "Ignoring call-category notification from untrusted pkg=$pkg")
         return false
+    }
+
+    private fun logAlert(line: String) {
+        runCatching {
+            EntryPointAccessors.fromApplication(applicationContext, ServiceEntryPoint::class.java)
+                .rideLog().alert(line)
+        }
     }
 
     /** True only for a package on the system image or a system-signed update. */

@@ -7,6 +7,7 @@ import com.eshwar.rideconnectx.domain.model.NavState
 import com.eshwar.rideconnectx.domain.repository.BleRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,8 +46,39 @@ class NavigationRelay @Inject constructor(
         /** Maps silent this long mid-route = frozen. Tunable; see [armWatchdog]. */
         const val STALE_CLEAR_MS = 90_000L
         const val ARRIVAL_METRES = 50
+        const val REPEAT_SKIP_MS = 1_000L
         val DISTANCE = Regex("""(\d+(?:[.,]\d+)?)\s*(km|m|mi|ft|yd)""", RegexOption.IGNORE_CASE)
     }
+
+    /**
+     * Maps updates, sent one at a time in the order they arrived.
+     *
+     * CONFLATED: if Maps posts again while a frame is still going out, only the
+     * newest is kept. A frame that is already out of date must never be sent -
+     * the "still showing 20 m after I turned" lag from the 30 Sep ride.
+     */
+    private sealed interface Update {
+        data class Turn(val maneuver: NavManeuver) : Update
+        data class Reroute(val what: String) : Update
+    }
+    private val updates = Channel<Update>(Channel.CONFLATED)
+
+    init {
+        appScope.launch {
+            for (u in updates) when (u) {
+                is Update.Turn -> onManeuver(u.maneuver)
+                is Update.Reroute -> onReroute(u.what)
+            }
+        }
+    }
+
+    fun submit(maneuver: NavManeuver) { updates.trySend(Update.Turn(maneuver)) }
+
+    fun submitReroute(what: String) { updates.trySend(Update.Reroute(what)) }
+
+    /** The last navigation frame written, to skip Maps' back-to-back repeats. */
+    private var lastPacket: ByteArray? = null
+    private var lastPacketAt = 0L
 
     private val _clusterLinked = MutableStateFlow(false)
 
@@ -67,6 +99,7 @@ class NavigationRelay @Inject constructor(
         // stays off the cluster until the rider starts it from the app
         // ([awaitMaps]). The switch was saved but never read (AUD-3).
         if (_state.value is NavState.Inactive && !appSettings.settings.first().autoStartNavigation) return
+        if (_state.value !is NavState.Active) bleRepository.setLowLatency(true)
         _state.value = NavState.Active(maneuver)
         rerouting = false
         relay(maneuver)
@@ -140,6 +173,8 @@ class NavigationRelay @Inject constructor(
         _state.value = NavState.Inactive
         _clusterLinked.value = false
         rerouting = false
+        lastPacket = null
+        bleRepository.setLowLatency(false)
     }
 
     /**
@@ -201,8 +236,16 @@ class NavigationRelay @Inject constructor(
             remainingMetres = maneuver.remainingMetres(),
         )
 
+        // Maps often posts the same frame twice in a second; the copy would only
+        // queue in front of the next real update.
+        val now = System.currentTimeMillis()
+        if (lastPacket?.contentEquals(packet) == true && now - lastPacketAt < REPEAT_SKIP_MS) return
+        lastPacket = packet
+        lastPacketAt = now
+
         val delivered = runCatching { bleRepository.sendPacket(packet).first() }
             .getOrDefault(false)
+        val delayMs = if (maneuver.postedAt > 0) System.currentTimeMillis() - maneuver.postedAt else -1L
 
         Log.d(
             TAG,
@@ -222,6 +265,7 @@ class NavigationRelay @Inject constructor(
             codeSource = maneuver.codeSource.name,
             screenOn = maneuver.screenOn,
             packet = packet,
+            delayMs = delayMs,
         )
         _clusterLinked.value = delivered
     }

@@ -64,6 +64,9 @@ data class NavManeuver(
      * that from a suspicion into a measurement.
      */
     val screenOn: Boolean = true,
+
+    /** When Maps posted this (sbn.postTime), to measure our own delay. 0 = unknown. */
+    val postedAt: Long = 0L,
 ) {
     enum class Source {
         /** A manoeuvre phrase was found in the notification text. */

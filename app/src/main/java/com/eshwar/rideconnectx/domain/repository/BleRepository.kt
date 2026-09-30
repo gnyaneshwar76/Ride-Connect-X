@@ -36,6 +36,9 @@ interface BleRepository {
     /** Drops the link and stops the BLE service outright. */
     fun shutdown()
 
+    /** Fast radio link while a route is on the cluster; normal otherwise (battery). */
+    fun setLowLatency(on: Boolean) {}
+
     suspend fun updateOnboardingStatus(status: OnboardingStatus)
 }
 

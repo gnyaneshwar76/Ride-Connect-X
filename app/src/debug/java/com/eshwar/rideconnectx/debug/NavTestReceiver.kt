@@ -145,7 +145,7 @@ class NavTestReceiver : BroadcastReceiver() {
 
                 // Same order as the real listener: a reroute is not a maneuver.
                 if (MapsNotificationParser.isReroute("$title $text")) {
-                    scope.launch { relay.onReroute("$title | $text") }
+                    relay.submitReroute("$title | $text")
                     return
                 }
 
@@ -156,7 +156,7 @@ class NavTestReceiver : BroadcastReceiver() {
                 }
 
                 Log.d(TAG, "[TEST] ${maneuver.instruction} | ${maneuver.distanceToTurn} | id=${maneuver.maneuverId}")
-                scope.launch { relay.onManeuver(maneuver) }
+                relay.submit(maneuver)
             }
         }
     }

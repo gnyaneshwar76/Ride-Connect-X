@@ -98,6 +98,7 @@ class RideLog @Inject constructor(
         codeSource: String = "TEXT",
         screenOn: Boolean = true,
         packet: ByteArray? = null,
+        delayMs: Long = -1L,
     ) {
         val m = com.eshwar.rideconnectx.domain.ProtocolEngine.Maneuver
         val label = m.label(code)
@@ -136,6 +137,7 @@ class RideLog @Inject constructor(
         }
         packet?.let { append("            Bytes sent  : ${it.hex()}") }
         append("            Reached the scooter : ${if (delivered) "yes" else "NO — not delivered"}")
+        if (delayMs >= 0) append("            Phone delay : ${delayMs} ms (Maps posted -> sent to scooter)")
         append("            Screen : ${if (screenOn) "on" else "OFF"}   Gap since last : ${gapSeconds}s")
         if (gapSeconds >= 5) {
             append("            *** STALL - no Maps update for ${gapSeconds}s (cluster was showing stale data) ***")
@@ -185,6 +187,13 @@ class RideLog @Inject constructor(
      */
     fun diag(line: String) {
         append("  DIAG $line")
+    }
+
+    /** A call or message the app saw (who and which app; never the message text). */
+    fun alert(line: String) {
+        append("[${stamp.format(Date())}]  >>> $line")
+        append("            Did the cluster show it? ______________________")
+        append("")
     }
 
     /** Maps recalculated; the cluster was sent the blank "----" frame. */
