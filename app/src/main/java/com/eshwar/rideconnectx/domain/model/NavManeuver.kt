@@ -16,6 +16,8 @@ data class NavManeuver(
     val distanceToTurn: String,
     /** Remaining trip figures, blank while unknown. */
     val etaMinutes: Int? = null,
+    /** Maps' own arrival time as the cluster wants it, "1107AM"; null if absent. */
+    val etaClock: String? = null,
     val remainingDistance: String = "",
     /**
      * False when no manoeuvre phrase matched and the code fell back to STRAIGHT.

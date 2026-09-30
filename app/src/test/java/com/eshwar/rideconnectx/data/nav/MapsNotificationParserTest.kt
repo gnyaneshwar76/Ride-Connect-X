@@ -306,4 +306,14 @@ class MapsNotificationParserTest {
             )
         )
     }
+
+    /** 30 Sep ride: the cluster clock must be Maps' own ETA, not now + minutes. */
+    @Test
+    fun `the arrival clock is taken from Maps`() {
+        assertEquals("1107AM", maps("Turn left", "50 m", "32 min · 12 km · 11:07 am ETA")!!.etaClock)
+        assertEquals("0253PM", MapsNotificationParser.parseEtaClock("15 min · 6.3 km · 2:53 pm ETA"))
+        assertEquals("0253PM", MapsNotificationParser.parseEtaClock("15 min · 6.3 km · 14:53 ETA"))
+        assertEquals("1205AM", MapsNotificationParser.parseEtaClock("5 min · 1 km · 00:05 ETA"))
+        assertNull(MapsNotificationParser.parseEtaClock("1 hr 5 min · 40 km"))
+    }
 }

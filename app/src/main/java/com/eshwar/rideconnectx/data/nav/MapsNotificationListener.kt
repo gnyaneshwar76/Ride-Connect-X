@@ -590,6 +590,8 @@ object MapsNotificationParser {
 
     /** "12 min", "1 hr 5 min" — remaining time. */
     private val ETA_MINUTES = Regex("""(\d+)\s*min""", RegexOption.IGNORE_CASE)
+    /** "11:07 am ETA" / "14:53 ETA" — the arrival clock Maps shows. */
+    private val ETA_CLOCK = Regex("""(\d{1,2}):(\d{2})[\s  ]*([ap]\.?m\.?)?[\s  ]*ETA""", RegexOption.IGNORE_CASE)
     private val ETA_HOURS = Regex("""(\d+)\s*(?:hr|hour)""", RegexOption.IGNORE_CASE)
 
     /**
@@ -764,6 +766,7 @@ object MapsNotificationParser {
             instruction = instruction,
             distanceToTurn = distance.trim(),
             etaMinutes = parseEtaMinutes(journey),
+            etaClock = parseEtaClock(journey),
             remainingDistance = DISTANCE.findAll(journey).map { it.value }.lastOrNull()
                 ?.trim().orEmpty(),
             phraseRecognised = matched != null,
@@ -771,6 +774,20 @@ object MapsNotificationParser {
             iconManeuverId = iconCode,
             codeSource = codeSource,
         )
+    }
+
+    /**
+     * The 30 Sep ride: working the clock out as now + minutes put the cluster a
+     * minute off Maps on a quarter of frames, so Maps' own figure is used.
+     */
+    internal fun parseEtaClock(source: String): String? {
+        val m = ETA_CLOCK.find(source) ?: return null
+        var hour = m.groupValues[1].toInt()
+        val minute = m.groupValues[2]
+        val ampm = m.groupValues[3].replace(".", "").uppercase().ifBlank {
+            (if (hour >= 12) "PM" else "AM").also { hour = (hour + 11) % 12 + 1 }
+        }
+        return "%02d%s%s".format(hour, minute, ampm)
     }
 
     private fun parseEtaMinutes(source: String): Int? {

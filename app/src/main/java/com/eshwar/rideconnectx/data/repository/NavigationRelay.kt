@@ -114,7 +114,7 @@ class NavigationRelay @Inject constructor(
         val packet = ProtocolEngine.buildNavigationPacket(
             clusterCode = ProtocolEngine.Maneuver.FIRST_BLANK,
             distanceMetres = 0,
-            clock = etaClock(active.maneuver.etaMinutes),
+            clock = active.maneuver.etaClock ?: etaClock(active.maneuver.etaMinutes),
             remainingMetres = active.maneuver.remainingMetres(),
             distanceText = "----M",
         )
@@ -194,7 +194,7 @@ class NavigationRelay @Inject constructor(
             //
             // The 0x33 heartbeat clock is a different field and is confirmed
             // correct on the dashboard - it keeps the real time.
-            clock = etaClock(maneuver.etaMinutes),
+            clock = maneuver.etaClock ?: etaClock(maneuver.etaMinutes),
             // Beside the clock: how far is left of the whole journey. This was
             // never sent, so that slot showed the turn distance instead - which
             // is what the rider spotted on 19 August.
