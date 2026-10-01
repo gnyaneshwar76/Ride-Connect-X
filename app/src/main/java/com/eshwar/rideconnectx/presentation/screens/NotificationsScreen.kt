@@ -118,6 +118,13 @@ fun NotificationsScreen(
             if (items.isEmpty()) {
                 EmptyNotifications(Modifier.padding(horizontal = 20.dp).enterRise(0))
             } else {
+                val refreshContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
+                com.eshwar.rideconnectx.presentation.components.RideRefreshBox(onRefresh = {
+                    // Re-checks what is due, so a reminder that has come up appears now.
+                    dagger.hilt.android.EntryPointAccessors.fromApplication(
+                        refreshContext, com.eshwar.rideconnectx.core.di.ServiceEntryPoint::class.java,
+                    ).serviceReminder().checkOnce()
+                }) {
                 LazyColumn(
                     state = listState,
                     contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
@@ -134,6 +141,7 @@ fun NotificationsScreen(
                         )
                         }
                     }
+                }
                 }
             }
         }

@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.sheetEnter
 import com.eshwar.rideconnectx.presentation.theme.RcxMotion
 import androidx.compose.ui.graphics.graphicsLayer
 import com.eshwar.rideconnectx.presentation.theme.innerFill
@@ -815,6 +816,7 @@ private fun TypeSheet(onDismiss: () -> Unit, onPick: (VehicleCategory) -> Unit) 
         sheetState = rememberModalBottomSheetState(),
         containerColor = sheetContainerColor(),
     ) {
+        androidx.compose.foundation.layout.Column(Modifier.sheetEnter()) {
         GlassSheetWindow()
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text("Choose your vehicle type", style = RcxType.Label.copy(fontSize = 16.sp), color = c.text)
@@ -846,6 +848,7 @@ private fun TypeSheet(onDismiss: () -> Unit, onPick: (VehicleCategory) -> Unit) 
             }
         }
     }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -863,6 +866,7 @@ private fun ModelSheet(
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = sheetContainerColor(),
     ) {
+        androidx.compose.foundation.layout.Column(Modifier.sheetEnter()) {
         GlassSheetWindow()
         Column(Modifier.fillMaxWidth()) {
             Text(
@@ -888,6 +892,7 @@ private fun ModelSheet(
                 }
             }
         }
+    }
     }
 }
 
@@ -974,6 +979,7 @@ private fun ColorSheet(
         sheetState = rememberModalBottomSheetState(),
         containerColor = sheetContainerColor(),
     ) {
+        androidx.compose.foundation.layout.Column(Modifier.sheetEnter()) {
         GlassSheetWindow()
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 32.dp)) {
             Text("${vehicle.name} — colour", style = RcxType.Label.copy(fontSize = 16.sp), color = c.text)
@@ -1006,5 +1012,6 @@ private fun ColorSheet(
                 }
             }
         }
+    }
     }
 }

@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.sheetEnter
 import com.eshwar.rideconnectx.presentation.theme.edgeShrink
 import androidx.compose.ui.draw.drawBehind
 import com.eshwar.rideconnectx.presentation.theme.floaty
@@ -163,11 +164,18 @@ fun ServiceScreen(
             val headerList = androidx.compose.foundation.lazy.rememberLazyListState()
             BackHeader(title = stringResource(R.string.service_title), onBack = onBack, lifted = headerList.canScrollBackward)
 
+            val refreshContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
+            com.eshwar.rideconnectx.presentation.components.RideRefreshBox(modifier = Modifier.weight(1f), onRefresh = {
+                // Re-checks what is due, so a reminder that has come up appears now.
+                dagger.hilt.android.EntryPointAccessors.fromApplication(
+                    refreshContext, com.eshwar.rideconnectx.core.di.ServiceEntryPoint::class.java,
+                ).serviceReminder().checkOnce()
+            }) {
             LazyColumn(
                 state = headerList,
                 contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxSize(),
             ) {
                 item { Box(Modifier.enterRise(0)) { RcxHeroBanner(R.drawable.img_service_hero) } }
 
@@ -258,6 +266,7 @@ fun ServiceScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+            }
             }
         }
     }
@@ -826,6 +835,7 @@ private fun ServiceRecordSheet(
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = sheetContainerColor(),
     ) {
+        androidx.compose.foundation.layout.Column(Modifier.sheetEnter()) {
         GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(
@@ -1101,6 +1111,7 @@ private fun ServiceRecordSheet(
             )
         }
     }
+    }
 
     if (showDatePicker) {
         val state = rememberDatePickerState(initialSelectedDateMillis = localDateToUtc(servicedAt))
@@ -1161,6 +1172,7 @@ private fun TaskSheet(
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = sheetContainerColor(),
     ) {
+        androidx.compose.foundation.layout.Column(Modifier.sheetEnter()) {
         GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(
@@ -1228,6 +1240,7 @@ private fun TaskSheet(
             }
         }
     }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1244,6 +1257,7 @@ private fun ConfirmDeleteSheet(
         sheetState = rememberModalBottomSheetState(),
         containerColor = sheetContainerColor(),
     ) {
+        androidx.compose.foundation.layout.Column(Modifier.sheetEnter()) {
         GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(
@@ -1283,6 +1297,7 @@ private fun ConfirmDeleteSheet(
                 }
             }
         }
+    }
     }
 }
 

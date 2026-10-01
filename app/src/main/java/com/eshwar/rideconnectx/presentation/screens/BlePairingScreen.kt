@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.popIn
+import androidx.compose.foundation.layout.offset
 import com.eshwar.rideconnectx.presentation.theme.isGlass
 import com.eshwar.rideconnectx.presentation.theme.glassButton
 import com.eshwar.rideconnectx.presentation.theme.cardFill
@@ -138,6 +140,7 @@ fun BlePairingScreen(
                 active = scanning,
                 ring = ring,
                 connected = connected != null,
+                found = state.devices.size,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(190.dp),
@@ -370,6 +373,8 @@ private fun RadarPulse(
     ring: Color,
     connected: Boolean,
     modifier: Modifier = Modifier,
+    /** Scooters found so far: each one pops in as a dot on a ring. */
+    found: Int = 0,
 ) {
     val c = Rcx.colors
     val transition = rememberInfiniteTransition(label = "radar")
@@ -397,6 +402,23 @@ private fun RadarPulse(
         }
 
         if (connected) com.eshwar.rideconnectx.presentation.theme.Burst(ring, Modifier.size(170.dp))
+
+        // One dot per scooter found, each on its own ring and bearing.
+        repeat(found.coerceAtMost(3)) { i ->
+            val angle = Math.toRadians((35 + i * 125).toDouble())
+            val radius = (36 + i * 22).dp
+            androidx.compose.runtime.key(i) {
+                Box(
+                    Modifier
+                        .offset(x = radius * kotlin.math.cos(angle).toFloat(), y = radius * kotlin.math.sin(angle).toFloat())
+                        .popIn()
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(c.green)
+                        .border(2.dp, Color.White.copy(alpha = 0.85f), CircleShape)
+                )
+            }
+        }
 
         Box(
             Modifier

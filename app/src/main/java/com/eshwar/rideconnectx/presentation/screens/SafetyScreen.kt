@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.sheetEnter
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -306,6 +307,13 @@ fun SafetyScreen(
             val headerList = androidx.compose.foundation.lazy.rememberLazyListState()
             BackHeader(title = stringResource(R.string.safety_title), onBack = onBack, lifted = headerList.canScrollBackward)
 
+            val refreshContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
+            com.eshwar.rideconnectx.presentation.components.RideRefreshBox(onRefresh = {
+                // Re-checks what is due, so a reminder that has come up appears now.
+                dagger.hilt.android.EntryPointAccessors.fromApplication(
+                    refreshContext, com.eshwar.rideconnectx.core.di.ServiceEntryPoint::class.java,
+                ).serviceReminder().checkOnce()
+            }) {
             LazyColumn(
                 state = headerList,
                 contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 32.dp),
@@ -429,6 +437,7 @@ fun SafetyScreen(
                 item {
                     ShareLocationToggle(enabled = shareLocation, onToggle = vm::setShareLocation)
                 }
+            }
             }
         }
     }
@@ -641,6 +650,7 @@ private fun SosSheet(
         sheetState = rememberModalBottomSheetState(),
         containerColor = sheetContainerColor(),
     ) {
+        androidx.compose.foundation.layout.Column(Modifier.sheetEnter()) {
         GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(
@@ -732,6 +742,7 @@ private fun SosSheet(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+    }
     }
 }
 
@@ -1114,6 +1125,7 @@ private fun ContactSheet(
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = sheetContainerColor(),
     ) {
+        androidx.compose.foundation.layout.Column(Modifier.sheetEnter()) {
         GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(
@@ -1184,6 +1196,7 @@ private fun ContactSheet(
             )
         }
     }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1199,6 +1212,7 @@ private fun ConfirmDeleteContactSheet(
         sheetState = rememberModalBottomSheetState(),
         containerColor = sheetContainerColor(),
     ) {
+        androidx.compose.foundation.layout.Column(Modifier.sheetEnter()) {
         GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(
@@ -1241,6 +1255,7 @@ private fun ConfirmDeleteContactSheet(
                 }
             }
         }
+    }
     }
 }
 

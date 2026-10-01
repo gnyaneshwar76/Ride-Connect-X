@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.sheetEnter
 import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
 import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
@@ -466,6 +467,7 @@ private fun ChoiceSheet(
         sheetState = rememberModalBottomSheetState(),
         containerColor = sheetContainerColor(),
     ) {
+        androidx.compose.foundation.layout.Column(Modifier.sheetEnter()) {
         GlassSheetWindow()
         Column(Modifier.padding(horizontal = 8.dp).padding(bottom = 32.dp)) {
             Text(
@@ -476,6 +478,7 @@ private fun ChoiceSheet(
             )
             content()
         }
+    }
     }
 }
 
@@ -497,6 +500,7 @@ fun ConfirmSheet(
         sheetState = rememberModalBottomSheetState(),
         containerColor = sheetContainerColor(),
     ) {
+        androidx.compose.foundation.layout.Column(Modifier.sheetEnter()) {
         GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 32.dp)) {
             Text(title, style = RcxType.Section.copy(fontSize = 17.sp), color = c.text)
@@ -528,5 +532,6 @@ fun ConfirmSheet(
                 }
             }
         }
+    }
     }
 }

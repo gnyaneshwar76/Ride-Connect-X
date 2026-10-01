@@ -443,3 +443,15 @@ fun Modifier.edgeShrink(state: androidx.compose.foundation.lazy.LazyListState, k
     scaleY = s
     alpha = 1f - 0.35f * out
 }
+
+/** A sheet's content settles in with a small bounce as the sheet rises. */
+fun Modifier.sheetEnter(): Modifier = composed {
+    val p = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { p.animateTo(1f, RcxMotion.bouncy()) }
+    graphicsLayer {
+        translationY = (1f - p.value) * 36.dp.toPx()
+        val s = 0.97f + 0.03f * p.value
+        scaleX = s
+        scaleY = s
+    }
+}

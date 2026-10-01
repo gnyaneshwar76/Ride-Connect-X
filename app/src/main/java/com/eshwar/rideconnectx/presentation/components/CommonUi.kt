@@ -1,5 +1,9 @@
 package com.eshwar.rideconnectx.presentation.components
 
+import androidx.compose.material.icons.filled.TwoWheeler
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
+import com.eshwar.rideconnectx.presentation.theme.popIn
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.graphicsLayer
 import com.eshwar.rideconnectx.presentation.theme.isGlass
@@ -74,6 +78,8 @@ fun PrimaryButton(
     icon: (@Composable () -> Unit)? = null,
     secondary: Boolean = false,
     enabled: Boolean = true,
+    /** The action is running: a spinner replaces the icon and taps are ignored. */
+    busy: Boolean = false,
 ) {
     val c = Rcx.colors
     val shape = RoundedCornerShape(16.dp)
@@ -101,7 +107,7 @@ fun PrimaryButton(
 
     Box(
         modifier = styled
-            .then(if (enabled) Modifier.clickable(interaction, LocalIndication.current, onClick = onClick) else Modifier)
+            .then(if (enabled && !busy) Modifier.clickable(interaction, LocalIndication.current, onClick = onClick) else Modifier)
             .padding(horizontal = 20.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -114,7 +120,11 @@ fun PrimaryButton(
                 style = RcxType.Button.copy(fontWeight = FontWeight.SemiBold),
                 color = if (secondary) c.blue else Color.White,
             )
-            icon?.invoke()
+            if (busy) androidx.compose.material3.CircularProgressIndicator(
+                modifier = Modifier.size(18.dp).popIn(),
+                strokeWidth = 2.dp,
+                color = if (secondary) c.blue else Color.White,
+            ) else icon?.invoke()
         }
     }
 }
@@ -303,3 +313,59 @@ fun ClusterGreetingPreview(name: String, modifier: Modifier = Modifier) {
         )
     }
 }
+
+/**
+ * Pull down to refresh, with a scooter that edges out as you pull and rides
+ * across while [onRefresh] runs. Held for a moment even when the work is
+ * instant, so the ride is seen.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun RideRefreshBox(
+    onRefresh: suspend () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
+) {
+    val c = Rcx.colors
+    var refreshing by remember { androidx.compose.runtime.mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val pull = androidx.compose.material3.pulltorefresh.rememberPullToRefreshState()
+    androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+        isRefreshing = refreshing,
+        onRefresh = {
+            refreshing = true
+            scope.launch {
+                val started = System.currentTimeMillis()
+                runCatching { onRefresh() }
+                kotlinx.coroutines.delay((RIDE_MS - (System.currentTimeMillis() - started)).coerceAtLeast(0))
+                refreshing = false
+            }
+        },
+        modifier = modifier,
+        state = pull,
+        indicator = {
+            val ride = remember { androidx.compose.animation.core.Animatable(0f) }
+            androidx.compose.runtime.LaunchedEffect(refreshing) {
+                if (refreshing) {
+                    ride.snapTo(0f)
+                    ride.animateTo(1f, androidx.compose.animation.core.tween(RIDE_MS.toInt(), easing = androidx.compose.animation.core.LinearEasing))
+                }
+            }
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().height(34.dp)) {
+                val track = maxWidth
+                Icon(
+                    Icons.Filled.TwoWheeler, contentDescription = null, tint = c.blue,
+                    modifier = Modifier.size(26.dp).graphicsLayer {
+                        val pulled = pull.distanceFraction.coerceIn(0f, 1f)
+                        val x = if (refreshing) 0.2f + 0.95f * ride.value else 0.2f * pulled
+                        translationX = x * track.toPx() - 26.dp.toPx()
+                        alpha = if (refreshing) 1f else pulled
+                    },
+                )
+            }
+        },
+        content = content,
+    )
+}
+
+private const val RIDE_MS = 900L

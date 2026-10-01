@@ -334,7 +334,8 @@ private fun EmailForm(state: SignInUiState, vm: AuthViewModel) {
                 else stringResource(R.string.signin_sign_in),
             onClick = vm::submitEmail,
             modifier = Modifier.fillMaxWidth(),
-            enabled = state.canSubmitEmail,
+            enabled = state.canSubmitEmail || state.isBusy,
+            busy = state.isBusy,
         )
 
         Row(

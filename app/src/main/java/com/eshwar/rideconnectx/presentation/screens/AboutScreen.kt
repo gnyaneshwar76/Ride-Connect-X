@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.sheetEnter
 import com.eshwar.rideconnectx.presentation.theme.innerFill
 import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
 import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
@@ -237,6 +238,7 @@ private fun AboutTextSheet(title: String, body: String, onDismiss: () -> Unit) {
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = sheetContainerColor(),
     ) {
+        androidx.compose.foundation.layout.Column(Modifier.sheetEnter()) {
         GlassSheetWindow()
         Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 40.dp)) {
             Text(title, style = RcxType.Section.copy(fontSize = 17.sp), color = c.text)
@@ -247,5 +249,6 @@ private fun AboutTextSheet(title: String, body: String, onDismiss: () -> Unit) {
                 color = c.muted,
             )
         }
+    }
     }
 }
