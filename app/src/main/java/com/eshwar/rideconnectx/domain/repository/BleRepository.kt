@@ -36,6 +36,9 @@ interface BleRepository {
     /** Drops the link and stops the BLE service outright. */
     fun shutdown()
 
+    /** The rider is looking at the app again: reconnecting by itself is wanted. */
+    fun onAppOpened() {}
+
     /** Fast radio link while a route is on the cluster; normal otherwise (battery). */
     fun setLowLatency(on: Boolean) {}
 

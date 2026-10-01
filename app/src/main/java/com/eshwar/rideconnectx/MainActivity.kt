@@ -64,6 +64,11 @@ class MainActivity : ComponentActivity() {
         openKind.value = intent.getStringExtra(NotificationRepository.EXTRA_KIND)
     }
 
+    override fun onStart() {
+        super.onStart()
+        bleRepository.onAppOpened()
+    }
+
     override fun onResume() {
         super.onResume()
         // A reminder that could not reach the shade (permission off) is

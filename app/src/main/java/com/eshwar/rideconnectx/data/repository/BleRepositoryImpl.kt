@@ -41,6 +41,7 @@ class BleRepositoryImpl @Inject constructor(
     private val appSettings: com.eshwar.rideconnectx.data.local.AppSettingsStore,
 ) : BleRepository {
     private val TAG = "RCX-BLE"
+    private val linkPrefs by lazy { context.getSharedPreferences("ble_link", Context.MODE_PRIVATE) }
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var bleService: BleForegroundService? = null
     private val _isServiceBound = MutableStateFlow(false)
@@ -64,7 +65,35 @@ class BleRepositoryImpl @Inject constructor(
      * shutdown() never told the watcher to stop either, so a swipe was undone
      * three seconds later.
      */
-    @Volatile private var dormant = true
+    @Volatile private var dormant = closedByRider()
+
+    /**
+     * Whether the app was last closed on purpose (swiped away, backed out of, or
+     * force-stopped), as opposed to Android killing it to free memory.
+     *
+     * 1 Oct ride: starting dormant in EVERY new process meant that when Android
+     * restarted the app in the background mid-ride, the scooter was never
+     * reconnected until the app was opened by hand.
+     */
+    private fun closedByRider(): Boolean {
+        if (linkPrefs.getBoolean(KEY_CLOSED, false)) return true
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+        val last = runCatching {
+            context.getSystemService(android.app.ActivityManager::class.java)
+                .getHistoricalProcessExitReasons(context.packageName, 0, 1).firstOrNull()?.reason
+        }.getOrNull()
+        return last == android.app.ApplicationExitInfo.REASON_USER_REQUESTED ||
+            last == android.app.ApplicationExitInfo.REASON_USER_STOPPED
+    }
+
+    private fun setClosed(closed: Boolean) {
+        dormant = closed
+        // commit, not apply: the process can die straight after a swipe.
+        linkPrefs.edit().putBoolean(KEY_CLOSED, closed).commit()
+    }
+
+    /** The newest connection attempt; replaced on every retry. */
+    private var linkJob: kotlinx.coroutines.Job? = null
 
     /**
      * Keeps trying to bring the link back while the app is alive.
@@ -79,7 +108,7 @@ class BleRepositoryImpl @Inject constructor(
      * It also masked a second problem: with no link there is no heartbeat, so
      * the message and missed-call lamps could never light either.
      *
-     * Backs off from 3s to 30s so a scooter that is simply out of range does not
+     * Backs off from 3s to 15s so a scooter that is simply out of range does not
      * sit there scanning and draining the phone.
      */
     private fun startReconnectWatcher() {
@@ -100,7 +129,12 @@ class BleRepositoryImpl @Inject constructor(
                 if (address.isNullOrBlank()) continue
 
                 Log.d(TAG, "Reconnect watcher: retrying $address (next in ${delayMs}ms)")
-                connect(address).collect()
+                // In its own job, replaced on each retry. `connect().collect()`
+                // never returns - the state flow has no end - so calling it here
+                // made this loop try exactly once and then wait forever: a
+                // scooter that was off at that moment was never tried again.
+                linkJob?.cancel()
+                linkJob = repositoryScope.launch { connect(address).collect() }
 
                 // Widen the gap only while it keeps failing.
                 delayMs = (delayMs * 2).coerceAtMost(RECONNECT_MAX_MS)
@@ -312,7 +346,7 @@ class BleRepositoryImpl @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun connect(address: String): Flow<ConnectionState> {
         Log.d(TAG, "Connect requested: $address")
-        dormant = false
+        if (dormant) setClosed(false)
         if (!ensureServiceStarted()) {
             return flowOf(ConnectionState.Failed("Bluetooth permission is required to connect."))
                 .onEach { _connectionState.value = it }
@@ -402,9 +436,13 @@ class BleRepositoryImpl @Inject constructor(
      * because the rider did not ask for anything — if the bike is off or out of
      * range the pairing screen is still there.
      */
+    override fun onAppOpened() {
+        if (dormant) setClosed(false)
+    }
+
     override fun reconnectLastDevice() {
         userDisconnected = false
-        dormant = false
+        setClosed(false)
         repositoryScope.launch {
             val address = sessionDataStore.lastDeviceAddress.first()
             if (address.isNullOrBlank()) {
@@ -435,7 +473,8 @@ class BleRepositoryImpl @Inject constructor(
      */
     override fun shutdown() {
         Log.d(TAG, "Shutdown requested — dropping link and stopping service")
-        dormant = true
+        setClosed(true)
+        linkJob?.cancel()
         profileJob?.cancel()
         heartbeatJob?.cancel()
         bleService?.disconnect()
@@ -602,7 +641,8 @@ class BleRepositoryImpl @Inject constructor(
         
         /** Ceiling for the reconnect backoff - a scooter out of range must not
          *  keep the phone scanning at full rate. */
-        private const val RECONNECT_MAX_MS = 30_000L
+        private const val RECONNECT_MAX_MS = 15_000L
+        const val KEY_CLOSED = "closed_by_rider"
         /** Matches the official app's ~200 ms cadence for repeated writes. */
         const val PROFILE_INTERVAL_MS = 1000L
         const val PROFILE_REPEATS = 10

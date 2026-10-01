@@ -84,7 +84,10 @@ class NavigationRelay @Inject constructor(
             for (u in updates) when (u) {
                 is Update.Turn -> onManeuver(u.maneuver)
                 is Update.Reroute -> onReroute(u.what)
-                is Update.Fix -> countdown.onFix(u.fix)
+                is Update.Fix -> {
+                    countdown.onFix(u.fix)
+                    remainingCountdown.onFix(u.fix)
+                }
                 Update.Tick -> onTick()
             }
         }
@@ -98,15 +101,25 @@ class NavigationRelay @Inject constructor(
      * the screen off, so the cluster always trailed the scooter. Maps still
      * sets every number; this only fills the gaps between its updates.
      */
-    private val countdown = GpsCountdown { a, b ->
+    private val countdown = GpsCountdown(::metresBetween)
+
+    private fun metresBetween(a: GpsCountdown.Fix, b: GpsCountdown.Fix): Double {
         val out = FloatArray(1)
         android.location.Location.distanceBetween(a.lat, a.lon, b.lat, b.lon, out)
-        out[0].toDouble()
+        return out[0].toDouble()
     }
+
+    /**
+     * The same count for the whole journey's remaining distance, beside the ETA
+     * (the rider's ask after the 1 Oct ride: the turn metres were live, this
+     * figure still moved only when Maps spoke). Keyed per route, so a reroute
+     * starts again from Maps' new figure.
+     */
+    private val remainingCountdown = GpsCountdown(::metresBetween)
+    private var routeNumber = 0
     private var countdownOn = false
     private var locationCallback: LocationCallback? = null
     private var tickJob: Job? = null
-    private var lastSentDistance = -1
 
     @SuppressLint("MissingPermission")
     private suspend fun startGps() {
@@ -165,7 +178,6 @@ class NavigationRelay @Inject constructor(
     private suspend fun onTick() {
         if (!countdownOn || rerouting) return
         val active = _state.value as? NavState.Active ?: return
-        if (countdown.shown(SystemClock.elapsedRealtime()) == lastSentDistance) return
         relay(active.maneuver, fromGps = true)
     }
 
@@ -205,6 +217,11 @@ class NavigationRelay @Inject constructor(
         countdown.onMaps(
             key = maneuver.instruction to maneuver.maneuverId,
             metres = maneuver.distanceMetres(),
+            nowMs = SystemClock.elapsedRealtime(),
+        )
+        remainingCountdown.onMaps(
+            key = routeNumber,
+            metres = maneuver.remainingMetres(),
             nowMs = SystemClock.elapsedRealtime(),
         )
         relay(maneuver)
@@ -249,6 +266,7 @@ class NavigationRelay @Inject constructor(
         val active = _state.value as? NavState.Active ?: return
         if (rerouting) return
         rerouting = true
+        routeNumber++
         val packet = ProtocolEngine.buildNavigationPacket(
             clusterCode = ProtocolEngine.Maneuver.FIRST_BLANK,
             distanceMetres = 0,
@@ -279,7 +297,6 @@ class NavigationRelay @Inject constructor(
         _clusterLinked.value = false
         rerouting = false
         lastPacket = null
-        lastSentDistance = -1
         stopGps()
         bleRepository.setLowLatency(false)
     }
@@ -321,6 +338,8 @@ class NavigationRelay @Inject constructor(
     private suspend fun relay(maneuver: NavManeuver, fromGps: Boolean = false) {
         val distance = if (countdownOn) countdown.shown(SystemClock.elapsedRealtime())
             else maneuver.distanceMetres()
+        val remaining = if (countdownOn) remainingCountdown.shown(SystemClock.elapsedRealtime())
+            else maneuver.remainingMetres()
         // `maneuverId` already holds the cluster code. The official app maps the
         // Mappls maneuver id onto these values in ViewOnClickListenerC4857A0,
         // and the app's own Maneuver constants are that table's output side.
@@ -342,21 +361,21 @@ class NavigationRelay @Inject constructor(
             // Beside the clock: how far is left of the whole journey. This was
             // never sent, so that slot showed the turn distance instead - which
             // is what the rider spotted on 19 August.
-            remainingMetres = maneuver.remainingMetres(),
+            remainingMetres = remaining,
         )
 
         // Maps often posts the same frame twice in a second; the copy would only
-        // queue in front of the next real update.
+        // queue in front of the next real update. A GPS tick that changes
+        // nothing on the cluster (standing still) is never sent.
         val now = System.currentTimeMillis()
-        if (lastPacket?.contentEquals(packet) == true && now - lastPacketAt < REPEAT_SKIP_MS) return
+        if (lastPacket?.contentEquals(packet) == true && (fromGps || now - lastPacketAt < REPEAT_SKIP_MS)) return
         lastPacket = packet
         lastPacketAt = now
-        lastSentDistance = distance
 
         val delivered = runCatching { bleRepository.sendPacket(packet).first() }
             .getOrDefault(false)
         if (fromGps) {
-            rideLog.gpsCount(distance, maneuver.distanceMetres(), delivered)
+            rideLog.gpsCount(distance, maneuver.distanceMetres(), remaining, delivered)
             _clusterLinked.value = delivered
             return
         }
