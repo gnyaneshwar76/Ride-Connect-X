@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.floaty
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import com.eshwar.rideconnectx.presentation.theme.enterRise
@@ -227,6 +228,7 @@ private fun EmptyNotifications(modifier: Modifier = Modifier) {
             ratio = 1f,
             modifier = Modifier
                 .size(132.dp)
+                .floaty()
                 .clip(RoundedCornerShape(24.dp)),
         )
         Spacer(Modifier.height(16.dp))

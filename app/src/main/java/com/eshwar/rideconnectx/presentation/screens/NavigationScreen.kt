@@ -150,10 +150,16 @@ fun NavigationScreen(
                     )
 
                     else -> when (val s = navState) {
-                        is NavState.Active -> ManeuverCard(
-                            s.maneuver,
-                            Modifier.align(Alignment.TopCenter).padding(horizontal = 16.dp, vertical = 12.dp).enterRise(0, -16f),
-                        )
+                        is NavState.Active ->
+                            if (s.maneuver.maneuverId == com.eshwar.rideconnectx.domain.ProtocolEngine.Maneuver.DESTINATION) {
+                                ArrivalCard(
+                                    s.maneuver.instruction,
+                                    Modifier.align(Alignment.Center).padding(horizontal = 24.dp).enterRise(0, 24f),
+                                )
+                            } else ManeuverCard(
+                                s.maneuver,
+                                Modifier.align(Alignment.TopCenter).padding(horizontal = 16.dp, vertical = 12.dp).enterRise(0, -16f),
+                            )
 
                         NavState.AwaitingMaps -> StatusCard(
                             title = "Waiting for Google Maps",
@@ -274,6 +280,42 @@ private fun RouteBackdrop() {
         drawCircle(Color.White, radius = 5f * sx, center = p(240f, 130f))
         drawCircle(c.cyan.copy(alpha = 0.18f * (1f - pulse)), radius = (14f + 16f * pulse) * sx, center = p(90f, 360f))
         drawCircle(c.cyan.copy(alpha = 0.9f), radius = 9f * sx, center = p(90f, 360f))
+    }
+}
+
+/** Shown while Maps is on its arrival instruction: where, and a tick that draws itself. */
+@Composable
+private fun ArrivalCard(place: String, modifier: Modifier = Modifier) {
+    val c = Rcx.colors
+    val shape = RoundedCornerShape(22.dp)
+    Column(
+        modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(c.bg.copy(alpha = 0.94f))
+            .border(1.dp, c.green.copy(alpha = 0.35f), shape)
+            .padding(vertical = 22.dp, horizontal = 18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier.size(64.dp).clip(RoundedCornerShape(32.dp)).background(c.green.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            com.eshwar.rideconnectx.presentation.theme.DrawnTick(c.green, Modifier.size(38.dp))
+        }
+        Text(
+            "You have arrived",
+            style = RcxType.Label.copy(fontSize = 17.sp),
+            color = c.text,
+            modifier = Modifier.padding(top = 14.dp),
+        )
+        if (place.isNotBlank()) Text(
+            place,
+            style = RcxType.BodySmall.copy(fontSize = 12.sp),
+            color = c.muted,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.padding(top = 4.dp),
+        )
     }
 }
 

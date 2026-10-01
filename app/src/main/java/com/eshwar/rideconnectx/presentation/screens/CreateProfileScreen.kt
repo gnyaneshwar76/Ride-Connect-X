@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.RcxMotion
+import androidx.compose.ui.graphics.graphicsLayer
 import com.eshwar.rideconnectx.presentation.theme.innerFill
 import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
 import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
@@ -674,15 +676,18 @@ private fun VehiclePreview(
                 .border(1.dp, c.border, RoundedCornerShape(20.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            VehicleArtwork(
-                vehicle = vehicle,
-                body = body,
-                outline = c.text.copy(alpha = 0.55f),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .padding(horizontal = 18.dp),
-            )
+            // The paint changes by dissolving, not by a jump cut.
+            androidx.compose.animation.Crossfade(color, animationSpec = androidx.compose.animation.core.tween(320), label = "paint") { paint ->
+                VehicleArtwork(
+                    vehicle = vehicle,
+                    body = paint?.primary ?: vehicle.accent,
+                    outline = c.text.copy(alpha = 0.55f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .padding(horizontal = 18.dp),
+                )
+            }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -874,6 +879,7 @@ private fun ModelSheet(
                     ModelCard(
                         vehicle = vehicle,
                         selected = vehicle.id == selectedId,
+                        dimmed = selectedId != null && vehicle.id != selectedId,
                         onClick = { onPick(vehicle) },
                     )
                 }
@@ -883,13 +889,22 @@ private fun ModelSheet(
 }
 
 @Composable
-private fun ModelCard(vehicle: Vehicle, selected: Boolean, onClick: () -> Unit) {
+private fun ModelCard(vehicle: Vehicle, selected: Boolean, dimmed: Boolean, onClick: () -> Unit) {
     val c = Rcx.colors
     val shape = RoundedCornerShape(18.dp)
+    // The chosen model holds its size; the rest step back and dim.
+    val emphasis by androidx.compose.animation.core.animateFloatAsState(
+        if (dimmed) 0f else 1f, RcxMotion.snappy(), label = "modelEmphasis",
+    )
 
     Row(
         Modifier
             .fillMaxWidth()
+            .graphicsLayer {
+                alpha = 0.55f + 0.45f * emphasis
+                scaleX = 0.97f + 0.03f * emphasis
+                scaleY = 0.97f + 0.03f * emphasis
+            }
             .clip(shape)
             .innerFill()
             .border(1.dp, if (selected) c.blue else c.border, shape)

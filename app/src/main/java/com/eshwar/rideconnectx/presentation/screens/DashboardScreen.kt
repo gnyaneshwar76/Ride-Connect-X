@@ -1,5 +1,12 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.ui.text.font.FontWeight
+import com.eshwar.rideconnectx.presentation.theme.popIn
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.draw.drawWithContent
 import com.eshwar.rideconnectx.presentation.theme.isGlass
@@ -174,8 +181,19 @@ fun DashboardScreen(
                     // edge and too small to hit; Settings is not something the
                     // rider reaches for mid-glance, so it moved down into Quick
                     // Actions where there is room for a proper target.
+                    // A short buzz the moment the scooter links, so it is felt
+                    // with the phone in a pocket. Not on opening already linked.
+                    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+                    var wasConnected by remember { mutableStateOf(state.isConnected) }
+                    LaunchedEffect(state.isConnected) {
+                        if (state.isConnected && !wasConnected) {
+                            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.Confirm)
+                        }
+                        wasConnected = state.isConnected
+                    }
                     ConnectionPill(connected = state.isConnected)
-                    HeaderIconButton(Icons.Default.Notifications, stringResource(R.string.dash_notifications), onNotifications)
+                    val unread by vm.unreadCount.collectAsStateWithLifecycle()
+                    HeaderIconButton(Icons.Default.Notifications, stringResource(R.string.dash_notifications), onNotifications, badge = unread)
                 }
             }
 
@@ -467,17 +485,56 @@ private fun HeaderIconButton(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
+    badge: Int = 0,
 ) {
     val c = Rcx.colors
-    Box(
-        Modifier
-            .size(36.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .cardSurface(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription, Modifier.size(16.dp), tint = c.muted)
+    // The bell swings once each time something new arrives.
+    val swing = remember { androidx.compose.animation.core.Animatable(0f) }
+    var seen by remember { mutableStateOf(badge) }
+    LaunchedEffect(badge) {
+        if (badge > seen) swing.animateTo(0f, androidx.compose.animation.core.keyframes {
+            durationMillis = 620
+            -18f at 90; 15f at 200; -11f at 310; 7f at 420; -3f at 520; 0f at 620
+        })
+        seen = badge
+    }
+    Box(Modifier.size(36.dp)) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .clip(RoundedCornerShape(12.dp))
+                .cardSurface(RoundedCornerShape(12.dp))
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                icon, contentDescription,
+                Modifier.size(16.dp).graphicsLayer {
+                    rotationZ = swing.value
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+                },
+                tint = if (badge > 0) c.text else c.muted,
+            )
+        }
+        if (badge > 0) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 4.dp, y = (-4).dp)
+                    .popIn()
+                    .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(c.red)
+                    .padding(horizontal = 4.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    if (badge > 9) "9+" else badge.toString(),
+                    style = RcxType.Mono.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                    color = Color.White,
+                )
+            }
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.popIn
 import com.eshwar.rideconnectx.presentation.theme.cardFill
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -346,11 +347,15 @@ private fun PermissionCard(
 ) {
     val c = Rcx.colors
     val shape = RoundedCornerShape(18.dp)
-    val borderColor = when (state) {
-        PermState.Granted -> accent.copy(alpha = 0.25f)
-        PermState.PermanentlyDenied -> c.red.copy(alpha = 0.19f)
-        else -> c.border
-    }
+    val borderColor by androidx.compose.animation.animateColorAsState(
+        when (state) {
+            PermState.Granted -> c.green.copy(alpha = 0.55f)
+            PermState.PermanentlyDenied -> c.red.copy(alpha = 0.19f)
+            else -> c.border
+        },
+        androidx.compose.animation.core.tween(450),
+        label = "permBorder",
+    )
 
     Column(
         Modifier
@@ -464,7 +469,7 @@ private fun PermissionCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 when (state) {
-                    PermState.Granted -> Icon(Icons.Default.Check, null, Modifier.size(14.dp), tint = accent)
+                    PermState.Granted -> Icon(Icons.Default.Check, null, Modifier.size(14.dp).popIn(), tint = accent)
                     PermState.Requesting -> CircularProgressIndicator(
                         modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = Color.White,
                     )

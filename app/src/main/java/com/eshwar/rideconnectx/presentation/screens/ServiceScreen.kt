@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.floaty
 import com.eshwar.rideconnectx.presentation.theme.innerFill
 import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
 import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
@@ -270,9 +271,7 @@ fun ServiceScreen(
             onPlacePicked = vm::rememberCentrePlace,
             onDismiss = { editing = null },
             onSave = { servicedAt, centre, odo, notes ->
-                val error = vm.save(record.id, servicedAt, centre, odo, notes)
-                if (error == null) editing = null
-                error
+                vm.save(record.id, servicedAt, centre, odo, notes)
             },
         )
     }
@@ -281,10 +280,7 @@ fun ServiceScreen(
         TaskSheet(
             task = task,
             onDismiss = { editingTask = null },
-            onSave = { label, everyKm ->
-                vm.saveTask(task.id, label, everyKm)
-                editingTask = null
-            },
+            onSave = { label, everyKm -> vm.saveTask(task.id, label, everyKm) },
             onDelete = if (task.id == 0L) null else {
                 {
                     vm.deleteTask(task.id)
@@ -692,6 +688,14 @@ private fun GhostAction(
     }
 }
 
+/** How long the "Saved" tick is held before a sheet closes. */
+private const val SAVED_HOLD_MS = 900L
+
+@Composable
+private fun SavedTick() {
+    com.eshwar.rideconnectx.presentation.theme.DrawnTick(Color.White, Modifier.size(20.dp))
+}
+
 @Composable
 private fun EmptyCard(
     icon: ImageVector,
@@ -713,6 +717,7 @@ private fun EmptyCard(
         Box(
             Modifier
                 .size(52.dp)
+                .floaty()
                 .clip(RoundedCornerShape(17.dp))
                 .background(c.blue.copy(alpha = 0.07f)),
             contentAlignment = Alignment.Center,
@@ -771,6 +776,9 @@ private fun ServiceRecordSheet(
     var notes by remember { mutableStateOf(record.notes) }
     var error by remember { mutableStateOf<RecordError?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
+    // Saved: the button shows a tick for a moment, then the sheet closes.
+    var saved by remember { mutableStateOf(false) }
+    LaunchedEffect(saved) { if (saved) { kotlinx.coroutines.delay(SAVED_HOLD_MS); onDismiss() } }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1040,10 +1048,14 @@ private fun ServiceRecordSheet(
             Spacer(Modifier.height(22.dp))
 
             PrimaryButton(
-                label = stringResource(R.string.service_save_record),
+                label = if (saved) "Saved" else stringResource(R.string.service_save_record),
                 onClick = {
-                    error = onSave(servicedAt, centre, odometer.text.toIntOrNull(), notes)
+                    if (!saved) {
+                        error = onSave(servicedAt, centre, odometer.text.toIntOrNull(), notes)
+                        saved = error == null
+                    }
                 },
+                icon = if (saved) { { SavedTick() } } else null,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -1100,6 +1112,8 @@ private fun TaskSheet(
     }
     var showError by remember { mutableStateOf(false) }
     val valid = isValidTaskName(label) && (everyKm.toIntOrNull() ?: 0) > 0
+    var saved by remember { mutableStateOf(false) }
+    LaunchedEffect(saved) { if (saved) { kotlinx.coroutines.delay(SAVED_HOLD_MS); onDismiss() } }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1142,10 +1156,13 @@ private fun TaskSheet(
             Spacer(Modifier.height(22.dp))
 
             PrimaryButton(
-                label = stringResource(R.string.service_save),
+                label = if (saved) "Saved" else stringResource(R.string.service_save),
                 onClick = {
-                    if (valid) onSave(label, everyKm.toIntOrNull()) else showError = true
+                    if (saved) Unit
+                    else if (valid) { onSave(label, everyKm.toIntOrNull()); saved = true }
+                    else showError = true
                 },
+                icon = if (saved) { { SavedTick() } } else null,
                 modifier = Modifier.fillMaxWidth(),
             )
 

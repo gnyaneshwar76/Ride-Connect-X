@@ -97,8 +97,11 @@ fun Modifier.pressScale(pressed: Boolean, to: Float = 0.96f): Modifier = compose
  */
 fun Modifier.shake(trigger: Int): Modifier = composed {
     val x = remember { Animatable(0f) }
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     LaunchedEffect(trigger) {
         if (trigger == 0) return@LaunchedEffect
+        // Felt as well as seen: a refusal the rider notices without looking.
+        haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.Reject)
         x.animateTo(0f, keyframes {
             durationMillis = 360
             -14f at 60; 14f at 130; -10f at 200; 8f at 270; 0f at 360
@@ -159,4 +162,35 @@ fun animatedCount(target: Float?, durationMs: Int = RcxMotion.COUNT_MS): Float? 
     val a = remember { Animatable(0f) }
     LaunchedEffect(target) { if (target != null) a.animateTo(target, tween(durationMs, easing = FastOutSlowInEasing)) }
     return target?.let { a.value }
+}
+
+/** Scales in from nothing with a small overshoot: ticks, badges, dots. */
+fun Modifier.popIn(): Modifier = composed {
+    val s = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { s.animateTo(1f, RcxMotion.pop()) }
+    graphicsLayer { scaleX = s.value; scaleY = s.value }
+}
+
+/** A slow few-dp bob for empty-state artwork; still in Battery Saver. */
+fun Modifier.floaty(amplitudeDp: Float = 4f): Modifier = composed {
+    val t by rememberBreath(3600, "floaty")
+    graphicsLayer { translationY = (t - 0.5f) * 2f * amplitudeDp * density }
+}
+
+/** A tick that draws itself, short stroke then long, once. */
+@Composable
+fun DrawnTick(color: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier) {
+    val p = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { p.animateTo(1f, tween(380, delayMillis = 60, easing = FastOutSlowInEasing)) }
+    androidx.compose.foundation.Canvas(modifier) {
+        val a = androidx.compose.ui.geometry.Offset(size.width * 0.18f, size.height * 0.54f)
+        val b = androidx.compose.ui.geometry.Offset(size.width * 0.42f, size.height * 0.76f)
+        val c = androidx.compose.ui.geometry.Offset(size.width * 0.84f, size.height * 0.28f)
+        val stroke = size.minDimension * 0.12f
+        val cap = androidx.compose.ui.graphics.StrokeCap.Round
+        val first = (p.value / 0.4f).coerceIn(0f, 1f)
+        val second = ((p.value - 0.4f) / 0.6f).coerceIn(0f, 1f)
+        if (first > 0f) drawLine(color, a, a + (b - a) * first, stroke, cap)
+        if (second > 0f) drawLine(color, b, b + (c - b) * second, stroke, cap)
+    }
 }

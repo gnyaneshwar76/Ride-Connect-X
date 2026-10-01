@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -124,10 +125,17 @@ fun IntroScreen(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     pageSpacing = 0.dp,
                 ) { index ->
+                    // Parallax: the picture travels slower than its page, so
+                    // the swipe has depth. The gap this opens is always on the
+                    // side of the page that is off screen.
                     val art = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 8.dp)
                         .clip(RoundedCornerShape(26.dp))
+                        .graphicsLayer {
+                            val offset = (index - pager.currentPage) - pager.currentPageOffsetFraction
+                            translationX = -offset * size.width * 0.3f
+                        }
 
                     when (index) {
                         0 -> WelcomeHero(modifier = art)

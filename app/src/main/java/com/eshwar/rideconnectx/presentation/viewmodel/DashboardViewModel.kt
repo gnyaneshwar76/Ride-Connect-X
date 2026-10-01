@@ -65,9 +65,15 @@ class DashboardViewModel @Inject constructor(
     private val userPrefs: UserPreferencesStore,
     private val vehicleRepository: VehicleRepository,
     private val serviceRepository: ServiceRepository,
+    notifications: com.eshwar.rideconnectx.data.repository.NotificationRepository,
     appSettings: AppSettingsStore,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    /** The badge on the bell. */
+    val unreadCount: StateFlow<Int> = notifications.unreadCount.stateIn(
+        viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), 0,
+    )
 
     /** Feeds the dashboard's Service Reminder card. */
     val serviceStatus: StateFlow<ServiceStatus> = serviceRepository.status.stateIn(

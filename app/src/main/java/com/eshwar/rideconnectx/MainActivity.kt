@@ -11,6 +11,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.drawWithContent
 import androidx.core.content.ContextCompat
 import com.eshwar.rideconnectx.presentation.theme.LocalAmbientMotion
 import com.eshwar.rideconnectx.presentation.theme.LocalGlassIntensity
@@ -165,8 +167,26 @@ class MainActivity : ComponentActivity() {
                     com.eshwar.rideconnectx.presentation.theme.LocalDistanceUnit provides distanceUnit,
                     LocalAmbientMotion provides (!batterySaver && animationsEnabled()),
                 ) {
+                // Switching light/dark or Flat/Glass: the previous background is
+                // laid over the app and fades away, so the change dissolves in
+                // instead of snapping.
+                val bg = Rcx.colors.bg
+                val veil = remember { androidx.compose.animation.core.Animatable(0f) }
+                var veilColor by remember { mutableStateOf(bg) }
+                var lastLook by remember { mutableStateOf(dark to surfaceStyle) }
+                LaunchedEffect(dark, surfaceStyle) {
+                    if (lastLook != (dark to surfaceStyle)) {
+                        lastLook = dark to surfaceStyle
+                        veil.snapTo(1f)
+                        veil.animateTo(0f, androidx.compose.animation.core.tween(420))
+                    }
+                    veilColor = bg
+                }
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().drawWithContent {
+                        drawContent()
+                        if (veil.value > 0f) drawRect(veilColor.copy(alpha = veil.value))
+                    },
                     color = Rcx.colors.bg,
                 ) {
                     val navController = rememberNavController()

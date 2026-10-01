@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -81,6 +83,12 @@ fun SplashScreen(onFinished: () -> Unit) {
         label = "textAlpha",
     )
 
+    val sweep by animateFloatAsState(
+        targetValue = if (phase >= 2) 1f else 0f,
+        animationSpec = tween(900, delayMillis = 200),
+        label = "wordmarkSweep",
+    )
+
     // Radial backdrop: ellipse centred at 50% / 52%, brand navy fading to bg.
     val inner = if (c.isDark) Color(0xFF0C1D3E) else Color(0xFFC5D9FF)
 
@@ -124,7 +132,23 @@ fun SplashScreen(onFinished: () -> Unit) {
 
             Row(
                 verticalAlignment = Alignment.Bottom,
-                modifier = Modifier.alpha(textAlpha),
+                modifier = Modifier
+                    .alpha(textAlpha)
+                    // A band of light crosses the letters once. Offscreen so the
+                    // band only paints where there is text (SrcAtop).
+                    .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        val band = size.width * 0.3f
+                        val x = -band + (size.width + 2 * band) * sweep
+                        drawRect(
+                            Brush.horizontalGradient(
+                                listOf(Color.Transparent, Color.White.copy(alpha = 0.8f), Color.Transparent),
+                                startX = x - band, endX = x + band,
+                            ),
+                            blendMode = androidx.compose.ui.graphics.BlendMode.SrcAtop,
+                        )
+                    },
             ) {
                 Text("RideConnect", style = RcxType.Wordmark, color = c.text)
                 Text(

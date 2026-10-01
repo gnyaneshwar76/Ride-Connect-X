@@ -44,20 +44,26 @@ Rules every motion follows:
 | | Primary buttons press in and spring back. | |
 | **Intro / onboarding** | Page dots stretch and glide between pages. | The pill travels. |
 
-## Phase 2: proposed, not built yet
+## Phase 2: built 1 Oct 2026 (135/135 tests)
 
-| Screen | Idea |
+| Screen | Motion |
 |---|---|
-| Splash | Wordmark light sweep (as in the web mock). |
-| Intro pager | Parallax: illustration moves slower than the text while swiping. |
-| Permissions | Granted card pops a tick and its border turns green. |
-| Vehicle gallery | Selected model scales up, others dim; colour swatch morphs the paint. |
-| Dashboard | Unread badge on the bell, bell rings once when a call/message reaches the cluster. |
-| Navigate | Arrival sheet with a drawn tick when Maps finishes the route. |
-| Service | "Saved" tick on the add/edit sheet button before it closes. |
-| Safety | SOS: hold-to-send ring that fills, instead of a single tap. |
-| Empty states | Illustrations float gently. |
-| Appearance | Crossfade the whole app when switching Glass/Flat or light/dark. |
-| Haptics | Short vibration on connect, refused input, SOS. |
+| Splash | A band of light crosses the wordmark once. |
+| Intro pager | Parallax: the picture travels slower than its page. |
+| Permissions | Granted: the tick pops in and the card border turns green. |
+| Vehicle picker (profile setup) | Chosen model holds its size, the others step back and dim; the paint dissolves when a swatch is picked. |
+| Dashboard | Unread badge pops onto the bell; the bell swings once when something new arrives. |
+| Navigate | Arrival card with a tick that draws itself. |
+| Service | The save button shows "Saved" with a drawn tick, then the sheet closes. |
+| Empty states | Artwork bobs slowly (still in Battery Saver). |
+| Appearance | Light/dark and Flat/Glass switches dissolve instead of snapping. |
+| Haptics | Short buzz on connect, on refused input, and on SOS. |
 
-Owner review: try Phase 1 on the phone, mark each row keep / too much / too slow, then pick Phase 2 rows.
+Not built: SOS hold-to-send. The SOS button already opens a confirmation
+sheet, so a hold would only slow down an emergency.
+
+## Ideas on hold
+
+- Vehicle card flips to show details on the back.
+- Three-stage animations (working, done, result) for SOS, pairing and save.
+- Live preview of the rider's name as the cluster will show it.

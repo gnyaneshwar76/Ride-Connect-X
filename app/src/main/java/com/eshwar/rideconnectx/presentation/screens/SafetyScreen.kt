@@ -504,6 +504,7 @@ private fun EmergencyCard(
 
     // SOS pulse — a slow breath, not a flash, so it reads as "live" rather
     // than as an alarm already going off.
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     val transition = rememberInfiniteTransition(label = "sosPulse")
     val pulse by transition.animateFloat(
         initialValue = 1f,
@@ -534,7 +535,10 @@ private fun EmergencyCard(
                         listOf(c.red, Color(0xFF9E1220))
                     )
                 )
-                .clickable(enabled = enabled, onClick = onSos),
+                .clickable(enabled = enabled) {
+                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    onSos()
+                },
             contentAlignment = Alignment.Center,
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
