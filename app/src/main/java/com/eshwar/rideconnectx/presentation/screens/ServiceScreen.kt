@@ -730,7 +730,9 @@ private fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit)
         state = state,
         enableDismissFromStartToEnd = false,
         backgroundContent = {
-            Box(
+            // Only while the row is being dragged: the cards are glass, so a
+            // resting red panel would show straight through them.
+            if (state.dismissDirection == androidx.compose.material3.SwipeToDismissBoxValue.EndToStart) Box(
                 Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp)).background(c.red.copy(alpha = 0.16f)).padding(end = 22.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) { Icon(Icons.Filled.Delete, null, Modifier.size(22.dp), tint = c.red) }
