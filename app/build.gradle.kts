@@ -151,7 +151,6 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
-    implementation(libs.firebase.analytics)
     // App Check — proves to Firebase that a request came from THIS app, not from
     // a script someone built after pulling google-services.json out of the APK.
     // Rules stop cross-user reads; they do not stop quota abuse. This does.
@@ -164,16 +163,8 @@ dependencies {
     // the system Location settings page, which the rider has to navigate.
     implementation(libs.gms.location)
 
-    // Per-app language. AppCompatDelegate.setApplicationLocales is the only
-    // API that works on both API 33+ (where it delegates to LocaleManager) and
-    // below (where it stores the choice and recreates). Nothing else in the app
-    // uses appcompat — no AppCompatActivity, no appcompat theme.
-    implementation(libs.androidx.appcompat)
-
-    // Real backdrop blur. Compose has no built-in way to blur what is
-    // *behind* a surface — Modifier.blur blurs the surface's own content,
-    // which erases the text inside it. Haze captures the background into a
-    // layer and applies RenderEffect to that, which is the frosted look.
+    // ponytail: no Haze code is left, but it pulls Compose 1.8.0 over the BOM's
+    // 1.7.6 and the app was tuned on that. Bump the Compose BOM, then delete this.
     implementation(libs.haze)
 
     // Credential Manager, for Google Sign-In

@@ -68,12 +68,6 @@ class NavTestReceiver : BroadcastReceiver() {
         const val ACTION_FLAGS = "com.eshwar.rideconnectx.TEST_FLAGS"
 
         /**
-         * Fingerprints every manoeuvre arrow in Maps' catalogue into the ride
-         * log. One shot; needs no route and no movement.
-         */
-        const val ACTION_ARROWS = "com.eshwar.rideconnectx.TEST_ARROWS"
-
-        /**
          * Switches how kilometres are written into the distance fields, so the
          * encoding can be settled at the scooter without a rebuild.
          * `--ei style 0|1|2` - see ProtocolEngine.kmStyle.
@@ -93,11 +87,6 @@ class NavTestReceiver : BroadcastReceiver() {
                 val style = intent.getIntExtra("style", 0)
                 com.eshwar.rideconnectx.domain.ProtocolEngine.kmStyle = style
                 android.util.Log.d("RCX-BLE", "kmStyle set to $style")
-                return
-            }
-            ACTION_ARROWS -> {
-                com.eshwar.rideconnectx.data.nav.MapsNotificationListener
-                    .instance?.dumpArrowCatalog()
                 return
             }
             ACTION_STOP -> {

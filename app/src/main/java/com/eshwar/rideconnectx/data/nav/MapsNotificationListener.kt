@@ -136,72 +136,6 @@ class MapsNotificationListener : NotificationListenerService() {
      * fails must never interrupt navigation.
      */
     /**
-     * Everything the notification carries, dumped once per distinct value.
-     *
-     * The 19 August evening ride ruled out the two fields we had been reading:
-     * the text has no direction on 88% of frames, and the small icon is one
-     * generic `nav_notification_icon` for every manoeuvre. But the rider's
-     * screenshot of the shade shows an arrow drawn on the right-hand side of
-     * the notification, which is the **large icon** slot - a field we have
-     * never looked at.
-     *
-     * So this lists every extras key with its type and value, and describes the
-     * large icon properly: a resource id resolves to a drawable name, and a
-     * bitmap is reduced to a hash. A hash is enough - the same arrow produces
-     * the same hash every time, so ~15 hashes map to ~15 manoeuvres by
-     * observation, exactly how the cluster codes were established.
-     */
-    private var lastDump = ""
-
-    private fun dumpDiagnostics(sbn: StatusBarNotification, extras: android.os.Bundle) {
-        val log = runCatching {
-            EntryPointAccessors
-                .fromApplication(applicationContext, ServiceEntryPoint::class.java)
-                .rideLog()
-        }.getOrNull() ?: return
-
-        val keys = extras.keySet().sorted()
-
-        // The full dump is keyed on the SHAPE of the notification - which keys
-        // exist - not on their values. Values change every second (the distance
-        // counts down), and deduplicating on those would write a dump per
-        // frame and bury the log. One block per structural change is enough.
-        val structure = keys.joinToString(",")
-        if (structure != lastDump) {
-            lastDump = structure
-            val summary = StringBuilder()
-            for (k in keys) {
-                val v = runCatching { extras.get(k) }.getOrNull() ?: continue
-                val shown = when (v) {
-                    is CharSequence -> "\"${v.toString().take(60)}\""
-                    is Array<*> -> v.joinToString(" / ", limit = 4) { it.toString().take(30) }
-                    else -> v.toString().take(60)
-                }
-                summary.append("      $k = [${v.javaClass.simpleName}] $shown\n")
-            }
-            log.diag("---- notification structure ----\n$summary")
-        }
-    }
-
-    /**
-     * Records each distinct arrow the first time it is seen, with whatever
-     * Maps was saying at that moment. That pairing is the whole mapping table.
-     */
-    private fun recordArrow(sig: IconSig, title: String, text: String) {
-        if (sig.shape.isBlank()) return
-        if (!arrowsSeen.add(sig.shape)) return
-        runCatching {
-            EntryPointAccessors
-                .fromApplication(applicationContext, ServiceEntryPoint::class.java)
-                .rideLog()
-                .diag(
-                    "NEW ARROW #${arrowsSeen.size}  shape=${sig.shape}  " +
-                        "exact=${sig.exact}  while Maps said: \"$text\"  ($title)",
-                )
-        }
-    }
-
-    /**
      * A picture reduced to two fingerprints.
      *
      * [exact] is every pixel's alpha, and [shape] is a coarse 16x16 on/off
@@ -259,93 +193,6 @@ class MapsNotificationListener : NotificationListenerService() {
 
             IconSig(Integer.toHexString(fine), shape, "bitmap ${icon.type}")
         }.getOrDefault(IconSig("", "", "sig-failed"))
-    }
-
-    /**
-     * Arrow shapes already written down, so each new one is recorded once.
-     *
-     * This is the mapping table being built: a shape, and the instruction that
-     * was on screen the first time it appeared. Exactly how the cluster codes
-     * were established - see it, write it down, do not guess.
-     */
-    private val arrowsSeen = mutableSetOf<String>()
-
-    /**
-     * Fingerprints every manoeuvre arrow in Maps' own catalogue, once.
-     *
-     * This is the step that removes simulation from the problem. A driven route
-     * only yields the manoeuvres that route contains - the 20 August run gave
-     * five out of sixty-seven - so waiting to meet a roundabout or a U-turn on
-     * the road would take many more runs and still never guarantee coverage.
-     *
-     * Maps' resources are readable by any app, so each named drawable is loaded
-     * and put through **the same [iconSignature] used on the live notification
-     * icon**. Same renderer, same 32x32 alpha reduction, therefore directly
-     * comparable fingerprints. Whether that holds is verifiable rather than
-     * assumed: the five arrows already captured live must come back with the
-     * names we expect, and if they do not, this whole approach is wrong and
-     * the log will say so.
-     */
-    fun dumpArrowCatalog() {
-        val log = runCatching {
-            EntryPointAccessors
-                .fromApplication(applicationContext, ServiceEntryPoint::class.java)
-                .rideLog()
-        }.getOrNull() ?: return
-
-        val res = runCatching {
-            packageManager.getResourcesForApplication(MapsArrowCatalog.MAPS_PACKAGE)
-        }.getOrNull() ?: run {
-            log.diag("ARROW CATALOG: cannot read Maps resources")
-            return
-        }
-
-        log.diag("==== ARROW CATALOG (${MapsArrowCatalog.NAMES.size} names) ====")
-        var found = 0
-        for (name in MapsArrowCatalog.NAMES) {
-            val id = runCatching {
-                res.getIdentifier(name, "drawable", MapsArrowCatalog.MAPS_PACKAGE)
-            }.getOrDefault(0)
-            if (id == 0) {
-                log.diag("CAT  $name  = NOT FOUND")
-                continue
-            }
-            // Rendered from the drawable directly: a resource-backed Icon would
-            // only report its name back, and the shape is the whole point.
-            val shape = runCatching {
-                val d = androidx.core.content.res.ResourcesCompat.getDrawable(res, id, null)
-                    ?: return@runCatching ""
-                renderShape(d)
-            }.getOrDefault("")
-            found++
-            log.diag("CAT  $name  shape=$shape")
-        }
-        log.diag("==== ARROW CATALOG END: $found resolved ====")
-    }
-
-    /** The 16x16 alpha grid used for both live icons and catalogue drawables. */
-    private fun renderShape(drawable: android.graphics.drawable.Drawable): String {
-        val n = 32
-        val bmp = android.graphics.Bitmap.createBitmap(
-            n, n, android.graphics.Bitmap.Config.ARGB_8888,
-        )
-        android.graphics.Canvas(bmp).also {
-            drawable.setBounds(0, 0, n, n)
-            drawable.draw(it)
-        }
-        val px = IntArray(n * n)
-        bmp.getPixels(px, 0, n, 0, 0, n, n)
-        bmp.recycle()
-        val bits = StringBuilder()
-        for (cy in 0 until 16) for (cx in 0 until 16) {
-            var sum = 0
-            for (dy in 0..1) for (dx in 0..1) {
-                sum += px[(cy * 2 + dy) * n + (cx * 2 + dx)] ushr 24
-            }
-            bits.append(if (sum / 4 > 128) '1' else '0')
-        }
-        return bits.toString().chunked(4)
-            .joinToString("") { Integer.toHexString(it.toInt(2)) }
     }
 
     /**
@@ -428,9 +275,6 @@ class MapsNotificationListener : NotificationListenerService() {
         val iconName = arrowMatch?.let { "${it.name} (±${it.distance})" }
             ?: arrow.shape.ifBlank { "" }
         val iconId = runCatching { sbn.notification.smallIcon?.resId ?: 0 }.getOrDefault(0)
-
-        runCatching { dumpDiagnostics(sbn, extras) }
-        runCatching { recordArrow(arrow, title, text) }
 
         Log.d(TAG, "RAW title='$title' | text='$text' | subText='$subText' | icon=$iconName ($iconId)")
         // Also to the ride log - logcat does not survive a 90 minute ride, and

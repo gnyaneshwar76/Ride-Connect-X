@@ -385,29 +385,14 @@ class NavigationRelay @Inject constructor(
         _clusterLinked.value = delivered
     }
 
-    /** "400 m" / "1.2 km" / "0.5 mi" → metres. */
-    /**
-     * Metres left of the whole journey, parsed from Maps' subText.
-     *
-     * Maps writes it as "38 km" or "850 m" inside a line like
-     * "1 hr 12 min * 38 km * 1:38 am ETA". The cluster field is four digits, so
-     * anything past 9,999 m is clamped by the builder - on a long ride it simply
-     * sits at 9999 until the last 10 km, which is honest enough.
-     */
-    private fun NavManeuver.remainingMetres(): Int {
-        val match = DISTANCE.find(remainingDistance) ?: return 0
-        val value = match.groupValues[1].replace(',', '.').toFloatOrNull() ?: return 0
-        return when (match.groupValues[2].lowercase()) {
-            "km" -> value * 1000
-            "mi" -> value * 1609.34f
-            "ft" -> value * 0.3048f
-            "yd" -> value * 0.9144f
-            else -> value
-        }.toInt()
-    }
+    /** Metres left of the whole journey, from Maps' subText ("38 km", "850 m"). */
+    private fun NavManeuver.remainingMetres(): Int = metres(remainingDistance)
 
-    private fun NavManeuver.distanceMetres(): Int {
-        val match = DISTANCE.find(distanceToTurn) ?: return 0
+    private fun NavManeuver.distanceMetres(): Int = metres(distanceToTurn)
+
+    /** "400 m" / "1.2 km" / "0.5 mi" to metres; 0 when there is no distance. */
+    private fun metres(text: String): Int {
+        val match = DISTANCE.find(text) ?: return 0
         val value = match.groupValues[1].replace(',', '.').toFloatOrNull() ?: return 0
         return when (match.groupValues[2].lowercase()) {
             "km" -> value * 1000

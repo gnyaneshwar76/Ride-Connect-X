@@ -43,10 +43,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.HazeState
 
 /**
  * The "Liquid Glass" surface, ported from the Figma export of 16 August 2026.
@@ -61,14 +57,8 @@ import dev.chrisbanes.haze.HazeState
  * its text and icons — not what is behind it. Reaching for it produced exactly
  * that: frosted panels with their labels smeared away to nothing.
  *
- * Real backdrop blur comes from Haze: a screen marks its background with
- * [Modifier.hazeBackdrop] and each surface samples it through [hazeChild].
- * That is what gives the Apple-style frosting.
- *
- * `RenderEffect` needs Android 12 (API 31). Below that Haze cannot blur, so the
- * surface falls back to [GlassTokens.fallback] — an opaque colour Figma chose
- * to sit closest to the blurred result, because a transparent panel with no
- * blur over a photograph is unreadable.
+ * No live backdrop blur either: per-surface blur cost too many frames. The
+ * frosting is a smoked fill over a pre-blurred backdrop ([GlassLightField]).
  */
 
 /** Which surface style the rider has chosen. Mirrors `StyleMode` in the export. */
@@ -192,28 +182,6 @@ val LocalGlassIntensity = staticCompositionLocalOf { 0.6f }
 /** [v] at the default intensity, scaled by the rider's choice (x0.35 .. x1.6). */
 private fun Float.byIntensity(i: Float): Float = this * (0.35f + 0.65f * i / 0.6f)
 
-/**
- * The blur source for the current screen.
- *
- * Haze works in two halves: something declares "this is the backdrop", and
- * surfaces sample it. Sharing one state through a CompositionLocal means a
- * screen opts in with a single [Modifier.hazeBackdrop] on its background and
- * every [RcxSurface] inside it frosts automatically, with no plumbing.
- *
- * Null where no screen has declared a backdrop — then surfaces stay translucent
- * rather than blurred, which is right: there is nothing behind them worth
- * blurring on a flat background.
- */
-val LocalHaze = staticCompositionLocalOf<HazeState?> { null }
-
-/**
- * Marks this element as the thing glass surfaces blur.
- *
- * Put it on the screen's background — the photograph — and provide the same
- * state through [LocalHaze].
- */
-fun Modifier.hazeBackdrop(state: HazeState): Modifier = this.hazeSource(state)
-
 val Rcx.glass: GlassTokens
     @Composable get() = glassTokens(GlassTier.LIGHT)
 
@@ -262,7 +230,6 @@ fun Modifier.glassSurface(
     }
     val borderColor = borderColor0.copy(alpha = borderColor0.alpha.byIntensity(k).coerceAtMost(0.9f))
 
-    val haze = LocalHaze.current
     // Read outside the effect block — that lambda is not composable.
     val base = if (Rcx.colors.isDark) g.fallback else Color.White
 
@@ -326,12 +293,10 @@ fun BoxScope.GlassSheen(
  *
  * Glass over a flat dark background has nothing to bend or blur, so it reads as
  * grey plastic. This paints a few soft pools of the brand colours that drift
- * very slowly; the screen marks it as the haze source and every glass surface
- * above frosts it. Only drawn in Glass mode.
+ * very slowly behind the glass surfaces. Only drawn in Glass mode.
  */
 @Composable
 fun GlassLightField(
-    state: HazeState,
     modifier: Modifier = Modifier,
     /** The page's photograph, shown full-width at the top and drifting slowly. */
     @DrawableRes photo: Int? = null,
@@ -347,7 +312,6 @@ fun GlassLightField(
     Box(
         modifier
             .fillMaxSize()
-            .hazeSource(state)
     ) {
         if (photo != null) Box(Modifier.fillMaxWidth().fillMaxHeight(0.58f).clipToBounds()) {
             // Ken Burns: the picture breathes in and drifts sideways over
@@ -467,10 +431,9 @@ fun ScreenBackdrop(
 ) {
     val c = Rcx.colors
     if (LocalStyleMode.current == StyleMode.GLASS) {
-        val haze = remember { HazeState() }
         Box(modifier.fillMaxSize().background(c.bg)) {
-            GlassLightField(haze, photo = photo, accent = accent)
-            CompositionLocalProvider(LocalHaze provides haze) { content() }
+            GlassLightField(photo = photo, accent = accent)
+            content()
         }
     } else {
         Box(modifier.fillMaxSize().background(c.bg), content = content)
@@ -488,7 +451,6 @@ fun Modifier.cardFill(): Modifier =
         val g = glassTokens(GlassTier.LIGHT)
         val k = LocalGlassIntensity.current
         val fill = g.fill.copy(alpha = (g.fill.alpha * (0.35f + 0.65f * k / 0.6f)).coerceAtMost(0.9f))
-        val haze = LocalHaze.current
         val base = if (Rcx.colors.isDark) g.fallback else Color.White
         this.background(fill).glassSheen(g)
     } else {
@@ -546,7 +508,6 @@ val isGlass: Boolean
 fun Modifier.glassButton(shape: Shape, tint: Color, strong: Boolean, pressed: Boolean = false): Modifier {
     val g = glassTokens(GlassTier.LIGHT)
     val k = LocalGlassIntensity.current
-    val haze = LocalHaze.current
     val fillAlpha = (if (strong) 0.62f else 0.10f) * (if (pressed) 1.25f else 1f)
     val fill = tint.copy(alpha = fillAlpha.coerceAtMost(0.9f))
     val base = if (Rcx.colors.isDark) g.fallback else Color.White

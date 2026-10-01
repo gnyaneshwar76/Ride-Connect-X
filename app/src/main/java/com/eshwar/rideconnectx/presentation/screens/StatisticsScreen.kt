@@ -63,10 +63,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import com.eshwar.rideconnectx.presentation.theme.LocalRcxColors
 import com.eshwar.rideconnectx.presentation.theme.RcxDarkColors
 import androidx.compose.runtime.remember
-import dev.chrisbanes.haze.HazeState
 import com.eshwar.rideconnectx.presentation.theme.GlassTier
-import com.eshwar.rideconnectx.presentation.theme.LocalHaze
-import com.eshwar.rideconnectx.presentation.theme.hazeBackdrop
 import com.eshwar.rideconnectx.presentation.theme.Rcx
 import com.eshwar.rideconnectx.presentation.theme.RcxType
 import com.eshwar.rideconnectx.presentation.viewmodel.StatisticsViewModel
@@ -100,13 +97,8 @@ fun StatisticsScreen(
     // a dark mountain at dusk — dark text, on a pale film, on a dark photo.
     // Forcing the dark tokens here fixes the title, the labels, the glass fill
     // and the borders in one move, because every one of them keys off `isDark`.
-    // The photograph is what the glass panels blur. Declared once here and
-    // shared down, so every RcxSurface on this screen frosts with no plumbing.
-    val hazeState = remember { HazeState() }
-
     CompositionLocalProvider(
         LocalRcxColors provides RcxDarkColors,
-        LocalHaze provides hazeState,
     ) {
     val c = Rcx.colors
     val unit = LocalDistanceUnit.current
@@ -119,7 +111,7 @@ fun StatisticsScreen(
         //
         // Photo and scrim are blurred together, so the panels sample the image
         // as the rider actually sees it rather than the raw, brighter original.
-        Box(Modifier.matchParentSize().hazeBackdrop(hazeState)) {
+        Box(Modifier.matchParentSize()) {
             RcxPhotoFill(
                 res = R.drawable.img_statistics_hero,
                 modifier = Modifier.matchParentSize(),

@@ -7,10 +7,8 @@ import com.eshwar.rideconnectx.presentation.theme.glassButton
 import com.eshwar.rideconnectx.presentation.theme.cardFill
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import com.eshwar.rideconnectx.presentation.theme.GlassLightField
-import com.eshwar.rideconnectx.presentation.theme.LocalHaze
 import com.eshwar.rideconnectx.presentation.theme.LocalStyleMode
 import com.eshwar.rideconnectx.presentation.theme.StyleMode
-import dev.chrisbanes.haze.HazeState
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -112,8 +110,6 @@ fun DashboardScreen(
     val distanceUnit by vm.distanceUnit.collectAsStateWithLifecycle()
 
     val glassMode = LocalStyleMode.current == StyleMode.GLASS
-    val haze = remember { HazeState() }
-    CompositionLocalProvider(LocalHaze provides if (glassMode) haze else null) {
     Box(
         Modifier
             .fillMaxSize()
@@ -124,7 +120,7 @@ fun DashboardScreen(
                 )
             )
     ) {
-        if (glassMode) GlassLightField(haze, photo = R.drawable.img_onboarding_intelligence, accent = c.blue)
+        if (glassMode) GlassLightField(photo = R.drawable.img_onboarding_intelligence, accent = c.blue)
         Column(
             Modifier
                 .fillMaxHeight()
@@ -335,7 +331,6 @@ fun DashboardScreen(
 
             Spacer(Modifier.height(28.dp))
         }
-    }
     }
 }
 
