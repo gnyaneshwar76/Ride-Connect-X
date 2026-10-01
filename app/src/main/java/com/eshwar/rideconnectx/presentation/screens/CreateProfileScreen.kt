@@ -234,6 +234,9 @@ fun CreateProfileScreen(
                         hint = "Your full name, as the cluster greets you · " +
                             FieldRules.nameHint(GuestNameRules.MIN, GuestNameRules.MAX),
                     )
+                    com.eshwar.rideconnectx.presentation.components.ClusterGreetingPreview(
+                        ui.riderName, Modifier.padding(top = 8.dp),
+                    )
 
                     Spacer(Modifier.height(18.dp))
 

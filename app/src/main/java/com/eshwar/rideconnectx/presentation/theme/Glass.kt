@@ -309,6 +309,7 @@ fun GlassLightField(
     // Throttled ambient clock (~30 fps, frozen in Battery Saver).
     val t by rememberBreath(14_000, "lightFieldDrift")
     val density = androidx.compose.ui.platform.LocalDensity.current
+    val tilt = rememberTilt()
     Box(
         modifier
             .fillMaxSize()
@@ -325,9 +326,11 @@ fun GlassLightField(
                     // Transform first, blur inside: the blurred picture is
                     // rendered once and cached; each frame only moves it.
                     .graphicsLayer {
-                        val s = 1.06f + 0.08f * t
+                        val s = 1.12f + 0.08f * t
                         scaleX = s; scaleY = s
-                        translationX = (t - 0.5f) * with(density) { 28.dp.toPx() }
+                        // Against the tilt, so the photo sits behind the glass.
+                        translationX = (t - 0.5f) * 28.dp.toPx() - tilt.value.x * 12.dp.toPx()
+                        translationY = -tilt.value.y * 12.dp.toPx()
                     }
                     // The page's photo is atmosphere, not content: out of
                     // focus, which is also what makes the glass read as frost.

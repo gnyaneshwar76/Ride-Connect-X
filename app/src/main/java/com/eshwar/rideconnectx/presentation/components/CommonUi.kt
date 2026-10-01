@@ -258,3 +258,28 @@ fun BackHeader(
     }
 }
 
+/**
+ * The rider's name as it goes to the cluster, updating while they type. The
+ * profile packet carries 20 characters, so anything longer is cut here too.
+ */
+@Composable
+fun ClusterGreetingPreview(name: String, modifier: Modifier = Modifier) {
+    val shown = name.trim().take(20)
+    val shape = RoundedCornerShape(12.dp)
+    androidx.compose.foundation.layout.Column(
+        modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Color(0xFF0A0F14))
+            .border(1.dp, Color(0xFF1E2A36), shape)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Text("ON YOUR SCOOTER'S DISPLAY", style = RcxType.MonoTiny.copy(fontSize = 8.sp), color = Color(0xFF5B6B7A))
+        Text(
+            if (shown.isEmpty()) "WELCOME" else "WELCOME $shown",
+            style = RcxType.Mono.copy(fontSize = 15.sp),
+            color = Color(0xFF7CFFCB),
+            maxLines = 1,
+        )
+    }
+}

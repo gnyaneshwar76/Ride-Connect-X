@@ -1,5 +1,12 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.eshwar.rideconnectx.presentation.theme.rememberTilt
+import com.eshwar.rideconnectx.presentation.theme.FlipCard
+import com.eshwar.rideconnectx.presentation.theme.pressTilt
+import com.eshwar.rideconnectx.domain.model.Vehicle
+import com.eshwar.rideconnectx.domain.model.DistanceUnit
+import com.eshwar.rideconnectx.presentation.viewmodel.DashboardUiState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.setValue
@@ -205,9 +212,23 @@ fun DashboardScreen(
                 Box(Modifier.enterRise(1)) { NoVehicleCard(onPairVehicle) }
             } else {
                 val accent = vehicle.accent
+                // Tap to turn the card over; it also leans with the phone.
+                var flipped by rememberSaveable { mutableStateOf(false) }
+                val tilt = rememberTilt()
+                FlipCard(
+                    flipped = flipped,
+                    modifier = Modifier
+                        .enterRise(1)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClickLabel = "Turn the card over",
+                        ) { flipped = !flipped },
+                    tilt = tilt,
+                    back = { VehicleCardBack(state, vehicle, distanceUnit) },
+                ) {
                 Column(
                     Modifier
-                        .enterRise(1)
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(22.dp))
                         .background(
@@ -233,6 +254,7 @@ fun DashboardScreen(
                         scanning = state.connectionState is ConnectionState.Scanning ||
                             state.connectionState is ConnectionState.Connecting,
                         rollIn = true,
+                        tilt = tilt,
                     )
 
                     Spacer(Modifier.height(12.dp))
@@ -251,6 +273,7 @@ fun DashboardScreen(
                             )
                         }
                     }
+                }
                 }
             }
 
@@ -384,6 +407,7 @@ private fun PrimaryAction(
 
     Column(
         modifier
+            .pressTilt(interaction)
             .scale(scale)
             .then(
                 if (isGlass) Modifier.glassButton(shape, accent, strong = false, pressed = pressed)
@@ -450,6 +474,7 @@ private fun SecondaryAction(
     // shrinking.
     RcxSurface(
         modifier = modifier
+            .pressTilt(interaction)
             .scale(scale)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick),
         pressed = pressed,
@@ -476,6 +501,37 @@ private fun SecondaryAction(
                 color = c.muted,
             )
         }
+    }
+}
+
+/** The back of the vehicle card: what it is and what it last reported. */
+@Composable
+private fun VehicleCardBack(state: DashboardUiState, vehicle: Vehicle, unit: DistanceUnit) {
+    val c = Rcx.colors
+    val shape = RoundedCornerShape(22.dp)
+    Column(
+        Modifier
+            .fillMaxSize()
+            .clip(shape)
+            .background(Brush.linearGradient(listOf(vehicle.accent.copy(alpha = 0.16f), c.card)))
+            .border(1.dp, vehicle.accent.copy(alpha = 0.16f), shape)
+            .padding(20.dp),
+        verticalArrangement = Arrangement.SpaceEvenly,
+    ) {
+        Text("VEHICLE DETAILS", style = RcxType.MonoTiny.copy(fontSize = 10.sp), color = c.muted)
+        listOf(
+            "Model" to vehicle.name,
+            "Colour" to (state.vehicleColor?.name ?: "—"),
+            "Cluster" to (if (state.isConnected) state.deviceName else "Not connected"),
+            "Odometer" to (state.odometer?.let { unit.format(it) } ?: "—"),
+            "Trip A" to (state.tripAKm?.let { "%.1f %s".format(unit.fromKm(it), unit.short) } ?: "—"),
+        ).forEach { (label, value) ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(label, style = RcxType.BodySmall.copy(fontSize = 12.sp), color = c.muted, modifier = Modifier.weight(1f))
+                Text(value, style = RcxType.Label.copy(fontSize = 14.sp), color = c.text)
+            }
+        }
+        Text("Tap to turn back", style = RcxType.BodySmall.copy(fontSize = 11.sp), color = c.muted)
     }
 }
 

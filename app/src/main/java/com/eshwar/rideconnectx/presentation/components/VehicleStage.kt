@@ -72,6 +72,8 @@ fun VehicleStage(
     rollIn: Boolean = false,
     /** A slow hover, for pages where the vehicle is on display. */
     float: Boolean = false,
+    /** Phone tilt: the vehicle slides a little against its floor, which reads as depth. */
+    tilt: androidx.compose.runtime.State<Offset>? = null,
 ) {
     val c = Rcx.colors
     val paint = colorway?.primary ?: accent
@@ -157,7 +159,8 @@ fun VehicleStage(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .graphicsLayer {
-                    translationX = (1f - roll.value) * -size.width * 1.3f
+                    translationX = (1f - roll.value) * -size.width * 1.3f +
+                        (tilt?.value?.x ?: 0f) * 12.dp.toPx()
                     translationY = if (float) -hover * hoverPx else 0f
                 }
                 // Bottom of the artwork lands on GROUND, where the light is.

@@ -579,6 +579,7 @@ private fun VehicleCard(
                 height = 180.dp,
                 float = true,
                 live = connected,
+                tilt = com.eshwar.rideconnectx.presentation.theme.rememberTilt(),
             )
         }
 
@@ -806,6 +807,7 @@ private fun EditProfileSheet(
                 },
                 placeholder = "Your name",
             )
+            com.eshwar.rideconnectx.presentation.components.ClusterGreetingPreview(name, Modifier.padding(top = 8.dp))
             NameFieldNote(
                 error = if (nameIgnored) FieldRules.NAME_CHARS_MESSAGE else error.takeIf { showError },
                 hint = FieldRules.nameHint(GuestNameRules.MIN, GuestNameRules.MAX),

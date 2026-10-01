@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.theme
 
+import androidx.compose.ui.layout.onSizeChanged
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.animation.core.Animatable
@@ -194,3 +196,141 @@ fun DrawnTick(color: androidx.compose.ui.graphics.Color, modifier: Modifier = Mo
         if (second > 0f) drawLine(color, b, b + (c - b) * second, stroke, cap)
     }
 }
+
+// ── 3D ─────────────────────────────────────────────────────────────
+
+/**
+ * The phone's tilt, shared by everything that shows depth.
+ *
+ * One sensor listener however many surfaces use it, ~30 readings a second (the
+ * ambient rate), and only while a screen that uses it is in front. The resting
+ * angle follows wherever the phone is held, so the effect answers movement, not
+ * posture: hold the phone still at any angle and everything settles level.
+ */
+private object TiltSensor : android.hardware.SensorEventListener {
+    val tilt = mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
+    private var users = 0
+    private var rest: FloatArray? = null
+
+    fun acquire(context: android.content.Context) {
+        if (users++ > 0) return
+        val manager = context.getSystemService(android.hardware.SensorManager::class.java) ?: return
+        val sensor = manager.getDefaultSensor(android.hardware.Sensor.TYPE_GRAVITY)
+            ?: manager.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER) ?: return
+        rest = null
+        manager.registerListener(this, sensor, 33_000)
+    }
+
+    fun release(context: android.content.Context) {
+        if (--users > 0) return
+        context.getSystemService(android.hardware.SensorManager::class.java)?.unregisterListener(this)
+        tilt.value = androidx.compose.ui.geometry.Offset.Zero
+    }
+
+    override fun onSensorChanged(e: android.hardware.SensorEvent) {
+        val r = rest ?: floatArrayOf(e.values[0], e.values[1]).also { rest = it }
+        r[0] += (e.values[0] - r[0]) * REST_FOLLOW
+        r[1] += (e.values[1] - r[1]) * REST_FOLLOW
+        val x = ((e.values[0] - r[0]) / FULL_TILT).coerceIn(-1f, 1f)
+        val y = ((e.values[1] - r[1]) / FULL_TILT).coerceIn(-1f, 1f)
+        val old = tilt.value
+        tilt.value = androidx.compose.ui.geometry.Offset(old.x + (x - old.x) * SMOOTH, old.y + (y - old.y) * SMOOTH)
+    }
+
+    override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) = Unit
+
+    /** m/s² of sideways gravity that counts as fully tilted (~18°). */
+    private const val FULL_TILT = 3f
+    private const val REST_FOLLOW = 0.02f
+    private const val SMOOTH = 0.25f
+}
+
+/**
+ * Tilt as -1..1 on each axis. Read it inside `graphicsLayer {}` so a reading
+ * only redraws, never recomposes. Level and silent in Battery Saver.
+ */
+@Composable
+fun rememberTilt(): State<androidx.compose.ui.geometry.Offset> {
+    val context = androidx.compose.ui.platform.LocalContext.current.applicationContext
+    val on = LocalAmbientMotion.current
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(on, owner) {
+        var held = false
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME && on && !held) { TiltSensor.acquire(context); held = true }
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE && held) { TiltSensor.release(context); held = false }
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose {
+            owner.lifecycle.removeObserver(observer)
+            if (held) TiltSensor.release(context)
+        }
+    }
+    return TiltSensor.tilt
+}
+
+/** Leans toward the finger while pressed, like pushing on a real card. */
+fun Modifier.pressTilt(
+    interaction: androidx.compose.foundation.interaction.InteractionSource,
+    maxDegrees: Float = 7f,
+): Modifier = composed {
+    val rx = remember { Animatable(0f) }
+    val ry = remember { Animatable(0f) }
+    var size by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
+    LaunchedEffect(interaction) {
+        interaction.interactions.collect { i ->
+            if (i is androidx.compose.foundation.interaction.PressInteraction.Press) {
+                if (size.width > 0 && size.height > 0) {
+                    val nx = (i.pressPosition.x / size.width - 0.5f) * 2f
+                    val ny = (i.pressPosition.y / size.height - 0.5f) * 2f
+                    launch { ry.animateTo(nx * maxDegrees, RcxMotion.press()) }
+                    launch { rx.animateTo(-ny * maxDegrees, RcxMotion.press()) }
+                }
+            } else if (i is androidx.compose.foundation.interaction.PressInteraction.Release ||
+                i is androidx.compose.foundation.interaction.PressInteraction.Cancel
+            ) {
+                launch { ry.animateTo(0f, RcxMotion.bouncy()) }
+                launch { rx.animateTo(0f, RcxMotion.bouncy()) }
+            }
+        }
+    }
+    onSizeChanged { size = it }.graphicsLayer {
+        rotationX = rx.value
+        rotationY = ry.value
+        cameraDistance = 12f * density
+    }
+}
+
+/**
+ * A card with two faces that turns over in 3D. The front stays composed so the
+ * card keeps its size; the back fills the same space. [tilt] adds the phone's
+ * lean on top, so the card also shifts with the hand.
+ */
+@Composable
+fun FlipCard(
+    flipped: Boolean,
+    modifier: Modifier = Modifier,
+    tilt: State<androidx.compose.ui.geometry.Offset>? = null,
+    back: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
+    front: @Composable () -> Unit,
+) {
+    val angle by animateFloatAsState(if (flipped) 180f else 0f, RcxMotion.smooth(), label = "flip")
+    androidx.compose.foundation.layout.Box(
+        modifier.graphicsLayer {
+            rotationY = angle + (tilt?.value?.x ?: 0f) * TILT_DEGREES
+            rotationX = -(tilt?.value?.y ?: 0f) * TILT_DEGREES
+            cameraDistance = 14f * density
+        },
+    ) {
+        androidx.compose.foundation.layout.Box(Modifier.graphicsLayer { alpha = if (angle <= 90f) 1f else 0f }) { front() }
+        if (angle > 90f) {
+            androidx.compose.foundation.layout.Box(
+                Modifier.matchParentSize().graphicsLayer { rotationY = 180f },
+                content = back,
+            )
+        }
+    }
+}
+
+/** How far a card leans at full tilt. */
+private const val TILT_DEGREES = 5f

@@ -1,5 +1,10 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.onClick
 import com.eshwar.rideconnectx.presentation.theme.innerFill
 import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
 import com.eshwar.rideconnectx.presentation.theme.GlassSheetWindow
@@ -505,6 +510,9 @@ private fun EmergencyCard(
     // SOS pulse — a slow breath, not a flash, so it reads as "live" rather
     // than as an alarm already going off.
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    // Held, not tapped: a ring fills round the button and SOS opens when it closes.
+    val hold = remember { androidx.compose.animation.core.Animatable(0f) }
+    val holdScope = androidx.compose.runtime.rememberCoroutineScope()
     val transition = rememberInfiniteTransition(label = "sosPulse")
     val pulse by transition.animateFloat(
         initialValue = 1f,
@@ -535,9 +543,32 @@ private fun EmergencyCard(
                         listOf(c.red, Color(0xFF9E1220))
                     )
                 )
-                .clickable(enabled = enabled) {
-                    haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                    onSos()
+                .drawWithContent {
+                    drawContent()
+                    if (hold.value > 0f) {
+                        val w = 6.dp.toPx()
+                        drawArc(
+                            Color.White, -90f, 360f * hold.value, false,
+                            topLeft = androidx.compose.ui.geometry.Offset(w, w),
+                            size = androidx.compose.ui.geometry.Size(size.width - 2 * w, size.height - 2 * w),
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(w, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                        )
+                    }
+                }
+                // A screen reader cannot hold: it gets a plain action.
+                .semantics { onClick(label = "Send SOS") { if (enabled) onSos(); enabled } }
+                .pointerInput(enabled) {
+                    if (!enabled) return@pointerInput
+                    detectTapGestures(onPress = {
+                        val filling = holdScope.launch {
+                            hold.animateTo(1f, androidx.compose.animation.core.tween(SOS_HOLD_MS, easing = androidx.compose.animation.core.LinearEasing))
+                            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                            onSos()
+                        }
+                        tryAwaitRelease()
+                        filling.cancel()
+                        holdScope.launch { hold.animateTo(0f, androidx.compose.animation.core.tween(200)) }
+                    })
                 },
             contentAlignment = Alignment.Center,
         ) {
@@ -548,7 +579,7 @@ private fun EmergencyCard(
                     color = Color.White,
                 )
                 Text(
-                    stringResource(R.string.safety_tap_for_help),
+                    "HOLD FOR HELP",
                     style = RcxType.MonoTiny.copy(fontSize = 8.sp),
                     color = Color.White.copy(alpha = 0.8f),
                 )
@@ -1346,3 +1377,5 @@ private fun SafetyField(
     )
 }
 
+/** How long the SOS button must be held. Long enough not to fire in a pocket, short enough in a panic. */
+private const val SOS_HOLD_MS = 800
