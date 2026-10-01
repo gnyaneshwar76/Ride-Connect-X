@@ -1,5 +1,9 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Size
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -323,11 +327,29 @@ private fun ArrivalCard(place: String, modifier: Modifier = Modifier) {
 private fun ManeuverCard(maneuver: NavManeuver, modifier: Modifier = Modifier) {
     val c = Rcx.colors
     val shape = RoundedCornerShape(18.dp)
+    // The arrow swings to the new direction when the turn changes.
+    val heading by androidx.compose.animation.core.animateFloatAsState(
+        arrowDegrees(maneuver.maneuverId), com.eshwar.rideconnectx.presentation.theme.RcxMotion.snappy(), label = "arrowHeading",
+    )
+    // A bar along the bottom closes as the turn gets nearer: full at the
+    // farthest distance seen for this instruction, empty at the turn.
+    val metres = metresOf(maneuver.distanceToTurn)
+    var farthest by remember(maneuver.instruction) { mutableStateOf(metres) }
+    if (metres > farthest) farthest = metres
+    val left by androidx.compose.animation.core.animateFloatAsState(
+        if (farthest > 0) metres.toFloat() / farthest else 0f,
+        androidx.compose.animation.core.tween(400), label = "turnBar",
+    )
     Row(
         modifier
             .fillMaxWidth()
             .clip(shape)
             .background(c.bg.copy(alpha = 0.94f))
+            .drawWithContent {
+                drawContent()
+                val h = 3.dp.toPx()
+                drawRect(c.blue, Offset(0f, size.height - h), Size(size.width * left, h))
+            }
             .border(1.dp, c.blue.copy(alpha = 0.157f), shape)
             .padding(14.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -344,7 +366,7 @@ private fun ManeuverCard(maneuver: NavManeuver, modifier: Modifier = Modifier) {
                 Icons.Filled.Navigation,
                 contentDescription = null,
                 tint = c.blue,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = heading },
             )
         }
         AnimatedContent(
@@ -490,4 +512,28 @@ private fun RelayStatus(
             Box(Modifier.size(8.dp).clip(CircleShape).background(dotColor))
         }
     }
+}
+
+/** Which way the arrow points for a cluster maneuver code, in degrees from straight ahead. */
+private fun arrowDegrees(code: Int): Float {
+    val m = com.eshwar.rideconnectx.domain.ProtocolEngine.Maneuver
+    return when (code) {
+        m.TURN_LEFT, m.LEFT_FLAT, m.ROUNDABOUT_EXIT_LEFT -> -90f
+        m.TURN_RIGHT, m.TURN_RIGHT_FLAT, m.ROUNDABOUT_EXIT_RIGHT -> 90f
+        m.SLIGHT_LEFT, m.JUNCTION_SLIGHT_LEFT, m.KEEP_LEFT, m.ROUNDABOUT_EXIT_SLIGHT_LEFT -> -45f
+        m.SLIGHT_RIGHT, m.KEEP_RIGHT, m.ROUNDABOUT_EXIT_SLIGHT_RIGHT -> 45f
+        m.SHARP_LEFT, m.ROUNDABOUT_EXIT_SHARP_LEFT -> -135f
+        m.SHARP_RIGHT, m.ROUNDABOUT_EXIT_SHARP_RIGHT -> 135f
+        m.U_TURN, m.U_TURN_LOOP -> 180f
+        else -> 0f
+    }
+}
+
+private val METRES = Regex("""(\d+(?:[.,]\d+)?)\s*(km|m)""", RegexOption.IGNORE_CASE)
+
+/** "200 m" / "1.2 km" to metres; 0 when there is no distance. */
+private fun metresOf(text: String): Int {
+    val m = METRES.find(text) ?: return 0
+    val v = m.groupValues[1].replace(',', '.').toFloatOrNull() ?: return 0
+    return (if (m.groupValues[2].equals("km", true)) v * 1000 else v).toInt()
 }

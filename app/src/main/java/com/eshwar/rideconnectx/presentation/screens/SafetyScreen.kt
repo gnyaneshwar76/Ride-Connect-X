@@ -303,9 +303,11 @@ fun SafetyScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
         ) {
-            BackHeader(title = stringResource(R.string.safety_title), onBack = onBack)
+            val headerList = androidx.compose.foundation.lazy.rememberLazyListState()
+            BackHeader(title = stringResource(R.string.safety_title), onBack = onBack, lifted = headerList.canScrollBackward)
 
             LazyColumn(
+                state = headerList,
                 contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {

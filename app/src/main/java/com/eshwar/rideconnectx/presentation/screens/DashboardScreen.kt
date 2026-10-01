@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.RollingText
+import com.eshwar.rideconnectx.presentation.theme.runningBorder
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.eshwar.rideconnectx.presentation.theme.rememberTilt
 import com.eshwar.rideconnectx.presentation.theme.FlipCard
@@ -170,7 +172,20 @@ fun DashboardScreen(
                 ) {
                     RiderAvatar(name = state.nickname.ifBlank { state.riderName }, size = 40.dp)
                     Column {
-                        Text(greeting(), style = RcxType.BodySmall.copy(fontSize = 12.sp), color = c.muted)
+                        val hello = greeting()
+                        var typed by rememberSaveable { mutableStateOf(false) }
+                        val letters = remember { androidx.compose.animation.core.Animatable(if (typed) hello.length.toFloat() else 0f) }
+                        LaunchedEffect(Unit) {
+                            if (!typed) {
+                                letters.animateTo(hello.length.toFloat(), tween(hello.length * 45, delayMillis = 250, easing = androidx.compose.animation.core.LinearEasing))
+                                typed = true
+                            }
+                        }
+                        // The full text holds the width; only the shown letters are painted.
+                        Box {
+                            Text(hello, style = RcxType.BodySmall.copy(fontSize = 12.sp), color = Color.Transparent)
+                            Text(hello.take(letters.value.toInt()), style = RcxType.BodySmall.copy(fontSize = 12.sp), color = c.muted)
+                        }
                         Text(
                             state.nickname.ifBlank { state.riderName },
                             style = RcxType.Wordmark.copy(fontSize = 18.sp),
@@ -237,6 +252,11 @@ fun DashboardScreen(
                             )
                         )
                         .border(1.dp, accent.copy(alpha = 0.16f), RoundedCornerShape(22.dp))
+                        .runningBorder(
+                            state.connectionState is ConnectionState.Scanning ||
+                                state.connectionState is ConnectionState.Connecting,
+                            c.cyan, 22.dp,
+                        )
                         .padding(16.dp),
                 ) {
                     // The vehicle is the subject of this screen, so it gets the
@@ -761,15 +781,14 @@ private fun Telemetry(
     modifier: Modifier = Modifier,
 ) {
     val c = Rcx.colors
-    // Readings count up to their value, so a fresh reading is noticed.
-    val shown = animatedCount(target)
-    val value = shown?.let { if (decimals == 0) "%d".format(it.toInt()) else "%.${decimals}f".format(it) } ?: "—"
+    // Digits roll to a new reading, like the odometer they mirror.
+    val value = target?.let { if (decimals == 0) "%d".format(it.toInt()) else "%.${decimals}f".format(it) } ?: "—"
     RcxSurface(modifier) {
     Column(Modifier.padding(14.dp)) {
         Text(label, style = RcxType.MonoTiny.copy(fontSize = 9.sp), color = c.muted)
         Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, style = RcxType.Wordmark.copy(fontSize = 22.sp), color = accent)
+            RollingText(value, style = RcxType.Wordmark.copy(fontSize = 22.sp), color = accent)
             Spacer(Modifier.size(3.dp))
             Text(unit, style = RcxType.Mono.copy(fontSize = 10.sp), color = c.muted)
         }
@@ -796,6 +815,7 @@ private fun FuelGauge(segments: Int?, modifier: Modifier = Modifier) {
     val total = SuzukiFuelSegments
     val filled = segments?.coerceIn(0, total)
     val low = filled != null && filled <= 1
+    val lowPulse = rememberBreath(1100, "fuelLow")
 
     RcxSurface(modifier) {
     Column(Modifier.padding(14.dp)) {
@@ -844,7 +864,10 @@ private fun FuelGauge(segments: Int?, modifier: Modifier = Modifier) {
                     Modifier
                         .weight(1f)
                         .height(18.dp)
-                        .graphicsLayer { scaleY = grow }
+                        .graphicsLayer {
+                            scaleY = grow
+                            if (low && on) alpha = 0.5f + 0.5f * lowPulse.value
+                        }
                         .clip(RoundedCornerShape(4.dp))
                         .background(color)
                 )

@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.components
 
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
 import com.eshwar.rideconnectx.presentation.theme.isGlass
 import com.eshwar.rideconnectx.presentation.theme.glassButton
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -219,13 +221,26 @@ fun BackHeader(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     right: (@Composable () -> Unit)? = null,
+    /** The list below has scrolled: the title tucks in and a hairline separates it. */
+    lifted: Boolean = false,
 ) {
     val c = Rcx.colors
     val shape = RoundedCornerShape(12.dp)
+    val lift by androidx.compose.animation.core.animateFloatAsState(
+        if (lifted) 1f else 0f, com.eshwar.rideconnectx.presentation.theme.RcxMotion.snappy(), label = "headerLift",
+    )
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .drawBehind {
+                if (lift > 0f) drawLine(
+                    c.text.copy(alpha = 0.12f * lift),
+                    androidx.compose.ui.geometry.Offset(0f, size.height),
+                    androidx.compose.ui.geometry.Offset(size.width, size.height),
+                    1.dp.toPx(),
+                )
+            }
+            .padding(horizontal = 16.dp, vertical = 12.dp - 3.dp * lift),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -252,7 +267,12 @@ fun BackHeader(
             text = title,
             style = RcxType.Wordmark.copy(fontSize = 16.sp),
             color = c.text,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).graphicsLayer {
+                val s = 1f - 0.1f * lift
+                scaleX = s
+                scaleY = s
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
+            },
         )
         right?.invoke()
     }

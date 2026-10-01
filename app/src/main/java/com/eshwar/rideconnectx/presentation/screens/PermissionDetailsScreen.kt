@@ -103,9 +103,11 @@ fun PermissionDetailsScreen(onBack: () -> Unit) {
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
         ) {
-            BackHeader(title = "Permissions", onBack = onBack)
+            val headerList = androidx.compose.foundation.lazy.rememberLazyListState()
+            BackHeader(title = "Permissions", onBack = onBack, lifted = headerList.canScrollBackward)
 
             LazyColumn(
+                state = headerList,
                 contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {

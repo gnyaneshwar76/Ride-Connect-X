@@ -396,6 +396,8 @@ private fun RadarPulse(
             )
         }
 
+        if (connected) com.eshwar.rideconnectx.presentation.theme.Burst(ring, Modifier.size(170.dp))
+
         Box(
             Modifier
                 .size(70.dp)

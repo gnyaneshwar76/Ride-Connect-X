@@ -1,5 +1,7 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.edgeShrink
+import androidx.compose.ui.draw.drawBehind
 import com.eshwar.rideconnectx.presentation.theme.floaty
 import com.eshwar.rideconnectx.presentation.theme.innerFill
 import com.eshwar.rideconnectx.presentation.theme.sheetContainerColor
@@ -158,9 +160,11 @@ fun ServiceScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
         ) {
-            BackHeader(title = stringResource(R.string.service_title), onBack = onBack)
+            val headerList = androidx.compose.foundation.lazy.rememberLazyListState()
+            BackHeader(title = stringResource(R.string.service_title), onBack = onBack, lifted = headerList.canScrollBackward)
 
             LazyColumn(
+                state = headerList,
                 contentPadding = PaddingValues(start = 24.dp, end = 24.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.weight(1f),
@@ -217,12 +221,14 @@ fun ServiceScreen(
                 } else {
                     items(records, key = { it.id }) { record ->
                         // New records slide in, deleted ones fold away.
-                        Box(Modifier.animateItem().enterRise(3)) {
+                        Box(Modifier.animateItem().enterRise(3).edgeShrink(headerList, record.id)) {
+                        SwipeToDelete(onDelete = { pendingDelete = record }) {
                         ServiceRecordCard(
                             record = record,
                             onEdit = { editing = record },
                             onDelete = { pendingDelete = record },
                         )
+                        }
                         }
                     }
                 }
@@ -336,11 +342,20 @@ private fun ServiceStatusCard(status: ServiceStatus) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // How much of the interval is used, as a ring round the spanner.
             Box(
                 Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(accent.copy(alpha = 0.094f)),
+                    .size(48.dp)
+                    .drawBehind {
+                        val w = 4.dp.toPx()
+                        val inset = androidx.compose.ui.geometry.Offset(w / 2, w / 2)
+                        val arc = androidx.compose.ui.geometry.Size(size.width - w, size.height - w)
+                        drawArc(accent.copy(alpha = 0.15f), 0f, 360f, false, inset, arc, style = androidx.compose.ui.graphics.drawscope.Stroke(w))
+                        drawArc(
+                            accent, -90f, 360f * progress.coerceIn(0f, 1f), false, inset, arc,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(w, cap = androidx.compose.ui.graphics.StrokeCap.Round),
+                        )
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(Icons.Filled.Build, null, Modifier.size(20.dp), tint = accent)
@@ -686,6 +701,32 @@ private fun GhostAction(
         Icon(icon, null, Modifier.size(13.dp), tint = accent)
         Text(label, style = RcxType.BodySmall.copy(fontSize = 12.sp), color = accent)
     }
+}
+
+/**
+ * Swipe a row left to delete it. The row always springs back: the swipe only
+ * asks, and the existing "delete this record?" dialog still decides.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit) {
+    val c = Rcx.colors
+    val state = androidx.compose.material3.rememberSwipeToDismissBoxState(
+        confirmValueChange = {
+            if (it == androidx.compose.material3.SwipeToDismissBoxValue.EndToStart) onDelete()
+            false
+        },
+    )
+    androidx.compose.material3.SwipeToDismissBox(
+        state = state,
+        enableDismissFromStartToEnd = false,
+        backgroundContent = {
+            Box(
+                Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp)).background(c.red.copy(alpha = 0.16f)).padding(end = 22.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) { Icon(Icons.Filled.Delete, null, Modifier.size(22.dp), tint = c.red) }
+        },
+    ) { content() }
 }
 
 /** How long the "Saved" tick is held before a sheet closes. */

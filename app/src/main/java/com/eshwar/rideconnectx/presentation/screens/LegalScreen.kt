@@ -67,9 +67,11 @@ fun LegalScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
         ) {
-            BackHeader(title = doc.screenTitle, onBack = onBack)
+            val headerList = androidx.compose.foundation.lazy.rememberLazyListState()
+            BackHeader(title = doc.screenTitle, onBack = onBack, lifted = headerList.canScrollBackward)
 
             LazyColumn(
+                state = headerList,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
                     start = 20.dp, end = 20.dp, bottom = 32.dp,

@@ -1,5 +1,6 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.edgeShrink
 import com.eshwar.rideconnectx.presentation.theme.floaty
 import com.eshwar.rideconnectx.presentation.theme.ScreenBackdrop
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
@@ -90,9 +91,11 @@ fun NotificationsScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
         ) {
+            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
             BackHeader(
                 title = stringResource(R.string.notifs_title),
                 onBack = onBack,
+                lifted = listState.canScrollBackward,
                 right = {
                     // Only offered when it would actually do something.
                     if (unread > 0) {
@@ -116,11 +119,12 @@ fun NotificationsScreen(
                 EmptyNotifications(Modifier.padding(horizontal = 20.dp).enterRise(0))
             } else {
                 LazyColumn(
+                    state = listState,
                     contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     itemsIndexed(items, key = { _, n -> n.id }) { i, n ->
-                        Box(Modifier.animateItem().enterRise(i.coerceAtMost(8))) {
+                        Box(Modifier.animateItem().enterRise(i.coerceAtMost(8)).edgeShrink(listState, n.id)) {
                         NotificationRow(
                             notification = n,
                             onClick = {

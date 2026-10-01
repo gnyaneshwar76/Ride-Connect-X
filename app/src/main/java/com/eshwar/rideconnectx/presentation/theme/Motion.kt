@@ -1,5 +1,10 @@
 package com.eshwar.rideconnectx.presentation.theme
 
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.onSizeChanged
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.mutableFloatStateOf
@@ -334,3 +339,107 @@ fun FlipCard(
 
 /** How far a card leans at full tilt. */
 private const val TILT_DEGREES = 5f
+
+// ── Numbers, sparks, edges ─────────────────────────────────────────
+
+/**
+ * Text whose characters roll like an odometer when they change. Keyed from the
+ * right, so the units digit stays the units digit when a digit is added.
+ */
+@Composable
+fun RollingText(
+    text: String,
+    style: androidx.compose.ui.text.TextStyle,
+    color: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier,
+) {
+    androidx.compose.foundation.layout.Row(modifier) {
+        text.forEachIndexed { i, ch ->
+            androidx.compose.runtime.key(text.length - i) {
+                androidx.compose.animation.AnimatedContent(
+                    targetState = ch,
+                    transitionSpec = {
+                        (androidx.compose.animation.slideInVertically(RcxMotion.snappy()) { it } + androidx.compose.animation.fadeIn()) togetherWith
+                            (androidx.compose.animation.slideOutVertically(RcxMotion.snappy()) { -it } + androidx.compose.animation.fadeOut())
+                    },
+                    label = "digit",
+                ) { androidx.compose.material3.Text(it.toString(), style = style, color = color) }
+            }
+        }
+    }
+}
+
+/** A ring of sparks that fly outward once: something just succeeded. */
+@Composable
+fun Burst(color: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier, sparks: Int = 12) {
+    val p = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { p.animateTo(1f, tween(750, easing = FastOutSlowInEasing)) }
+    androidx.compose.foundation.Canvas(modifier) {
+        if (p.value >= 1f) return@Canvas
+        val from = size.minDimension * 0.22f
+        val to = size.minDimension * 0.5f
+        repeat(sparks) { i ->
+            val a = (i * 360f / sparks) * (Math.PI.toFloat() / 180f)
+            val r = from + (to - from) * p.value
+            drawCircle(
+                color.copy(alpha = 1f - p.value),
+                radius = 3.dp.toPx() * (1f - 0.5f * p.value),
+                center = center + androidx.compose.ui.geometry.Offset(kotlin.math.cos(a) * r, kotlin.math.sin(a) * r),
+            )
+        }
+    }
+}
+
+/** A light that runs round the edge while [active]: work in progress. Costs nothing when idle. */
+fun Modifier.runningBorder(
+    active: Boolean,
+    color: androidx.compose.ui.graphics.Color,
+    corner: androidx.compose.ui.unit.Dp,
+): Modifier = composed {
+    if (!active) return@composed this
+    val turn = rememberInfiniteTransition(label = "runningBorder").animateFloat(
+        0f, 360f, infiniteRepeatable(tween(1500, easing = androidx.compose.animation.core.LinearEasing), RepeatMode.Restart),
+        label = "runningBorderTurn",
+    )
+    drawWithContent {
+        drawContent()
+        val w = 2.dp.toPx()
+        val r = corner.toPx()
+        val outer = androidx.compose.ui.graphics.Path().apply {
+            addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, 0f, size.width, size.height, androidx.compose.ui.geometry.CornerRadius(r)))
+        }
+        val inner = androidx.compose.ui.graphics.Path().apply {
+            addRoundRect(androidx.compose.ui.geometry.RoundRect(w, w, size.width - w, size.height - w, androidx.compose.ui.geometry.CornerRadius(r - w)))
+        }
+        val ring = androidx.compose.ui.graphics.Path.combine(androidx.compose.ui.graphics.PathOperation.Difference, outer, inner)
+        clipPath(ring) {
+            rotate(turn.value) {
+                val d = size.maxDimension
+                drawRect(
+                    androidx.compose.ui.graphics.Brush.sweepGradient(
+                        0f to androidx.compose.ui.graphics.Color.Transparent,
+                        0.7f to androidx.compose.ui.graphics.Color.Transparent,
+                        1f to color,
+                        center = center,
+                    ),
+                    topLeft = androidx.compose.ui.geometry.Offset(center.x - d, center.y - d),
+                    size = androidx.compose.ui.geometry.Size(2 * d, 2 * d),
+                )
+            }
+        }
+    }
+}
+
+/** A list row eases back and dims as it slides past the top or bottom edge. */
+fun Modifier.edgeShrink(state: androidx.compose.foundation.lazy.LazyListState, key: Any): Modifier = graphicsLayer {
+    val info = state.layoutInfo
+    val item = info.visibleItemsInfo.firstOrNull { it.key == key } ?: return@graphicsLayer
+    if (item.size <= 0) return@graphicsLayer
+    val top = (info.viewportStartOffset - item.offset).coerceAtLeast(0)
+    val bottom = (item.offset + item.size - info.viewportEndOffset).coerceAtLeast(0)
+    val out = (maxOf(top, bottom).toFloat() / item.size).coerceIn(0f, 1f)
+    val s = 1f - 0.07f * out
+    scaleX = s
+    scaleY = s
+    alpha = 1f - 0.35f * out
+}

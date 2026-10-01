@@ -1,5 +1,13 @@
 package com.eshwar.rideconnectx.presentation.screens
 
+import com.eshwar.rideconnectx.presentation.theme.RollingText
+import com.eshwar.rideconnectx.presentation.theme.edgeShrink
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import com.eshwar.rideconnectx.presentation.theme.LocalDistanceUnit
 import com.eshwar.rideconnectx.presentation.theme.cardSurface
 import androidx.compose.foundation.Canvas
@@ -127,9 +135,11 @@ fun StatisticsScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
         ) {
-            BackHeader(title = "Ride Statistics", onBack = onBack)
+            val headerList = androidx.compose.foundation.lazy.rememberLazyListState()
+            BackHeader(title = "Ride Statistics", onBack = onBack, lifted = headerList.canScrollBackward)
 
             LazyColumn(
+                state = headerList,
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -177,7 +187,7 @@ fun StatisticsScreen(
                 if (rides.isEmpty()) {
                     item { EmptyState(period) }
                 } else {
-                    itemsIndexed(rides, key = { _, r -> r.id }) { i, r -> Box(Modifier.animateItem().enterRise(4 + i.coerceAtMost(6))) { RideRow(r) } }
+                    itemsIndexed(rides, key = { _, r -> r.id }) { i, r -> Box(Modifier.animateItem().enterRise(4 + i.coerceAtMost(6)).edgeShrink(headerList, r.id)) { RideRow(r) } }
                 }
             }
         }
@@ -245,7 +255,7 @@ private fun Summary(
             Text(label, style = RcxType.MonoTiny.copy(fontSize = 9.sp), color = secondary)
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(value, style = RcxType.Wordmark.copy(fontSize = 20.sp), color = accent)
+                RollingText(value, style = RcxType.Wordmark.copy(fontSize = 20.sp), color = accent)
                 if (unit.isNotEmpty()) {
                     Spacer(Modifier.width(3.dp))
                     Text(unit, style = RcxType.Mono.copy(fontSize = 10.sp), color = secondary)
@@ -265,6 +275,9 @@ private fun DistanceChart(buckets: List<RideBucket>) {
         grow.snapTo(0f)
         grow.animateTo(1f, tween(900, easing = FastOutSlowInEasing))
     }
+    // Touch or drag across the bars to read one.
+    var picked by remember(buckets) { mutableStateOf<Int?>(null) }
+    val unit = LocalDistanceUnit.current
 
     Column(
         Modifier
@@ -273,10 +286,28 @@ private fun DistanceChart(buckets: List<RideBucket>) {
             .cardSurface(RoundedCornerShape(18.dp))
             .padding(16.dp),
     ) {
-        Text("DISTANCE", style = RcxType.MonoTiny.copy(fontSize = 9.sp), color = c.muted)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("DISTANCE", style = RcxType.MonoTiny.copy(fontSize = 9.sp), color = c.muted)
+            picked?.let { buckets.getOrNull(it) }?.let { b ->
+                Text(
+                    "${b.label} · ${"%.1f".format(unit.fromKm(b.meters / 1000f))} ${unit.short}",
+                    style = RcxType.Mono.copy(fontSize = 10.sp),
+                    color = c.blue,
+                )
+            }
+        }
         Spacer(Modifier.height(12.dp))
 
-        Canvas(Modifier.fillMaxWidth().height(120.dp)) {
+        Canvas(
+            Modifier.fillMaxWidth().height(120.dp).pointerInput(buckets) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    fun at(x: Float) = (x / size.width * buckets.size).toInt().coerceIn(0, buckets.size - 1)
+                    picked = at(down.position.x)
+                    drag(down.id) { picked = at(it.position.x) }
+                }
+            },
+        ) {
             val gap = size.width * 0.02f
             val barWidth = (size.width - gap * (buckets.size - 1)) / buckets.size
             buckets.forEachIndexed { i, bucket ->
@@ -285,7 +316,7 @@ private fun DistanceChart(buckets: List<RideBucket>) {
                 val t = ((grow.value - lag) / (1f - lag)).coerceIn(0f, 1f)
                 val h = (bucket.meters.toFloat() / max) * size.height * t
                 drawRoundRect(
-                    color = c.blue.copy(alpha = 0.75f),
+                    color = c.blue.copy(alpha = if (picked == null || picked == i) 0.85f else 0.35f),
                     topLeft = Offset(i * (barWidth + gap), size.height - h),
                     size = Size(barWidth, h),
                     cornerRadius = CornerRadius(6f, 6f),
