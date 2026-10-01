@@ -9,7 +9,7 @@ Source code: [`main`](../../tree/main)
 
 | Verified | Partly verified | Fixed, awaiting re-test | Failing | Not yet tested | Not in this release | Total |
 |---|---|---|---|---|---|---|
-| 51 | 4 | 0 | 1 | 29 | 5 | 90 |
+| 52 | 6 | 1 | 1 | 25 | 5 | 90 |
 
 ## A. Vehicle link and cluster
 
@@ -25,7 +25,7 @@ Source code: [`main`](../../tree/main)
 | A8 | Phone battery on cluster | ⏳ Not yet tested | — |
 | A9 | Phone signal on cluster | ⏳ Not yet tested | — |
 | A10 | Heartbeat cadence | ⏳ Not yet tested | — |
-| A11 | Survives screen locked | ⏳ Not yet tested | — |
+| A11 | Survives screen locked | ✅ Verified | 30 Sep 2026 |
 | A12 | Survives a phone call | ⏳ Not yet tested | — |
 | A13 | Bluetooth off mid-ride | ⏳ Not yet tested | — |
 
@@ -39,8 +39,8 @@ Source code: [`main`](../../tree/main)
 | B4 | Code 36 direction | 🟡 Partly verified | — |
 | B5 | Nav clears when route ends | ⏳ Not yet tested | — |
 | B6 | Stale nav clears if Maps freezes / after arrival | ⏳ Not yet tested | — |
-| B7 | Arrival behaviour | ⏳ Not yet tested | — |
-| B8 | Re-route after missed turn | ⏳ Not yet tested | — |
+| B7 | Arrival behaviour | 🟡 Partly verified | 30 Sep 2026 |
+| B8 | Re-route after missed turn | 🟡 Partly verified | 30 Sep 2026 |
 | B9 | In-app nav screen matches cluster | ⏳ Not yet tested | — |
 | B10 | Saved places | ⛔ Not in this release | — |
 | B11 | km / miles setting | ⏳ Not yet tested | — |
@@ -91,7 +91,7 @@ Source code: [`main`](../../tree/main)
 
 | ID | Feature | Status | Verified on |
 |---|---|---|---|
-| F1 | Ride recorded | ⏳ Not yet tested | — |
+| F1 | Ride recorded | 🔧 Fixed — awaiting re-test | 30 Sep 2026 |
 | F2 | Distance / time right | ⏳ Not yet tested | — |
 | F3 | Stats filters | ✅ Verified | 24 Sep 2026 |
 | F4 | Chart | ✅ Verified | 24 Sep 2026 |
@@ -155,4 +155,4 @@ Source code: [`main`](../../tree/main)
 
 Files are named `<ID>-<short-description>`, for example `B3-roundabout-exit-2.jpg`, and kept in a folder per section (`A-vehicle-link/`, `B-navigation/`, …). Long recordings are published as [release](../../releases) attachments and linked from the table.
 
-_Last updated: 29 Sep 2026_
+_Last updated: 1 October 2026_
